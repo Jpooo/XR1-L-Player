@@ -1,5 +1,4 @@
 #include "../src/audio_windows_buffer.hpp"
-#include "../src/windows_fps.hpp"
 #include <cassert>
 #include <iostream>
 static void clockTest(double ppm){
@@ -31,8 +30,5 @@ int main(){
     ring.pull(out.data(),out.size(),0);assert(out.back()==0);
     ring.push(input.data(),input.size());ring.push(input.data(),input.size());assert(ring.dropped>0&&ring.queued()==3072);
     ring.clear();assert(!ring.queued()&&!ring.starved&&!ring.dropped);
-    WindowsFpsTest fps;fps.start(10,{});fps.update(40,{1800,1800,1800});assert(fps.complete&&!fps.active&&fps.receivedFps()==60&&fps.shownFps()==60);
-    fps.start(50,{100,100,100});fps.update(80,{1000,1000,1000});assert(fps.receivedFps()==30&&fps.shownFps()==30);
-    fps.start(90,{},true);fps.finish(95,{300,300,280});assert(fps.elapsed()==5&&fps.testPicture&&fps.report().find("not a hardware test")!=std::string::npos);
-    std::cout<<"PASS Windows jitter/clock drift, stereo continuity, underrun recovery, gain ramp, overflow bounds and FPS counters\n";
+    std::cout<<"PASS Windows jitter/clock drift, stereo continuity, underrun recovery, gain ramp, overflow bounds and buffer reset\n";
 }

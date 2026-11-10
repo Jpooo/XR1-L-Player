@@ -32,3 +32,10 @@
   timing or original logo artwork. Future logo work waits for the user photo.
 
 - Local 1.5.11: approved XR1 Lite device logo across the poster, header and native/package icons. Solid theme backgrounds; gentle device hover/tilt. Keep all packages local.
+
+- Local 1.5.12: futuristic mouse/keyboard menu with Play, Settings and Preferences.
+  Keep the exact 1.5.11 artwork and motion functions. Theme display names are
+  Neon Green / Electric Blue / Crimson Red; retain legacy saved color keys.
+  Remove the FPS Test feature, reports and shortcut while preserving capture
+  cadence and rendering. Motion, volume and mute preferences persist. Both
+  new packages stay local, with the Linux AppImage in a ZIP for USB transfer.

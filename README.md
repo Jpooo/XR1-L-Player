@@ -23,9 +23,8 @@ These requirements also apply when using XR1-L Play.
 
 1. Connect console HDMI OUT to XR1 Lite HDMI IN, then connect the card directly to USB 3 with a USB 3 data cable.
 2. Set the console to **1080p, 60 Hz, SDR** and HDMI audio to **Stereo uncompressed**. Close other capture apps.
-3. **Linux:** make the AppImage executable, then open it. **Windows:** extract the whole ZIP and open `XR1-Play.exe`; keep the DLLs and assets together.
-4. Choose the card's video source, its HDMI audio input and your speakers/headphones. Click **Start playing**.
+3. **Linux:** make the AppImage executable, then open it. **Windows:** extract the whole ZIP and open `XR1-L-Player.exe`; keep the DLLs and assets together.
+4. Open **Settings**, choose the card's video source, HDMI audio input and your speakers/headphones, then return and choose **Play**.
 
-Use **Color preference** to choose saved Xbox green, PlayStation blue or Nintendo red.
-**F/F11** toggles fullscreen, **M** mutes, **+/-** changes volume and **Tab** opens settings.
-**FPS test / F8** measures 30 seconds; **Close** or F8 hides it while playback continues.
+Use **Preferences** to save Neon Green, Electric Blue or Crimson Red and Motion On/Off.
+**F/F11** toggles fullscreen, **M** mutes, **+/-** changes volume and **Tab** opens settings / returns to video. Use the mouse or arrows and Enter in menus; **Esc** goes back.

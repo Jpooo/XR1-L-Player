@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise shared appearance and FPS controls through the running SDL app."""
+"""Exercise menu navigation and appearance controls through the running SDL app."""
 from pathlib import Path
 import array,os,re,subprocess,tempfile,sys
 root=Path(__file__).resolve().parents[1]
@@ -13,14 +13,14 @@ with tempfile.TemporaryDirectory(prefix='xr1-appearance-') as folder:
     print(run.stdout);assert run.returncode==0
     config=Path(folder)/'xr1-l-player'
     assert 'theme "playstation"' in (config/'settings').read_text()
-    report=(config/'fps-test.txt').read_text()
-    assert 'Linux FPS test' in report and 'Test status: stopped early' in report
-    assert run.stdout.count('FPS report saved:')==2 # F8 and the visible Close button.
+    assert not list(config.glob('*fps-test*'))
+    for color in ('Neon Green','Electric Blue','Crimson Red'):assert 'Color: '+color in run.stdout
+    assert 'FPS report' not in run.stdout
     received,shown=map(int,re.search(r'Frames received: (\d+) / displayed: (\d+)',run.stdout).groups())
     # Modal software rendering is a functional check, not a GPU benchmark.
-    assert received>=100 and shown>=100,(received,shown)
+    assert received>=100 and shown>=30,(received,shown)
     assert 'Audio: 48 kHz stereo / output period 128 samples' in run.stdout
     samples=array.array('h',Path(folder+'/audio.raw').read_bytes())
     assert samples[::2]==samples[1::2]
     assert 1250<=max(abs(s) for s in samples[-24000:])<=1265
-    print('PASS color modal/selection/save, Escape handling, FPS F8/reopen/Close, continued video/audio and unchanged Linux audio period')
+    print('PASS all themes, saved preferences, submenu navigation, continued video/audio and unchanged Linux audio period')

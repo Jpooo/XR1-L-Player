@@ -10,14 +10,20 @@
 #include "menu_theme.hpp"
 #include "menu_motion.hpp"
 namespace ui {
-inline constexpr int height=650,menuOffset=-72,toolbarOffset=-64;
+inline constexpr int height=650,toolbarOffset=-64;
 struct Box {int x,y,w,h;bool contains(int px,int py)const{return px>=x&&px<x+w&&py>=y&&py<y+h;}};
-inline constexpr Box fullscreen{895,38,165,42},refresh{568,237,102,30};
-inline constexpr std::array<Box,3> devices={Box{60,282,610,66},Box{60,360,610,66},Box{60,438,610,66}};
-inline constexpr Box format{142,552,150,42},demo{312,552,208,42};
-inline constexpr Box mute{620,552,42,42},volumeHit{670,552,210,42};
-inline constexpr int volumeLeft=680,volumeWidth=190,volumeTop=570;
-inline constexpr Box primary{40,622,650,56},stop{714,622,346,56},motion{960,552,100,42};
+enum class Screen {Main,Settings,Preferences};
+inline constexpr std::array<Box,3> navigation={Box{48,190,350,108},Box{48,322,350,80},Box{48,426,350,80}};
+inline constexpr Box back{920,32,140,42},refresh{40,506,160,44},fullscreen{380,506,180,44};
+inline constexpr std::array<Box,3> devices={Box{60,218,445,66},Box{595,218,445,66},Box{595,304,445,66}};
+inline constexpr Box format{60,304,445,56},demo{60,386,210,44};
+inline constexpr Box mute{595,398,44,44},volumeHit{640,398,280,44};
+inline constexpr int volumeLeft=650,volumeWidth=260,volumeTop=418;
+inline constexpr Box primary{845,506,215,44},stop{660,506,160,44},motion{40,376,500,92},preferenceFullscreen{575,376,485,92};
+inline constexpr std::array<Box,3> themes={Box{40,178,320,154},Box{390,178,320,154},Box{740,178,320,154}};
+inline constexpr std::array<Box,12> settingControls={devices[0],format,demo,devices[1],devices[2],mute,volumeHit,refresh,fullscreen,primary,stop,back};
+inline constexpr std::array<Box,6> preferenceControls={themes[0],themes[1],themes[2],motion,preferenceFullscreen,back};
+inline constexpr float logoX=480,logoY=75,logoSize=540;
 inline constexpr SDL_Color white{243,246,248,255},muted{155,163,172,255},green{155,240,11,255};
 inline constexpr SDL_Color surface{24,27,31,255},raised{32,36,41,255},border{48,54,61,255};
 enum class Icon {Video,Speaker,Capture,Expand,Refresh,Play,Stop,Chevron,Check};
@@ -95,7 +101,7 @@ struct Painter {
         }
         SDL_Rect dst{b.x,b.y,b.w,b.h};SDL_RenderCopy(r,backdrop,nullptr,&dst);
     }
-    void round(ui::Box b,float radius,SDL_Color color,float shiftY=0){
+    void round(ui::Box b,float radius,SDL_Color color,float shiftY=0,double angle=0,const SDL_FPoint *center=nullptr){
         color=resolve(color);
         b.y+=offsetY;
         if(b.w<=0||b.h<=0)return;
@@ -122,7 +128,8 @@ struct Painter {
             found=shapes.emplace(std::move(key),texture).first;
         }
         SDL_SetTextureColorMod(found->second,color.r,color.g,color.b);SDL_SetTextureAlphaMod(found->second,color.a);
-        SDL_FRect dst{float(b.x),float(b.y)+shiftY,float(b.w),float(b.h)};SDL_RenderCopyF(r,found->second,nullptr,&dst);
+        SDL_FRect dst{float(b.x),float(b.y)+shiftY,float(b.w),float(b.h)};
+        if(angle||center)SDL_RenderCopyExF(r,found->second,nullptr,&dst,angle,center,SDL_FLIP_NONE);else SDL_RenderCopyF(r,found->second,nullptr,&dst);
     }
     void card(ui::Box b,SDL_Color fill,SDL_Color stroke,int radius=14,float shiftY=0){round(b,float(radius),stroke,shiftY);round({b.x+1,b.y+1,b.w-2,b.h-2},float(radius-1),fill,shiftY);}
     void line(float x1,float y1,float x2,float y2,SDL_Color c,float width=2){

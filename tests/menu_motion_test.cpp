@@ -14,7 +14,7 @@ static std::vector<float> positions;
 static std::vector<double> angles;
 static void measuredPresent(SDL_Renderer *renderer){paintTimes.push_back(monotime());SDL_RenderPresent(renderer);}
 static int measuredIcon(SDL_Renderer *r,SDL_Texture *t,const SDL_Rect *src,const SDL_FRect *dst,double angle,const SDL_FPoint *center,SDL_RendererFlip flip){
-    if(dst&&std::abs(dst->x-737)<.01f&&std::abs(dst->w-300)<.01f){positions.push_back(dst->y);angles.push_back(angle);}
+    if(dst&&std::abs(dst->x-ui::logoX)<.01f&&std::abs(dst->w-ui::logoSize)<.01f){positions.push_back(dst->y);angles.push_back(angle);}
     return SDL_RenderCopyExF(r,t,src,dst,angle,center,flip);
 }
 int main(){
@@ -39,7 +39,7 @@ int main(){
     for(bool reduced:{false,true}){
         paintTimes.clear();positions.clear();angles.clear();
         Options options;options.seconds=2;options.reduceMotion=reduced;assert(app(options)==0);assert(positions.size()>2);
-        bool fractional=false;for(auto y:positions){if(std::abs(y-std::round(y))>.001f)fractional=true;if(reduced)assert(std::abs(y-(192+ui::menuOffset))<.001f);}
+        bool fractional=false;for(auto y:positions){if(std::abs(y-std::round(y))>.001f)fractional=true;if(reduced)assert(std::abs(y-ui::logoY)<.001f);}
         if(reduced){assert(!fractional);for(auto angle:angles)assert(angle==0);}
         else assert(fractional);
         // Report observed timing; do not turn virtual-host speed into a hard

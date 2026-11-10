@@ -273,3 +273,51 @@ permissions are retained inside its ZIP.
 Windows checks used Wine, not a physical Windows 11 machine or XR1 Lite. These
 UI tests do not measure capture-card throughput or physical end-to-end latency.
 Both 1.5.11 ZIPs are local only; prior downloads and GitHub releases are unchanged.
+
+## XR1-L Player 1.5.12 local menu redesign
+
+The main menu has Play, Settings and Preferences, with neon navigation, neutral
+theme swatches, curved accent lines and a panel fitted around the 1.5.11 device
+artwork. Settings separates video and audio controls. Preferences exposes Neon
+Green, Electric Blue and Crimson Red with the original numeric colors and legacy
+saved keys; Motion On/Off is saved through the existing merged settings writer.
+Menus support mouse, arrows, Enter, Escape and keyboard focus. Playback shortcuts
+and fullscreen remain. Tab opens Settings during playback and returns to video;
+Escape returns from a submenu to the main menu without stopping playback.
+
+Removed the diagnostic class/Windows alias, 30-second test/report lifecycle,
+report writes, F8 binding, CLI option and related UI. Normal frame cadence,
+newest-frame handoff and generic console timing counters remain. Production
+Linux and Windows executables were scanned for the removed feature strings.
+
+Preservation checks: SHA-256 matches the prior 1.5.11 files for the logo master,
+menu icon mask, motion implementation, frame cadence, V4L2/Media Foundation
+capture, audio pipelines and Windows video presenter. The artwork is not redrawn,
+stretched or cropped. Its original dark ink sits over a silhouette-fitting accent
+backing, drawn with the same bob and tilt; no square image tile is visible.
+Only menu rendering/layout and the removed diagnostic change the playback loop.
+No controller detection or controller-button prompts were introduced.
+
+Validation:
+- Make capture/codec/audio checks passed; six Linux CTest checks passed.
+- Real-player input checks passed for mouse/keyboard menu navigation, format
+  cycling, three themes, saved motion/volume/mute, transient volume-save retry,
+  clean feed start, stop/restart, Settings/resume, preferences during playback,
+  renderer reset, and inactive removed shortcut. Screenshots checked at the
+  minimum 900x560 window and 1600x900, with aspect-preserving logical scaling.
+- Accelerated Linux presentation preserved native 1080p single-pixel detail;
+  text error against physical-resolution raster was mean/max 0/0. Logo
+  fractional movement and Motion Off passed on Linux accelerated and Windows.
+- Six rebuilt Windows checks passed under Wine: motion, real UI, preference
+  persistence, audio buffering, video presenter/cadence and presentation fidelity.
+- Packaged AppImage tests passed for volume/audio, six fullscreen toggles,
+  settings/resume, all themes, motion and uninterrupted test-tone audio through
+  menu navigation. The packaged Windows EXE launched and produced the new menu.
+- Visual inspection covered the main menu, Settings, Preferences, minimum-size
+  layout and packaged Windows menu. ZIP CRC/permissions/executable identity
+  and preserved logo bytes are checked at export.
+
+No physical XR1 Lite or native Windows 11 hardware was available. The test picture
+and Wine validate UI/control behavior, not real hardware throughput, latency or
+synchronization. All 1.5.12 files are local only; previous downloads and GitHub
+releases remain unchanged.

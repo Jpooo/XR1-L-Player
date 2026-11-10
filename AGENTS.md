@@ -67,3 +67,5 @@
   1.5.16 builds as Latest and renaming the project XR1-L Player. Include their
   exact PNG screenshot in README. Preserve tested executable/AppImage bytes.
   Future unrequested uploads still require explicit authorization.
+
+- Repository rename completed: canonical URL is https://github.com/Jpooo/XR1-L-Player. Use this URL for future pushes and releases.

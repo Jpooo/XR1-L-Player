@@ -439,3 +439,5 @@ GitHub's integration token refused repository-settings changes with HTTP 403
 (Resource not accessible by integration). The owner can rename the repository
 from XR1-Play to XR1-L-Player in Settings; download links use the accessible
 repository URL until that action is complete.
+
+The owner subsequently completed the repository rename to `Jpooo/XR1-L-Player`. Current README links and remotes use the canonical name.

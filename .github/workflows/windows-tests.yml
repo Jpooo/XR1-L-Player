@@ -1,0 +1,40 @@
+name: Windows capture and audio tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - src/**
+      - tests/windows_*.cpp
+      - CMakeLists.txt
+      - .github/workflows/windows-tests.yml
+
+permissions:
+  contents: read
+
+jobs:
+  native-windows-tests:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-SDL2
+            mingw-w64-x86_64-SDL2_ttf
+            mingw-w64-x86_64-libjpeg-turbo
+      - name: Compile the native Windows app and tests
+        shell: msys2 {0}
+        run: |
+          cmake -S . -B build-windows-tests -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+          cmake --build build-windows-tests --parallel 2
+      - name: Test codecs, Media Foundation callbacks, audio timing and FPS counts
+        shell: msys2 {0}
+        run: ctest --test-dir build-windows-tests --output-on-failure

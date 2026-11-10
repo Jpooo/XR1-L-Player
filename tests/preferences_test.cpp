@@ -15,12 +15,14 @@ int main(){
 #else
     setenv("XDG_CONFIG_HOME",folder.string().c_str(),1);
 #endif
-    auto path=settingsPath();std::filesystem::create_directories(path.parent_path());
+    auto path=settingsPath(true);std::filesystem::create_directories(path.parent_path());
     {
         std::ofstream out(path);
         out<<"video \"Capture Card #1\"\naudio \"USB HDMI Audio\"\noutput \"Desktop speakers\"\nformat \"nv12\"\ncustom \"keep this field\"\ntheme \"xbox\"\n";
     }
+    Options legacy;loadSettings(legacy);assert(legacy.video=="Capture Card #1");
     assert(saveColorPreference(ui::ConsoleColor::PlayStation));
+    assert(std::filesystem::exists(path));path=settingsPath();
     Options blue;loadSettings(blue);
     assert(blue.video=="Capture Card #1"&&blue.audio=="USB HDMI Audio"&&blue.output=="Desktop speakers"&&blue.format=="nv12");
     assert(blue.colorTheme==ui::ConsoleColor::PlayStation);

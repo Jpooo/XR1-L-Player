@@ -5,7 +5,7 @@ COMPILER="${CROSS_CXX:-.deps/toolchain/usr/bin/x86_64-w64-mingw32-g++-posix}"
 SDK=.deps/win-sdk
 mkdir -p build/windows
 SOURCE="${1:-src/main.cpp}"
-OUTPUT="${2:-build/windows/XR1-Play.exe}"
+OUTPUT="${2:-build/windows/XR1-L-Player.exe}"
 set -- "$SOURCE"
 SUBSYSTEM=-mconsole
 if [ "$SOURCE" = "src/main.cpp" ]; then

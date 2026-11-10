@@ -1,32 +1,19 @@
-# XR1-L Play beta v1 — Linux
+# XR1-L Player 1.5.7 — Linux local test build
 
-1080p60 live preview and stereo HDMI audio for EVGA XR1 Lite. This build
-brings the Windows beta interface to Linux.
-
-## Launch
-
-Make the AppImage executable, then open it:
-
-```sh
-chmod +x XR1-L-Play-beta-v1-Linux-x86_64.AppImage
-./XR1-L-Play-beta-v1-Linux-x86_64.AppImage
-```
-
-Without FUSE, add `--appimage-extract-and-run`. Current Bazzite/x86_64 Linux
-with glibc 2.38+ and normal display/audio libraries is the binary target.
+1080p60 live preview and HDMI stereo audio for EVGA XR1 Lite.
 
 ## Connect and play
 
-1. Connect console HDMI OUT to XR1 Lite HDMI IN and the card directly to USB 3.
-2. Set the console to 1080p, 60 Hz, SDR and HDMI Stereo uncompressed. Close other capture apps.
-3. Select the card video device, its HDMI audio input and speakers/headphones.
-4. Click **Start playing**. Leave **Test picture** off for real capture.
+1. Extract the ZIP and copy the AppImage from your USB drive to your Linux home folder.
+2. In Properties → Permissions, allow the AppImage to run as a program, then open it.
+3. Connect console HDMI OUT → XR1 Lite HDMI IN; connect the card directly to USB 3.0 with a USB 3.0 data cable.
+4. Use 1080p60 SDR and HDMI Stereo uncompressed. Select video, HDMI audio and your speakers/headphones, then Start playing.
 
-Use **Color preference** for saved Xbox green, PlayStation blue or Nintendo red.
-**F/F11** toggles fullscreen, **Tab** opens settings, **M** mutes and **+/-** changes volume.
+Color preference saves Xbox green, PlayStation blue or Nintendo red. F/F11: fullscreen; Tab: settings; M: mute; +/-: volume. F8 starts/closes the 30-second FPS test without stopping playback.
 
-**FPS test / F8** measures 30 seconds. **Close** or F8 hides the overlay without
-stopping playback; closing early saves a partial report. Reports are saved to
-`${XDG_CONFIG_HOME:-$HOME/.config}/xr1-play/fps-test.txt`; preferences use `settings`
-in the same folder. Linux counts valid/latest V4L2 capture frames. Driver-discarded
-or stale frames are reported as skipped; this is not a controller-latency test.
+Current x86_64 Bazzite/Linux with glibc 2.38+ is the binary target. Without FUSE, launch with `--appimage-extract-and-run`.
+Settings and FPS reports use `${XDG_CONFIG_HOME:-$HOME/.config}/xr1-l-player/`. Previous XR1 Play settings are imported when no new settings exist.
+
+XR1 Lite requirements: Intel i5-6XXX or AMD Ryzen 3 1300X or better; NVIDIA GTX 1060 or AMD Radeon RX 560 XT or above; 8 GB RAM minimum (16 GB recommended). USB 3.0 is required.
+
+This local test build has not been uploaded to GitHub. Software timing comparisons do not measure controller-to-screen latency.

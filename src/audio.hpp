@@ -43,7 +43,7 @@ public:
         if(!demo) {
             want.callback=capture;
             input=SDL_OpenAudioDevice(in,1,&want,&have,0);
-            if(!input) { std::string error=SDL_GetError(); stop(); throw std::runtime_error("Cannot open XR1 audio input: "+error+". Select the XR1 / USB Digital Audio input; close other capture apps."); }
+            if(!input) { std::string error=SDL_GetError(); stop(); throw std::runtime_error("Cannot open XR1 Lite audio input: "+error+". Select the XR1 Lite / USB Digital Audio input; close other capture apps."); }
             mode+=" / input period "+std::to_string(have.samples)+" samples";
 #ifdef _WIN32
             ring.configure(outputPeriod,have.samples);

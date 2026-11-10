@@ -32,9 +32,9 @@ public:
         std::ostringstream s;s<<std::fixed<<std::setprecision(2);
         s<<
 #ifdef _WIN32
-        "XR1 Play 1.5.5 Windows FPS test\nSource: "
+        "XR1-L Player 1.5.7 Windows FPS test\nSource: "
 #else
-        "XR1 Play 1.5.6 Linux FPS test\nSource: "
+        "XR1-L Player 1.5.7 Linux FPS test\nSource: "
 #endif
          <<(testPicture?"generated test picture (not a hardware test)":"native capture card")
          <<"\nTest status: "<<(elapsed()>=30?"completed":"stopped early")<<"\nDuration: "<<elapsed()<<" seconds"

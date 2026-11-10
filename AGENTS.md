@@ -11,3 +11,8 @@
   tested executable bytes. Future code/package changes still require testing
   and explicit upload approval.
 - Preserve the Linux V4L2 and audio behavior when making interface changes.
+
+- Current work: local-only 1.5.7 builds for both platforms, sharper fullscreen
+  text, measured software latency comparisons, and the XR1-L Player name.
+  Export the Linux AppImage inside a ZIP for USB transfer. Do not push or
+  upload these new builds/source until the user explicitly authorizes it.

@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <cstdlib>
 #include <stdexcept>
+#include <limits>
 #include "menu_theme.hpp"
 namespace ui {
 inline constexpr int height=650,menuOffset=-72,toolbarOffset=-64;
@@ -41,7 +42,7 @@ struct Painter {
     static SDL_Color mix(SDL_Color a,SDL_Color b,float t){auto lerp=[&](Uint8 x,Uint8 y){return static_cast<Uint8>(std::lround(x+(y-x)*t));};return {lerp(a.r,b.r),lerp(a.g,b.g),lerp(a.b,b.b),lerp(a.a,b.a)};}
     float fontScale=0;
     int offsetY=0;
-    struct Label {SDL_Texture *texture;float w,h;};
+    struct Label {SDL_Texture *texture;int w,h;};
     std::unordered_map<std::string,Label> labels;
     std::unordered_map<std::string,SDL_Texture*> shapes;
     void clearShapes(){for(auto &item:shapes)SDL_DestroyTexture(item.second);shapes.clear();}
@@ -61,6 +62,7 @@ struct Painter {
         if(std::abs(scale-fontScale)<0.005f)return;
         std::array<TTF_Font*,6> fonts{};constexpr int sizes[]={18,14,38,23,12,112};
         for(size_t i=0;i<fonts.size();++i){fonts[i]=TTF_OpenFont(fontPath.c_str(),static_cast<int>(std::lround(sizes[i]*scale)));if(!fonts[i]){for(auto *f:fonts)if(f)TTF_CloseFont(f);throw std::runtime_error("Cannot open bundled font: "+std::string(TTF_GetError()));}}
+        for(auto *font:fonts)TTF_SetFontHinting(font,TTF_HINTING_LIGHT);
         clearLabels();for(auto *font:{normal,small,title,heading,tiny,display})if(font)TTF_CloseFont(font);
         normal=fonts[0];small=fonts[1];title=fonts[2];heading=fonts[3];tiny=fonts[4];display=fonts[5];
         TTF_SetFontStyle(title,TTF_STYLE_BOLD);TTF_SetFontStyle(heading,TTF_STYLE_BOLD);TTF_SetFontStyle(display,TTF_STYLE_BOLD);fontScale=scale;
@@ -167,10 +169,16 @@ struct Painter {
             auto *surface=wrap?TTF_RenderUTF8_Blended_Wrapped(font,s.c_str(),color,static_cast<Uint32>(wrap*fontScale)):TTF_RenderUTF8_Blended(font,s.c_str(),color);
             if(!surface)return;
             auto *texture=SDL_CreateTextureFromSurface(r,surface);
-            Label label{texture,surface->w/fontScale,surface->h/fontScale};SDL_FreeSurface(surface);if(!texture)return;
+            Label label{texture,surface->w,surface->h};SDL_FreeSurface(surface);if(!texture)return;
             SDL_SetTextureScaleMode(texture,SDL_ScaleModeLinear);if(labels.size()>=256)clearLabels();found=labels.emplace(std::move(key),label).first;
         }
-        SDL_FRect dst{float(x),float(y),found->second.w,found->second.h};SDL_RenderCopyF(r,found->second.texture,nullptr,&dst);
+        // Glyphs were rasterized at the drawable's physical resolution. Align
+        // their origin to that pixel grid instead of filtering between pixels.
+        float sx=1,sy=1;SDL_RenderGetScale(r,&sx,&sy);
+        // Nudge the inverse transform by one float ULP: SDL's software
+        // backend truncates a 230.99998-pixel rectangle to 230 pixels.
+        auto logicalPixel=[](float pixel,float scale){return std::nextafter(pixel/scale,std::numeric_limits<float>::infinity());};
+        SDL_FRect dst{logicalPixel(std::round(x*sx),sx),logicalPixel(std::round(y*sy),sy),logicalPixel(float(found->second.w),sx),logicalPixel(float(found->second.h),sy)};SDL_RenderCopyF(r,found->second.texture,nullptr,&dst);
     }
     void fit(std::string s,int x,int y,int width,SDL_Color color,TTF_Font *font=nullptr){
         if(!font)font=normal;

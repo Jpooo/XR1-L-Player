@@ -11,7 +11,7 @@ with tempfile.TemporaryDirectory(prefix='xr1-appearance-') as folder:
     command=sys.argv[1:] or [str(root/'build/xr1-play')]
     run=subprocess.run([*command,'--demo','--seconds','4','--screenshot',str(root/'build/linux-appearance-panel.bmp')],cwd=root,env=env,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=25)
     print(run.stdout);assert run.returncode==0
-    config=Path(folder)/'xr1-play'
+    config=Path(folder)/'xr1-l-player'
     assert 'theme "playstation"' in (config/'settings').read_text()
     report=(config/'fps-test.txt').read_text()
     assert 'Linux FPS test' in report and 'Test status: stopped early' in report

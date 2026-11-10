@@ -8,6 +8,7 @@
 #include <cstring>
 #include <cctype>
 #include <mutex>
+#include <condition_variable>
 #include <string>
 #include <vector>
 #ifndef _WIN32
@@ -50,6 +51,7 @@ struct Frame {
 };
 struct SharedVideo {
     std::mutex mutex;
+    std::condition_variable ready;
     Frame frame;
     bool dirty=false;
     std::string error, mode;
@@ -74,6 +76,7 @@ struct SharedVideo {
             if(dirty)++skipped;
             std::swap(frame,f);dirty=true;++captured;
         }
+        ready.notify_one();
         if(notify)wake();
     }
     bool take(Frame &f) {
@@ -81,8 +84,12 @@ struct SharedVideo {
         if(!dirty)return false;
         std::swap(frame,f);dirty=false;return true;
     }
+    bool waitForFrame(int milliseconds){
+        std::unique_lock<std::mutex> lock(mutex);
+        return ready.wait_for(lock,std::chrono::milliseconds(milliseconds),[&](){return dirty||!error.empty();});
+    }
     void fail(const std::string &s) {
         {std::lock_guard<std::mutex> lock(mutex);error=s;}
-        wake();
+        ready.notify_one();wake();
     }
 };

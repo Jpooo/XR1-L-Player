@@ -43,7 +43,7 @@ public:
         if(setjmp(error.jump)) { jpeg_abort_decompress(&c); return false; }
         jpeg_mem_src(&c,bytes,size);
         if(jpeg_read_header(&c,TRUE)!=JPEG_HEADER_OK || c.image_width!=1920 || (c.image_height!=1080&&c.image_height!=1088)) { jpeg_abort_decompress(&c); return false; }
-        c.out_color_space=JCS_RGB; c.dct_method=JDCT_IFAST; c.do_fancy_upsampling=FALSE;
+        c.out_color_space=JCS_RGB; c.dct_method=JDCT_IFAST; c.do_fancy_upsampling=TRUE;
         jpeg_start_decompress(&c);
         if(c.output_width!=1920 || (c.output_height!=1080&&c.output_height!=1088) || c.output_components!=3) { jpeg_abort_decompress(&c); return false; }
         out.pixel=SDL_PIXELFORMAT_RGB24; out.pitch=5760; out.data.resize(5760*1080);

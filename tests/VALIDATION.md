@@ -216,3 +216,12 @@ Validation:
 The source is saved on local branch `linux-local-preview`; no source, package,
 branch or release was uploaded to GitHub. Real Bazzite/XR1 Lite playback and
 sound require user testing before publication.
+
+
+## XR1-L Player 1.5.7 local test build
+
+Fullscreen menu text now aligns to physical pixels and preserves the original font raster. Native 1080p single-pixel video detail is unchanged and exact. MJPEG chroma upsampling is smoothed; its test-fixture MSE falls from 27.49 to 23.91, with a measured Linux decode cost of about 0.32 ms. Ready frames wake the UI directly; live diagnostic text updates at 4 Hz while counts remain per-frame.
+
+Controlled handoff comparisons (median of three run means): Linux 0.1132 → 0.0328 ms; Windows under Wine 0.1248 → 0.0957 ms. Windows p95 worsened from 0.2065 to 0.2500 ms, so no confirmed native Windows latency gain is claimed. These exclude HDMI/monitor/game/controller delay. The separate local comparison report contains methods and raw timing context.
+
+Linux capture, four CMake tests, packaged controls/audio/appearance, software/OpenGL pixel fidelity and six Windows checks under Wine passed. Names and metadata use XR1-L Player; legacy settings are retained/read as fallback. Audio buffering and capture negotiation are unchanged. New AppImage/Windows ZIPs are local only; Linux is additionally wrapped in a ZIP for USB transport. No remote updates were made.

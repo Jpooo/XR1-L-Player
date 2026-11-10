@@ -23,17 +23,21 @@ struct Options {
 #endif
     std::string video,audio,output,format="auto",screenshot;
 };
-static std::filesystem::path settingsPath() {
+static std::filesystem::path settingsPath(bool legacy=false) {
     const char *config=std::getenv("XDG_CONFIG_HOME");
-    if(config&&*config) return std::filesystem::path(config)/"xr1-play/settings";
+    if(config&&*config) return std::filesystem::path(config)/(legacy?"xr1-play/settings":"xr1-l-player/settings");
 #ifdef _WIN32
-    if(const wchar_t *appdata=_wgetenv(L"APPDATA"))return std::filesystem::path(appdata)/L"XR1 Play/settings";
+    if(const wchar_t *appdata=_wgetenv(L"APPDATA"))return std::filesystem::path(appdata)/(legacy?L"XR1 Play/settings":L"XR1-L Player/settings");
 #endif
     const char *home=std::getenv("HOME");
-    return home&&*home?std::filesystem::path(home)/".config/xr1-play/settings":std::filesystem::path{};
+    return home&&*home?std::filesystem::path(home)/(legacy?".config/xr1-play/settings":".config/xr1-l-player/settings"):std::filesystem::path{};
+}
+static std::filesystem::path existingSettingsPath(){
+    auto path=settingsPath();std::error_code ec;
+    return !path.empty()&&std::filesystem::exists(path,ec)?path:settingsPath(true);
 }
 static void loadSettings(Options &o) {
-    auto path=settingsPath();if(path.empty())return;
+    auto path=existingSettingsPath();if(path.empty())return;
     std::ifstream in(path);std::string key,value;
     while(in>>key>>std::quoted(value)) {
         if(key=="video")o.video=value;
@@ -54,7 +58,7 @@ static void saveSettings(const std::string &video,const std::string &audio,const
 static bool saveColorPreference(ui::ConsoleColor choice){
     auto path=settingsPath();if(path.empty())return false;
     std::error_code ec;std::filesystem::create_directories(path.parent_path(),ec);if(ec)return false;
-    std::ifstream in(path);std::ostringstream contents;std::string line;
+    std::ifstream in(existingSettingsPath());std::ostringstream contents;std::string line;
     while(std::getline(in,line)){std::istringstream field(line);std::string key;field>>key;if(key!="theme")contents<<line<<"\n";}
     in.close();contents<<"theme "<<std::quoted(ui::colorKey(choice))<<"\n";
     std::ofstream out(path);out<<contents.str();out.flush();return bool(out);
@@ -64,9 +68,9 @@ static void handleSignal(int) {interrupted=1;}
 static void help() {
     std::cout<<
 #ifdef _WIN32
-    "XR1 Play 1.5.5 - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.7 - native 1080p60 HDMI viewer ("
 #else
-    "XR1 Play 1.5.6 Linux test build - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.7 Linux test build - native 1080p60 HDMI viewer ("
 #endif
 #ifdef _WIN32
     "Windows x86_64"
@@ -74,7 +78,7 @@ static void help() {
     "Linux x86_64"
 #endif
     ")\n"
-    "Usage: xr1-play [options]\n"
+    "Usage: xr1-l-player [options]\n"
     "  --demo                 Animated 1080p60 test picture + 440 Hz stereo tone\n"
     "  --video ID_OR_NAME     Select a video device from --diagnose\n"
     "  --audio NAME           Exact capture-device name from --diagnose\n"
@@ -151,12 +155,14 @@ static int app(const Options &o) {
     SDL_SetMainReady();
     // PipeWire/PulseAudio manage device sharing and resampling on Bazzite.
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY,"1");
+    SDL_SetHint(SDL_HINT_APP_NAME,"XR1-L Player");
+    SDL_setenv("SDL_VIDEO_X11_WMCLASS","xr1-l-player",0);
     // X11 compositors can honor this for fullscreen windows. Wayland compositors
     // control their own presentation policy; this is not a bypass guarantee.
     SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR,"1");
     if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_TIMER)<0) throw std::runtime_error(SDL_GetError());
     if(TTF_Init()<0) throw std::runtime_error(TTF_GetError());
-    SDL_Window *window=SDL_CreateWindow("XR1 Play",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,1100,ui::height,SDL_WINDOW_RESIZABLE|SDL_WINDOW_ALLOW_HIGHDPI);
+    SDL_Window *window=SDL_CreateWindow("XR1-L Player",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,1100,ui::height,SDL_WINDOW_RESIZABLE|SDL_WINDOW_ALLOW_HIGHDPI);
     if(!window) throw std::runtime_error(SDL_GetError());
     SDL_SetWindowMinimumSize(window,900,560);
 #ifdef _WIN32
@@ -178,8 +184,8 @@ static int app(const Options &o) {
     int result=0;
     {
         Painter p(renderer);SharedVideo shared;Capture capture(shared);Audio audio(o.latency);
-        shared.wakeEvent=SDL_RegisterEvents(1);
-        if(shared.wakeEvent==static_cast<Uint32>(-1))throw std::runtime_error("Cannot register frame-ready event.");
+        // Native capture wakes this thread directly. SDL still handles window
+        // and input events; no extra video-event relay is needed.
         Frame uploadFrame;
         SDL_Event pendingEvent{};bool havePendingEvent=false;
         std::vector<VideoDevice> videos;std::vector<std::string> inputs,outputs;
@@ -231,7 +237,8 @@ static int app(const Options &o) {
             std::cout<<report<<"FPS report "<<(out?"saved: ":"could not be saved: ")<<path.string()<<std::endl;
             fpsReportSaved=true;
         };
-        double measuredFps=0,displayFps=0,uploadAge=0;
+        double measuredFps=0,displayFps=0,uploadAge=0,lastLiveText=-1;
+        std::string liveText,testText;
         double uploadTotal=0,uploadMax=0,presentTotal=0,presentMax=0;
         uint64_t uploadSamples=0,presentSamples=0;
         SDL_Texture *texture=nullptr;
@@ -274,9 +281,9 @@ static int app(const Options &o) {
                 if(!demonstration) {
                     if(videos.empty()) throw std::runtime_error("No capture card found. Connect the XR1 Lite to USB 3, close other capture apps, then press R.");
                     if(validateVideo&&!sameVideoPath(videos[static_cast<size_t>(vi)].path,o.video)&&videos[static_cast<size_t>(vi)].name!=o.video)throw std::runtime_error("The requested video device was not found. Refresh or choose a connected capture device.");
-                    if(validateAudio&&(ai<0||inputs[static_cast<size_t>(ai)]!=o.audio))throw std::runtime_error("The requested audio input was not found. Choose the XR1 recording/input device.");
+                    if(validateAudio&&(ai<0||inputs[static_cast<size_t>(ai)]!=o.audio))throw std::runtime_error("The requested audio input was not found. Choose the XR1 Lite recording/input device.");
                     if(validateOutput&&(oi<0||outputs[static_cast<size_t>(oi)]!=o.output))throw std::runtime_error("The requested audio output was not found. Choose speakers or headphones.");
-                    if(ai<0) throw std::runtime_error("Choose the XR1 audio input; it may be named USB Digital Audio. Enable the card's input/recording profile in Sound settings and allow desktop apps to use audio input.");
+                    if(ai<0) throw std::runtime_error("Choose the XR1 Lite audio input; it may be named USB Digital Audio. Enable the card's input/recording profile in Sound settings and allow desktop apps to use audio input.");
                     capture.start(videos[static_cast<size_t>(vi)].path,formats[static_cast<size_t>(fi)],static_cast<unsigned>(o.buffers));
                 }
                 audio.start(demonstration?nullptr:inputs[static_cast<size_t>(ai)].c_str(),oi<0?nullptr:outputs[static_cast<size_t>(oi)].c_str(),demonstration);
@@ -288,8 +295,8 @@ static int app(const Options &o) {
                 std::cout<<(demonstration?"DEMO - synthetic 1080p60":shared.mode)<<"\nAudio: "<<audio.mode<<"\n";
             } catch(const std::exception &e) {stop();error=e.what();std::cerr<<error<<"\n";if(o.autostart) result=1;}
         };
-        auto startFpsTest=[&](){if(!playing)start();if(playing){fpsTest.start(monotime(),fpsCounts(),demonstration);fpsReportSaved=false;menu=false;controlsUntil=monotime()+3;}};
-        auto closeFpsTest=[&](){fpsTest.close(monotime(),fpsCounts());saveFpsReport();controlsUntil=monotime()+3;};
+        auto startFpsTest=[&](){if(!playing)start();if(playing){fpsTest.start(monotime(),fpsCounts(),demonstration);fpsReportSaved=false;liveText.clear();menu=false;controlsUntil=monotime()+3;}};
+        auto closeFpsTest=[&](){fpsTest.close(monotime(),fpsCounts());liveText.clear();saveFpsReport();controlsUntil=monotime()+3;};
         auto toggleFpsTest=[&](){if(fpsTest.visible&&(fpsTest.active||fpsTest.complete))closeFpsTest();else startFpsTest();};
         if(o.autostart||o.demo) start();
         if(o.fpsTest)startFpsTest();
@@ -442,8 +449,8 @@ static int app(const Options &o) {
                     p.glow({float(650+drift),-170,600,600},{155,240,11,35});
                     p.glow({float(-210-drift),400,520,520},{44,137,230,23});
                     p.round({40,32,48,48},13,accent);p.icon(ui::Icon::Controller,44,36,40,p.theme.ink(),false,-10);
-                    p.text("XR1 Play",102,32,color,p.heading);p.text("CAPTURE VIEWER",103,62,dim,p.tiny);
-                    std::string status=playing?(demonstration?"TEST PICTURE":"LIVE PREVIEW"):videos.empty()?"CONNECT YOUR XR1":"READY TO PLAY";
+                    p.text("XR1-L Player",102,32,color,p.heading);p.text("CAPTURE VIEWER",103,62,dim,p.tiny);
+                    std::string status=playing?(demonstration?"TEST PICTURE":"LIVE PREVIEW"):videos.empty()?"CONNECT YOUR XR1 LITE":"READY TO PLAY";
                     p.round({688,42,184,34},17,{30,37,32,255});
                     auto liveDot=playing||!videos.empty()?accent:dim;
                     if(playing&&!reducedMotion)liveDot.a=static_cast<Uint8>(190+std::sin((now-began)*3)*50);
@@ -504,9 +511,9 @@ static int app(const Options &o) {
                     if(playing){std::ostringstream stats;stats<<std::fixed<<std::setprecision(1)<<"Capture "<<measuredFps<<" fps   /   Display "<<displayFps<<" fps   /   Audio queued "<<audio.ring.queued()/96<<" ms   /   Skipped "<<shared.skipped<<"   /   Invalid "<<shared.corrupt;p.text(stats.str(),40,697,dim,p.tiny);}
                     else p.text("DIRECT CAPTURE    /    1080p60    /    STEREO SOUND",40,697,dim,p.tiny);
 #ifdef _WIN32
-                    p.text("XR1 PLAY 1.5.5",954,697,dim,p.tiny);
+                    p.text("XR1-L PLAYER 1.5.7",906,697,dim,p.tiny);
 #else
-                    p.text("XR1 PLAY 1.5.6",954,697,dim,p.tiny);
+                    p.text("XR1-L PLAYER 1.5.7",906,697,dim,p.tiny);
 #endif
                 } else {
                     if(demonstration){p.round({22,20,380,34},10,{16,23,15,220});p.text("TEST PICTURE  /  1080p60 + stereo tone",36,29,color,p.small);}
@@ -514,10 +521,15 @@ static int app(const Options &o) {
                 }
                 if(playing&&!menu){
                     p.offsetY=0;
-                    std::ostringstream live;live<<std::fixed<<std::setprecision(1)<<"Capture "<<arrivalFps<<" fps  /  Shown "<<displayFps<<" fps  /  Audio "<<audio.ring.queued()/96<<" ms";
+                    // Updating text at 4 Hz avoids rasterizing new glyph textures at
+                    // capture frequency. Measurements still count every frame.
+                    if(now-lastLiveText>=.25||liveText.empty()){
+                        std::ostringstream live;live<<std::fixed<<std::setprecision(1)<<"Capture "<<arrivalFps<<" fps  /  Shown "<<displayFps<<" fps  /  Audio "<<audio.ring.queued()/96<<" ms";
+                        liveText=live.str();testText=fpsTest.active||fpsTest.complete?fpsTest.summary():"F8: run a 30-second FPS test";lastLiveText=now;
+                    }
                     if(fpsTest.visible){
-                        p.round({22,62,800,54},10,{16,23,15,225});p.text(live.str(),36,69,color,p.small);
-                        p.text(fpsTest.active||fpsTest.complete?fpsTest.summary():"F8: run a 30-second FPS test",36,91,dim,p.tiny);
+                        p.round({22,62,800,54},10,{16,23,15,225});p.text(liveText,36,69,color,p.small);
+                        p.text(testText,36,91,dim,p.tiny);
                         p.button({744,68,66,34},"Close",hover({744,68,66,34}),false,p.small);
                     }else if(now<controlsUntil)p.button({22,62,152,34},"FPS test (F8)",hover({22,62,152,34}),false,p.small);
                 }
@@ -582,7 +594,13 @@ static int app(const Options &o) {
             if(playing&&demonstration)deadline=std::min(deadline,lastDemo+1.0/60);
             if(o.seconds)deadline=std::min(deadline,began+o.seconds);
             int timeout=std::clamp(static_cast<int>(std::ceil((deadline-monotime())*1000)),1,100);
-            if(!quit&&!interrupted)havePendingEvent=SDL_WaitEventTimeout(&pendingEvent,timeout)==1;
+            if(!quit&&!interrupted){
+                if(playing&&!demonstration){
+                    // A predicate protects frames published just before sleep.
+                    // Poll UI events at least every 8 ms, even if HDMI is idle.
+                    shared.waitForFrame(std::min(timeout,8));
+                }else havePendingEvent=SDL_WaitEventTimeout(&pendingEvent,timeout)==1;
+            }
         }
         std::cout<<std::fixed<<std::setprecision(2)<<"Frames received: "<<shared.captured<<" / displayed: "<<presented<<" / stale skipped: "<<shared.skipped<<" / invalid: "<<shared.corrupt<<"\nLast measured receive fps: "<<measuredFps<<" / display fps: "<<displayFps<<" / last CPU upload wait: "<<uploadAge<<" ms (not end-to-end latency)\nAudio overflow samples: "<<audio.ring.dropped<<" / underflow samples: "<<audio.ring.starved<<"\n";
         std::cout<<"Ready-to-upload mean/max: "<<(uploadSamples?uploadTotal/uploadSamples:0)<<" / "<<uploadMax<<" ms; present-call mean/max: "<<(presentSamples?presentTotal/presentSamples:0)<<" / "<<presentMax<<" ms. These exclude card/monitor latency.\n";
@@ -596,9 +614,9 @@ static int app(const Options &o) {
 int main(int argc,char **argv) {
     std::signal(SIGINT,handleSignal);std::signal(SIGTERM,handleSignal);
     try {auto options=parse(argc,argv);[[maybe_unused]] CapturePlatform platform;if(options.diagnose) {help();diagnoseVideo();SDL_SetMainReady();if(SDL_Init(SDL_INIT_AUDIO)<0) std::cerr<<"Audio initialization: "<<SDL_GetError()<<"\n";diagnoseAudio();SDL_Quit();return 0;}return app(options);}
-    catch(const std::exception &e) {std::cerr<<"XR1 Play: "<<e.what()<<"\n";
+    catch(const std::exception &e) {std::cerr<<"XR1-L Player: "<<e.what()<<"\n";
 #ifdef _WIN32
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,"XR1 Play",e.what(),nullptr);
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,"XR1-L Player",e.what(),nullptr);
 #endif
         return 1;}
 }

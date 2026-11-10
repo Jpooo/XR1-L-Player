@@ -1,0 +1,38 @@
+name: Publish approved XR1-L Player 1.5.16
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-xr1-l-player-1.5.16
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download and verify the exact approved release files
+        env:
+          ASSET_BASE: https://raw.githubusercontent.com/${{ github.repository }}/76668f4d757c8ef0358a0cf745753ef8a1d0abc2
+        run: |
+          mkdir packages
+          cd packages
+          for name in SHA256SUMS release-notes.md XR1-L-Player-1.5.16-Linux-x86_64.AppImage XR1-L-Player-1.5.16-Linux-x86_64.zip XR1-L-Player-1.5.16-Windows-x64.zip; do
+            curl --fail --location --retry 3 --max-time 120 "$ASSET_BASE/$name" --output "$name"
+          done
+          sha256sum --check SHA256SUMS
+      - name: Publish both platforms as Latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view v1.5.16 >/dev/null 2>&1; then
+            gh release upload v1.5.16 packages/XR1-L-Player-1.5.16-Linux-x86_64.AppImage packages/XR1-L-Player-1.5.16-Linux-x86_64.zip packages/XR1-L-Player-1.5.16-Windows-x64.zip packages/SHA256SUMS --clobber
+            gh release edit v1.5.16 --title 'XR1-L Player 1.5.16' --notes-file packages/release-notes.md --draft=false --prerelease=false --latest
+          else
+            gh release create v1.5.16 --verify-tag --title 'XR1-L Player 1.5.16' --notes-file packages/release-notes.md --latest packages/XR1-L-Player-1.5.16-Linux-x86_64.AppImage packages/XR1-L-Player-1.5.16-Linux-x86_64.zip packages/XR1-L-Player-1.5.16-Windows-x64.zip packages/SHA256SUMS
+          fi

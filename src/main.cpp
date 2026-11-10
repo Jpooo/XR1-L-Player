@@ -6,10 +6,20 @@
 #include <iomanip>
 #include <cstdlib>
 #include <csignal>
+#ifdef _WIN32
+#include "windows_fps.hpp"
+#endif
 struct Options {
+#ifdef _WIN32
+    bool fpsTest=false;
+#endif
     bool demo=false,fullscreen=false,vsync=false,diagnose=false,autostart=false,reduceMotion=false;
     bool videoSet=false,audioSet=false,outputSet=false;
+#ifdef _WIN32
+    int seconds=0,latency=32,buffers=2;
+#else
     int seconds=0,latency=20,buffers=2;
+#endif
     std::string video,audio,output,format="auto",screenshot;
 };
 static std::filesystem::path settingsPath() {
@@ -39,7 +49,12 @@ static void saveSettings(const std::string &video,const std::string &audio,const
 static volatile std::sig_atomic_t interrupted=0;
 static void handleSignal(int) {interrupted=1;}
 static void help() {
-    std::cout<<"XR1 Play 1.5.0 - native 1080p60 HDMI viewer ("
+    std::cout<<
+#ifdef _WIN32
+    "XR1 Play 1.5.1 - native 1080p60 HDMI viewer ("
+#else
+    "XR1 Play 1.5.0 - native 1080p60 HDMI viewer ("
+#endif
 #ifdef _WIN32
     "Windows x86_64"
 #else
@@ -52,12 +67,19 @@ static void help() {
     "  --audio NAME           Exact capture-device name from --diagnose\n"
     "  --output NAME          Exact playback-device name (default: system default)\n"
     "  --format auto|yuyv|nv12|uyvy|i420|yv12|mjpeg\n"
+#ifdef _WIN32
+    "  --audio-buffer MS      Audio queue cap, 5..80 ms (default 32; reserve ~13 ms)\n"
+#else
     "  --audio-buffer MS      App audio queue cap, 5..80 ms (default 20)\n"
+#endif
     "  --capture-buffers N    Requested V4L2 buffers, 2..8 (default 2)\n"
     "  --start                Start the selected devices immediately\n"
     "  --fullscreen           Open fullscreen\n"
     "  --vsync                Enable vsync (default off; may reduce tearing)\n"
     "  --reduce-motion        Disable decorative menu animation\n"
+#ifdef _WIN32
+    "  --fps-test             Start preview with a 30-second FPS test (F8)\n"
+#endif
     "  --diagnose             Print devices and advertised 1080p frame rates\n"
     "  --seconds N            Exit after N seconds (testing)\n"
     "  --screenshot FILE.bmp  Save a screenshot before exit with --seconds\n"
@@ -73,6 +95,9 @@ static Options parse(int argc,char **argv) {
         if(a=="--help"||a=="-h") {help();std::exit(0);}
         else if(a=="--demo") o.demo=true;
         else if(a=="--fullscreen") o.fullscreen=true;
+#ifdef _WIN32
+        else if(a=="--fps-test") {o.fpsTest=true;o.autostart=true;}
+#endif
         else if(a=="--vsync") o.vsync=true;
         else if(a=="--reduce-motion")o.reduceMotion=true;
         else if(a=="--diagnose") o.diagnose=true;
@@ -123,7 +148,15 @@ static int app(const Options &o) {
     SDL_Window *window=SDL_CreateWindow("XR1 Play",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,1100,ui::height,SDL_WINDOW_RESIZABLE|SDL_WINDOW_ALLOW_HIGHDPI);
     if(!window) throw std::runtime_error(SDL_GetError());
     SDL_SetWindowMinimumSize(window,900,560);
+#ifdef _WIN32
+    // SDL2's default D3D9 path can fall back to CPU YUV conversion. Prefer
+    // D3D11's NV12/I420 shaders, retaining other accelerated backends as fallback.
+    SDL_Renderer *renderer=nullptr;
+    for(int i=0;i<SDL_GetNumRenderDrivers();++i){SDL_RendererInfo candidate{};if(SDL_GetRenderDriverInfo(i,&candidate)==0&&std::string(candidate.name)=="direct3d11"){renderer=SDL_CreateRenderer(window,i,SDL_RENDERER_ACCELERATED|(o.vsync?SDL_RENDERER_PRESENTVSYNC:0));break;}}
+    if(!renderer)renderer=SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED|(o.vsync?SDL_RENDERER_PRESENTVSYNC:0));
+#else
     SDL_Renderer *renderer=SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED|(o.vsync?SDL_RENDERER_PRESENTVSYNC:0));
+#endif
     if(!renderer) renderer=SDL_CreateRenderer(window,-1,SDL_RENDERER_SOFTWARE);
     if(!renderer) throw std::runtime_error(SDL_GetError());
     int syncResult=SDL_RenderSetVSync(renderer,o.vsync?1:0);
@@ -152,6 +185,20 @@ static int app(const Options &o) {
         auto hover=[&](ui::Box box){int y=mouseY;if(menu&&box.y>=100)y-=ui::menuOffset;else if(!menu&&box.y>=600)y-=ui::toolbarOffset;return box.contains(mouseX,y);};
         int cursorState=SDL_ENABLE;
         uint64_t prevFrames=0,presented=0,prevPresented=0;
+#ifdef _WIN32
+        WindowsFpsTest fpsTest;bool fpsReportSaved=false;
+        uint64_t previousArrivals=0;double arrivalFps=0;
+        auto fpsCounts=[&](){auto native=capture.snapshot();return WindowsFpsCounters{demonstration?shared.captured.load():native.samples,shared.captured.load(),presented,shared.skipped.load(),native.pendingDropped,shared.corrupt.load(),native.late,audio.ring.dropped.load(),audio.ring.starved.load()};};
+        auto saveFpsReport=[&](){
+            if(!fpsTest.complete||fpsReportSaved)return;
+            auto report=fpsTest.report()+"Mode: "+(demonstration?"test picture":shared.mode)+"\nRenderer: "+info.name+"\nAudio: "+audio.mode+"\n";
+            auto path=settingsPath().parent_path()/"windows-fps-test.txt";
+            std::error_code ec;std::filesystem::create_directories(path.parent_path(),ec);
+            std::ofstream out(path);out<<report;
+            std::cout<<report<<"FPS report "<<(out?"saved: ":"could not be saved: ")<<path.string()<<std::endl;
+            fpsReportSaved=true;
+        };
+#endif
         double measuredFps=0,displayFps=0,uploadAge=0;
         double uploadTotal=0,uploadMax=0,presentTotal=0,presentMax=0;
         uint64_t uploadSamples=0,presentSamples=0;
@@ -173,7 +220,11 @@ static int app(const Options &o) {
             for(size_t i=0;i<outputs.size();++i) if(outputs[i]==o.output) oi=static_cast<int>(i);
         };
         refresh();
-        auto stop=[&]() {capture.stop();audio.stop();playing=false;menu=true;draggingVolume=false;SDL_CaptureMouse(SDL_FALSE);cursor(true);};
+        auto stop=[&]() {
+#ifdef _WIN32
+            if(fpsTest.active){fpsTest.finish(monotime(),fpsCounts());saveFpsReport();}
+#endif
+            capture.stop();audio.stop();playing=false;menu=true;draggingVolume=false;SDL_CaptureMouse(SDL_FALSE);cursor(true);};
         auto start=[&]() {
             error.clear();
             try {
@@ -191,11 +242,20 @@ static int app(const Options &o) {
                 }
                 audio.start(demonstration?nullptr:inputs[static_cast<size_t>(ai)].c_str(),oi<0?nullptr:outputs[static_cast<size_t>(oi)].c_str(),demonstration);
                 playing=true;menu=false;startTime=monotime();lastStat=startTime;lastDemo=startTime-1.0/60;prevFrames=shared.captured;prevPresented=presented;controlsUntil=startTime+3;cursor(true);
+#ifdef _WIN32
+                previousArrivals=fpsCounts().received;arrivalFps=0;
+#endif
                 if(!demonstration)saveSettings(videos[static_cast<size_t>(vi)].path,inputs[static_cast<size_t>(ai)],oi<0?"":outputs[static_cast<size_t>(oi)],formats[static_cast<size_t>(fi)]);
                 std::cout<<(demonstration?"DEMO - synthetic 1080p60":shared.mode)<<"\nAudio: "<<audio.mode<<"\n";
             } catch(const std::exception &e) {stop();error=e.what();std::cerr<<error<<"\n";if(o.autostart) result=1;}
         };
+#ifdef _WIN32
+        auto startFpsTest=[&](){if(!playing)start();if(playing){fpsTest.start(monotime(),fpsCounts(),demonstration);fpsReportSaved=false;menu=false;controlsUntil=monotime()+3;}};
+#endif
         if(o.autostart||o.demo) start();
+#ifdef _WIN32
+        if(o.fpsTest)startFpsTest();
+#endif
         auto color=ui::white;auto dim=ui::muted;auto accent=ui::green;
         while(!quit&&!interrupted) {
             SDL_Event event;
@@ -203,6 +263,9 @@ static int app(const Options &o) {
                 if(havePendingEvent){event=pendingEvent;havePendingEvent=false;}
                 if(event.type==SDL_QUIT) quit=true;
                 if(event.type==SDL_AUDIODEVICEREMOVED&&playing&&audio.ownsDevice(event.adevice.which)) {stop();error="A selected audio device was removed. Refresh devices with R and reconnect.";}
+#ifdef _WIN32
+                if(event.type==SDL_KEYDOWN&&!event.key.repeat&&event.key.keysym.sym==SDLK_F8)startFpsTest();
+#endif
                 if(event.type==SDL_MOUSEMOTION) {
                     mouseX=event.motion.x;mouseY=event.motion.y;
                     controlsUntil=monotime()+3;
@@ -229,6 +292,9 @@ static int app(const Options &o) {
                     auto inside=[&](int left,int top,int width,int height){return x>=left&&x<left+width&&y>=top&&y<top+height;};
                     bool controls=menu||monotime()<controlsUntil;
                     controlsUntil=monotime()+3;
+#ifdef _WIN32
+                    if((menu?ui::Box{470,38,152,42}.contains(x,y):(controls&&ui::Box{22,126,152,34}.contains(x,y)))){startFpsTest();continue;}
+#endif
                     if(menu&&ui::fullscreen.contains(x,y)) {fullscreen();continue;}
                     if(menu&&ui::motion.contains(x,y)){reducedMotion=!reducedMotion;std::cout<<"Menu motion: "<<(reducedMotion?"off":"on")<<std::endl;continue;}
                     if(controls&&(menu?ui::mute.contains(x,y):inside(220,654,90,40))) {mute();continue;}
@@ -273,6 +339,10 @@ static int app(const Options &o) {
                 else {uploadAge=(monotime()-f.received)*1000;uploadTotal+=uploadAge;uploadMax=std::max(uploadMax,uploadAge);++uploadSamples;newFrame=true;}
             }
             if(playing&&!streamError.empty()) {stop();error=streamError;std::cerr<<error<<"\n";result=1;}
+#ifdef _WIN32
+            if(fpsTest.active){fpsTest.update(monotime(),fpsCounts());saveFpsReport();}
+            if(now-lastStat>=1){auto received=demonstration?shared.captured.load():capture.snapshot().samples;arrivalFps=double(received-previousArrivals)/(now-lastStat);previousArrivals=received;}
+#endif
             if(now-lastStat>=1) {double elapsed=now-lastStat;measuredFps=static_cast<double>(shared.captured-prevFrames)/elapsed;displayFps=static_cast<double>(presented-prevPresented)/elapsed;prevFrames=shared.captured;prevPresented=presented;lastStat=now;}
             bool timedExit=o.seconds&&now-began>=o.seconds;
             if(newFrame || now-lastPaint>uiInterval || timedExit) {
@@ -302,6 +372,9 @@ static int app(const Options &o) {
                     auto liveDot=playing||!videos.empty()?accent:dim;
                     if(playing&&!reducedMotion)liveDot.a=static_cast<Uint8>(190+std::sin((now-began)*3)*50);
                     p.round({703,55,8,8},4,liveDot);p.text(status,721,51,playing||!videos.empty()?accent:dim,p.tiny);
+#ifdef _WIN32
+                    p.button({470,38,152,42},fpsTest.active?"Testing FPS...":"FPS test (F8)",hover({470,38,152,42}));
+#endif
                     p.button(ui::fullscreen,(SDL_GetWindowFlags(window)&SDL_WINDOW_FULLSCREEN_DESKTOP)?"Exit fullscreen":"Fullscreen",hover(ui::fullscreen));
                     if(!error.empty()){
                         p.card({40,96,1020,42},{48,32,28,255},{110,69,43,255},10);
@@ -355,11 +428,24 @@ static int app(const Options &o) {
                     else {p.text("Enter  Start playing",736,628,dim,p.small);p.text("F11  Fullscreen     M  Mute",736,651,dim,p.small);}
                     if(playing){std::ostringstream stats;stats<<std::fixed<<std::setprecision(1)<<"Capture "<<measuredFps<<" fps   /   Display "<<displayFps<<" fps   /   Audio queued "<<audio.ring.queued()/96<<" ms   /   Skipped "<<shared.skipped<<"   /   Invalid "<<shared.corrupt;p.text(stats.str(),40,697,dim,p.tiny);}
                     else p.text("DIRECT CAPTURE    /    1080p60    /    STEREO SOUND",40,697,dim,p.tiny);
+#ifdef _WIN32
+                    p.text("XR1 PLAY 1.5.1",954,697,dim,p.tiny);
+#else
                     p.text("XR1 PLAY 1.5",969,697,dim,p.tiny);
+#endif
                 } else {
                     if(demonstration){p.round({22,20,380,34},10,{16,23,15,220});p.text("TEST PICTURE  /  1080p60 + stereo tone",36,29,color,p.small);}
                     if(audio.muted){p.round({952,20,122,34},10,{16,23,15,220});p.icon(ui::Icon::Speaker,964,28,18,dim,true);p.text("Muted",992,29,dim,p.small);}
                 }
+#ifdef _WIN32
+                if(playing&&!menu){
+                    p.offsetY=0;
+                    std::ostringstream live;live<<std::fixed<<std::setprecision(1)<<"Capture "<<arrivalFps<<" fps  /  Shown "<<displayFps<<" fps  /  Audio "<<audio.ring.queued()/96<<" ms";
+                    p.round({22,62,800,54},10,{16,23,15,225});p.text(live.str(),36,69,color,p.small);
+                    p.text(fpsTest.active||fpsTest.complete?fpsTest.summary():"F8: run a 30-second FPS test",36,91,dim,p.tiny);
+                    if(now<controlsUntil)p.button({22,126,152,34},fpsTest.active?"Restart FPS test":"FPS test (F8)",hover({22,126,152,34}),false,p.small);
+                }
+#endif
                 if(menu||now<controlsUntil||draggingVolume) {
                     p.offsetY=menu?ui::menuOffset:ui::toolbarOffset;
                     if(!menu){

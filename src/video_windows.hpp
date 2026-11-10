@@ -41,7 +41,7 @@ inline std::string mfFormatName(const GUID &g){if(g==MFVideoFormat_YUY2)return "
 inline std::vector<DWORD> videoStreams(IMFMediaSource *source){Com<IMFPresentationDescriptor> pd;DWORD count=0;if(SUCCEEDED(source->CreatePresentationDescriptor(pd.put()))&&SUCCEEDED(pd->GetStreamDescriptorCount(&count))&&count<=64){std::vector<DWORD> streams;for(DWORD i=0;i<count;++i){BOOL selected;Com<IMFStreamDescriptor> sd;Com<IMFMediaTypeHandler> handler;GUID major{};if(SUCCEEDED(pd->GetStreamDescriptorByIndex(i,&selected,sd.put()))&&SUCCEEDED(sd->GetMediaTypeHandler(handler.put()))&&SUCCEEDED(handler->GetMajorType(&major))&&major==MFMediaType_Video)streams.push_back(i);}if(!streams.empty())return streams;}return {MF_SOURCE_READER_FIRST_VIDEO_STREAM};}
 struct WinMode {Com<IMFMediaType> type;DWORD stream;GUID subtype;std::string name;UINT32 fpsN=0,fpsD=0;LONG stride=0;int rank=99;};
 inline std::vector<WinMode> windowsModes(IMFSourceReader *reader,IMFMediaSource *source,const std::string &requested){
-    std::vector<WinMode> result;const std::vector<std::string> order={"yuyv","nv12","uyvy","i420","yv12","mjpeg"};
+    std::vector<WinMode> result;const std::vector<std::string> order={"nv12","i420","yv12","yuyv","uyvy","mjpeg"};
     for(auto stream:videoStreams(source))for(DWORD index=0;index<2048;++index){
         Com<IMFMediaType> type;HRESULT hr=reader->GetNativeMediaType(stream,index,type.put());if(FAILED(hr))break;
         UINT32 w=0,h=0,n=0,d=0,interlace=MFVideoInterlace_Progressive;GUID subtype{};
@@ -52,9 +52,12 @@ inline std::vector<WinMode> windowsModes(IMFSourceReader *reader,IMFMediaSource 
     }
     std::stable_sort(result.begin(),result.end(),[](const auto &a,const auto &b){return a.rank<b.rank;});return result;
 }
+struct WinCaptureSnapshot {uint64_t samples=0,pendingDropped=0,late=0;};
 struct WinReaderState {
     std::mutex mutex;std::atomic<bool> running{false};SharedVideo *target=nullptr;IMFSourceReader *reader=nullptr;WinMode mode;Frame frame;JpegDecoder jpeg;double lastValid=0;
-    void fail(const std::string &error){running=false;if(target)target->fail(error);}
+    std::condition_variable ready;Com<IMFSample> pending;double pendingReceived=0,lastArrival=0;
+    WinCaptureSnapshot stats;
+    void fail(const std::string &error){running=false;ready.notify_all();if(target)target->fail(error);}
     bool decode(IMFSample *sample){
         Com<IMFMediaBuffer> buffer;if(FAILED(sample->ConvertToContiguousBuffer(buffer.put())))return false;
         bool compressed=mode.name=="mjpeg";RawFormat raw=mode.name=="yuyv"?RawFormat::YUYV:mode.name=="uyvy"?RawFormat::UYVY:mode.name=="i420"?RawFormat::I420:mode.name=="yv12"?RawFormat::YV12:RawFormat::NV12;
@@ -86,7 +89,16 @@ public:
                 Com<IMFMediaType> current;UINT32 w=0,h=0,n=0,d=0;GUID subtype{};
                 if(FAILED(state->reader->GetCurrentMediaType(state->mode.stream,current.put()))||FAILED(MFGetAttributeSize(current.get(),MF_MT_FRAME_SIZE,&w,&h))||w!=1920||h!=1080||FAILED(MFGetAttributeRatio(current.get(),MF_MT_FRAME_RATE,&n,&d))||!rate60(n,d)||FAILED(current->GetGUID(MF_MT_SUBTYPE,&subtype))||subtype!=state->mode.subtype){state->fail("The camera changed its capture format. Stop and restart the preview.");return S_OK;}
             }
-            if(sample){bool valid=state->decode(sample);if(valid){state->frame.received=monotime();state->lastValid=state->frame.received;state->target->publish(state->frame);}else ++state->target->corrupt;}
+            // Return promptly to MF. Conversion/upload must never hold up the
+            // next camera read; one pending sample keeps latency bounded.
+            if(sample){
+                double arrival=monotime();
+                if(state->lastArrival&&arrival-state->lastArrival>0.025)++state->stats.late;
+                state->lastArrival=arrival;++state->stats.samples;
+                if(state->pending)++state->stats.pendingDropped;
+                sample->AddRef();state->pending=Com<IMFSample>(sample);
+                state->pendingReceived=arrival;state->ready.notify_one();
+            }
             if(state->reader){state->reader->AddRef();next=Com<IMFSourceReader>(state->reader);stream=state->mode.stream;}
         }
         if(next){hr=next->ReadSample(stream,0,nullptr,nullptr,nullptr,nullptr);if(FAILED(hr)){std::lock_guard<std::mutex> lock(state->mutex);if(state->running)state->fail("Cannot request the next camera frame ("+hresult(hr)+").");}}
@@ -96,7 +108,7 @@ public:
     HRESULT STDMETHODCALLTYPE OnEvent(DWORD,IMFMediaEvent *event)override{HRESULT status=S_OK;if(event&&SUCCEEDED(event->GetStatus(&status))&&FAILED(status)){std::lock_guard<std::mutex> lock(state->mutex);if(state->running)state->fail("Camera event failed ("+hresult(status)+").");}return S_OK;}
 };
 class Capture {
-    SharedVideo &shared;Com<IMFMediaSource> source;Com<IMFSourceReader> reader;std::shared_ptr<WinReaderState> state;std::thread watchdog;
+    SharedVideo &shared;Com<IMFMediaSource> source;Com<IMFSourceReader> reader;std::shared_ptr<WinReaderState> state;std::thread watchdog,decoder;
 public:
     explicit Capture(SharedVideo &s):shared(s){}~Capture(){stop();}
     void start(const std::string &path,const std::string &requested,unsigned=2){
@@ -108,14 +120,40 @@ public:
             auto modes=windowsModes(reader.get(),source.get(),requested);bool selected=false;HRESULT last=MF_E_INVALIDMEDIATYPE;
             for(auto &mode:modes){reader->SetStreamSelection(MF_SOURCE_READER_ALL_STREAMS,FALSE);last=reader->SetCurrentMediaType(mode.stream,nullptr,mode.type.get());if(FAILED(last))continue;last=reader->SetStreamSelection(mode.stream,TRUE);if(FAILED(last))continue;state->mode=mode;selected=true;break;}
             if(!selected)throw std::runtime_error("No supported native 1920x1080 at 60/59.94 fps mode ("+hresult(last)+"). Use USB 3, Xbox 1080p/60 SDR; check --diagnose and the XR1 Lite firmware.");
+            // Confirm the effective type, not just the driver's advertised list.
+            Com<IMFMediaType> current;UINT32 w=0,h=0,n=0,d=0;GUID sub{};
+            mfCheck(reader->GetCurrentMediaType(state->mode.stream,current.put()),"Cannot verify capture mode");
+            if(FAILED(MFGetAttributeSize(current.get(),MF_MT_FRAME_SIZE,&w,&h))||w!=1920||h!=1080||FAILED(MFGetAttributeRatio(current.get(),MF_MT_FRAME_RATE,&n,&d))||!rate60(n,d)||FAILED(current->GetGUID(MF_MT_SUBTYPE,&sub))||sub!=state->mode.subtype)throw std::runtime_error("Windows did not accept native 1080p60. Try another format or USB 3 port.");
+            UINT32 stride=0;if(SUCCEEDED(current->GetUINT32(MF_MT_DEFAULT_STRIDE,&stride)))state->mode.stride=static_cast<LONG>(stride);
             state->target=&shared;state->reader=reader.get();state->lastValid=monotime();state->running=true;
+            auto decoding=state;
+            decoder=std::thread([decoding](){
+                HRESULT initialized=CoInitializeEx(nullptr,COINIT_MULTITHREADED);
+                while(true){
+                    Com<IMFSample> sample;double received=0;
+                    {
+                        std::unique_lock<std::mutex> lock(decoding->mutex);
+                        decoding->ready.wait(lock,[&](){return !decoding->running||bool(decoding->pending);});
+                        if(!decoding->running)break;
+                        sample=decoding->pending;decoding->pending.reset();received=decoding->pendingReceived;
+                    }
+                    bool valid=false;
+                    try{valid=decoding->decode(sample.get());}catch(const std::exception &e){std::lock_guard<std::mutex> lock(decoding->mutex);if(decoding->running)decoding->fail(e.what());break;}
+                    std::lock_guard<std::mutex> lock(decoding->mutex);
+                    if(!decoding->running||!decoding->target)break;
+                    if(valid){decoding->frame.received=received;decoding->lastValid=monotime();decoding->target->publish(decoding->frame);}
+                    else ++decoding->target->corrupt;
+                }
+                if(SUCCEEDED(initialized))CoUninitialize();
+            });
             std::ostringstream mode;mode<<"1920 x 1080 / "<<double(state->mode.fpsN)/state->mode.fpsD<<" fps / "<<state->mode.name<<" / Media Foundation native";shared.mode=mode.str();
             mfCheck(reader->ReadSample(state->mode.stream,0,nullptr,nullptr,nullptr,nullptr),"Cannot start native capture");
             auto active=state;watchdog=std::thread([active](){while(active->running){std::this_thread::sleep_for(std::chrono::milliseconds(100));std::lock_guard<std::mutex> lock(active->mutex);if(active->running&&monotime()-active->lastValid>5)active->fail("No valid video frames for 5 seconds. Check HDMI, USB 3 and Xbox 1080p/60 settings.");}});
         }catch(...){stop();throw;}
     }
+    WinCaptureSnapshot snapshot(){if(!state)return {};std::lock_guard<std::mutex> lock(state->mutex);return state->stats;}
     void stop(){
-        if(state){{std::lock_guard<std::mutex> lock(state->mutex);state->running=false;state->target=nullptr;state->reader=nullptr;}if(watchdog.joinable())watchdog.join();}
+        if(state){{std::lock_guard<std::mutex> lock(state->mutex);state->running=false;state->target=nullptr;state->reader=nullptr;state->ready.notify_all();}if(decoder.joinable())decoder.join();if(watchdog.joinable())watchdog.join();}
         if(reader)reader->Flush(MF_SOURCE_READER_ALL_STREAMS);
         if(source)source->Shutdown();
         reader.reset();source.reset();state.reset();

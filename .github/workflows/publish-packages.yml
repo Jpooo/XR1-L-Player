@@ -1,4 +1,4 @@
-name: Attach v1.5.0 release packages
+name: Publish XR1-L Play Windows Beta v1
 
 on:
   workflow_dispatch:
@@ -7,34 +7,28 @@ permissions:
   contents: write
 
 concurrency:
-  group: publish-v1.5.0-packages
+  group: publish-windows-beta-v1
   cancel-in-progress: false
 
 jobs:
-  upload:
+  upload-windows-beta:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Download and verify the existing release packages
+      - name: Download and verify the approved Windows Beta v1 package
         env:
-          PACKAGE_BASE: https://raw.githubusercontent.com/Jpooo/XR1-Play/0b69cfbd5a3452cc162d72307be0080bfc29f3ac/v1.5.0
+          PACKAGE_BASE: https://raw.githubusercontent.com/Jpooo/XR1-Play/1a06a3be4897d144d7d1d7ebf39ef100455cd685/windows-beta-v1
         run: |
           mkdir packages
           cd packages
-          for package in SHA256SUMS XR1-Play-1.5.0-Windows-x64.zip XR1-Play-1.5.0-x86_64.AppImage; do
+          for package in SHA256SUMS XR1-L-Play-Windows-Beta-v1-x64.zip; do
             curl --fail --location --retry 3 --max-time 120 "$PACKAGE_BASE/$package" --output "$package"
           done
           sha256sum --check SHA256SUMS
-
-      - name: Attach packages to the published Release
+      - name: Attach the Windows ZIP and checksum to its beta release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          existing=$(gh release view v1.5.0 --json assets --jq '.assets[].name')
-          for package in XR1-Play-1.5.0-x86_64.AppImage XR1-Play-1.5.0-Windows-x64.zip; do
-            if ! printf '%s\n' "$existing" | grep -Fxq "$package"; then
-              gh release upload v1.5.0 "packages/$package"
-            fi
-          done
-          gh release upload v1.5.0 packages/SHA256SUMS --clobber
+          gh release upload windows-beta-v1 \
+            packages/XR1-L-Play-Windows-Beta-v1-x64.zip packages/SHA256SUMS

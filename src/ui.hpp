@@ -5,9 +5,7 @@
 #include <unordered_map>
 #include <cstdlib>
 #include <stdexcept>
-#ifdef _WIN32
 #include "menu_theme.hpp"
-#endif
 namespace ui {
 inline constexpr int height=650,menuOffset=-72,toolbarOffset=-64;
 struct Box {int x,y,w,h;bool contains(int px,int py)const{return px>=x&&px<x+w&&py>=y&&py<y+h;}};
@@ -29,7 +27,6 @@ struct Painter {
     std::unordered_map<int,float> transitions;
     SDL_Texture *glowTexture=nullptr;
     bool motion=true;
-#ifdef _WIN32
     ui::MenuTheme theme;
     bool applyTheme=true;
     bool setWindowIcon(SDL_Window *window){
@@ -38,7 +35,6 @@ struct Painter {
         SDL_SetWindowIcon(window,surface);SDL_FreeSurface(surface);return true;
     }
     SDL_Color resolve(SDL_Color c)const{return applyTheme?theme.resolve(c):c;}
-#endif
     double frameTime=0,frameDelta=0;
     void frame(double now){frameDelta=frameTime?std::clamp(now-frameTime,0.0,0.1):0;frameTime=now;}
     float animate(int id,bool active){float &value=transitions[id];value=motion?value+((active?1.0f:0.0f)-value)*float(1-std::exp(-frameDelta*16)):(active?1.0f:0.0f);return value;}
@@ -70,9 +66,7 @@ struct Painter {
         TTF_SetFontStyle(title,TTF_STYLE_BOLD);TTF_SetFontStyle(heading,TTF_STYLE_BOLD);TTF_SetFontStyle(display,TTF_STYLE_BOLD);fontScale=scale;
     }
     void rect(int x,int y,int w,int h,SDL_Color c){
-#ifdef _WIN32
         c=resolve(c);
-#endif
         y+=offsetY;SDL_SetRenderDrawColor(r,c.r,c.g,c.b,c.a);SDL_Rect a{x,y,w,h};SDL_RenderFillRect(r,&a);}
     void gradient(ui::Box b,SDL_Color top,SDL_Color bottom){
         b.y+=offsetY;
@@ -90,9 +84,7 @@ struct Painter {
         SDL_Rect dst{b.x,b.y,b.w,b.h};SDL_RenderCopy(r,backdrop,nullptr,&dst);
     }
     void round(ui::Box b,float radius,SDL_Color color){
-#ifdef _WIN32
         color=resolve(color);
-#endif
         b.y+=offsetY;
         if(b.w<=0||b.h<=0)return;
         radius=std::min(radius,std::min(b.w,b.h)/2.0f);
@@ -122,9 +114,7 @@ struct Painter {
     }
     void card(ui::Box b,SDL_Color fill,SDL_Color stroke,int radius=14){round(b,float(radius),stroke);round({b.x+1,b.y+1,b.w-2,b.h-2},float(radius-1),fill);}
     void line(float x1,float y1,float x2,float y2,SDL_Color c,float width=2){
-#ifdef _WIN32
         c=resolve(c);
-#endif
         y1+=offsetY;y2+=offsetY;
         float length=std::hypot(x2-x1,y2-y1);if(length<0.001f)return;
         float ux=(x2-x1)/length,uy=(y2-y1)/length,nx=-uy,ny=ux;
@@ -137,9 +127,7 @@ struct Painter {
         int indices[]={0,1,2,0,2,3,0,4,5,0,5,1,1,5,6,1,6,2,2,6,7,2,7,3,3,7,4,3,4,0};SDL_RenderGeometry(r,nullptr,v.data(),8,indices,30);
     }
     void glow(SDL_FRect dst,SDL_Color color){
-#ifdef _WIN32
         color=resolve(color);
-#endif
         dst.y+=offsetY;
         if(!glowTexture){
             constexpr int size=192;std::vector<Uint32> pixels(size*size);auto *format=SDL_AllocFormat(SDL_PIXELFORMAT_RGBA32);
@@ -150,9 +138,7 @@ struct Painter {
         SDL_SetTextureColorMod(glowTexture,color.r,color.g,color.b);SDL_SetTextureAlphaMod(glowTexture,color.a);SDL_RenderCopyF(r,glowTexture,nullptr,&dst);
     }
     void icon(ui::Icon type,int x,int y,int size,SDL_Color c,bool secondary=false,double angle=0){
-#ifdef _WIN32
         c=resolve(c);
-#endif
         y+=offsetY;
         static const char *names[]={"monitor","volume-2","gamepad-2","maximize","refresh-cw","play","square","chevron-right","check"};
         std::string name=type==ui::Icon::Speaker&&secondary?"volume-x":names[static_cast<int>(type)];
@@ -169,9 +155,7 @@ struct Painter {
         SDL_RenderCopyExF(r,found->second,nullptr,&dst,angle,nullptr,SDL_FLIP_NONE);
     }
     void text(const std::string &s,int x,int y,SDL_Color color,TTF_Font *font=nullptr,int wrap=0){
-#ifdef _WIN32
         color=resolve(color);
-#endif
         y+=offsetY;
         if(s.empty())return;
         if(!font)font=normal;
@@ -198,17 +182,10 @@ struct Painter {
         if(!font)font=normal;
         float energy=animate(b.x*1000+b.y,hovered);int lift=int(std::lround(energy*2));
         b.y-=lift;
-#ifdef _WIN32
         auto accent=theme.accent();auto glow=accent;glow.a=static_cast<Uint8>(8+energy*10);
         if(primary)round({b.x-2,b.y+3,b.w+4,b.h+3},10,glow);
         auto fill=primary?mix(accent,ui::white,energy*.10f):mix(ui::raised,{44,49,57,255},energy);
         card(b,fill,primary?accent:mix(ui::border,accent,energy*.55f),9);
         int w=0,h=0;TTF_SizeUTF8(font,label.c_str(),&w,&h);text(label,b.x+(b.w-int(w/fontScale))/2,b.y+(b.h-int(h/fontScale))/2,primary?theme.ink():ui::white,font);
-#else
-        if(primary){round({b.x-3,b.y+3,b.w+6,b.h+5},14,{155,240,11,static_cast<Uint8>(12+energy*20)});}
-        auto fill=primary?mix(ui::green,{185,255,64,255},energy):mix(ui::raised,{48,57,65,255},energy);
-        card(b,fill,mix(primary?ui::green:ui::border,ui::green,energy),10);
-        int w=0,h=0;TTF_SizeUTF8(font,label.c_str(),&w,&h);text(label,b.x+(b.w-int(w/fontScale))/2,b.y+(b.h-int(h/fontScale))/2,primary?SDL_Color{14,24,5,255}:ui::white,font);
-#endif
     }
 };

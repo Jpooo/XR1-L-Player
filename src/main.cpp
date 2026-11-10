@@ -6,15 +6,14 @@
 #include <iomanip>
 #include <cstdlib>
 #include <csignal>
+#include "fps_test.hpp"
+#include "frame_cadence.hpp"
 #ifdef _WIN32
-#include "windows_fps.hpp"
 #include "windows_presenter.hpp"
 #endif
 struct Options {
-#ifdef _WIN32
     bool fpsTest=false,colorPreference=false;
     ui::ConsoleColor colorTheme=ui::ConsoleColor::Xbox;
-#endif
     bool demo=false,fullscreen=false,vsync=false,diagnose=false,autostart=false,reduceMotion=false;
     bool videoSet=false,audioSet=false,outputSet=false;
 #ifdef _WIN32
@@ -41,24 +40,17 @@ static void loadSettings(Options &o) {
         if(key=="audio")o.audio=value;
         if(key=="output")o.output=value;
         if(key=="format")o.format=value;
-#ifdef _WIN32
         if(key=="theme")o.colorTheme=ui::parseColor(value);
-#endif
     }
 }
 static void saveSettings(const std::string &video,const std::string &audio,const std::string &output,const std::string &format
-#ifdef _WIN32
 ,ui::ConsoleColor colorTheme
-#endif
 ) {
     auto path=settingsPath();if(path.empty())return;
     std::error_code ec;std::filesystem::create_directories(path.parent_path(),ec);if(ec)return;
     std::ofstream out(path);out<<"video "<<std::quoted(video)<<"\naudio "<<std::quoted(audio)<<"\noutput "<<std::quoted(output)<<"\nformat "<<std::quoted(format)<<"\n";
-#ifdef _WIN32
     out<<"theme "<<std::quoted(ui::colorKey(colorTheme))<<"\n";
-#endif
 }
-#ifdef _WIN32
 static bool saveColorPreference(ui::ConsoleColor choice){
     auto path=settingsPath();if(path.empty())return false;
     std::error_code ec;std::filesystem::create_directories(path.parent_path(),ec);if(ec)return false;
@@ -67,7 +59,6 @@ static bool saveColorPreference(ui::ConsoleColor choice){
     in.close();contents<<"theme "<<std::quoted(ui::colorKey(choice))<<"\n";
     std::ofstream out(path);out<<contents.str();out.flush();return bool(out);
 }
-#endif
 static volatile std::sig_atomic_t interrupted=0;
 static void handleSignal(int) {interrupted=1;}
 static void help() {
@@ -75,7 +66,7 @@ static void help() {
 #ifdef _WIN32
     "XR1 Play 1.5.5 - native 1080p60 HDMI viewer ("
 #else
-    "XR1 Play 1.5.0 - native 1080p60 HDMI viewer ("
+    "XR1 Play 1.5.6 Linux test build - native 1080p60 HDMI viewer ("
 #endif
 #ifdef _WIN32
     "Windows x86_64"
@@ -99,10 +90,8 @@ static void help() {
     "  --fullscreen           Open fullscreen\n"
     "  --vsync                Enable vsync (default off; may reduce tearing)\n"
     "  --reduce-motion        Disable decorative menu animation\n"
-#ifdef _WIN32
     "  --fps-test             Start preview with a 30-second FPS test (F8)\n"
     "  --color-preference     Open the in-app color preference panel\n"
-#endif
     "  --diagnose             Print devices and advertised 1080p frame rates\n"
     "  --seconds N            Exit after N seconds (testing)\n"
     "  --screenshot FILE.bmp  Save a screenshot before exit with --seconds\n"
@@ -118,10 +107,8 @@ static Options parse(int argc,char **argv) {
         if(a=="--help"||a=="-h") {help();std::exit(0);}
         else if(a=="--demo") o.demo=true;
         else if(a=="--fullscreen") o.fullscreen=true;
-#ifdef _WIN32
         else if(a=="--color-preference")o.colorPreference=true;
         else if(a=="--fps-test") {o.fpsTest=true;o.autostart=true;}
-#endif
         else if(a=="--vsync") o.vsync=true;
         else if(a=="--reduce-motion")o.reduceMotion=true;
         else if(a=="--diagnose") o.diagnose=true;
@@ -209,29 +196,41 @@ static int app(const Options &o) {
         auto hover=[&](ui::Box box){int y=mouseY;if(menu&&box.y>=100)y-=ui::menuOffset;else if(!menu&&box.y>=600)y-=ui::toolbarOffset;return box.contains(mouseX,y);};
         int cursorState=SDL_ENABLE;
         uint64_t prevFrames=0,presented=0,prevPresented=0;
-#ifdef _WIN32
-        WindowsFpsTest fpsTest;bool fpsReportSaved=false;
+        FpsTest fpsTest;bool fpsReportSaved=false;
         bool colorPreferences=o.colorPreference;int colorFocus=static_cast<int>(o.colorTheme);
         auto colorTheme=o.colorTheme;std::string colorSaveError;
         auto chooseColor=[&](int index){colorTheme=static_cast<ui::ConsoleColor>(index);p.theme.choice=colorTheme;p.setWindowIcon(window);p.clearLabels();colorSaveError=saveColorPreference(colorTheme)?"":"Could not save this preference. Your color is applied for this session.";};
         auto openColors=[&](){colorPreferences=true;colorFocus=static_cast<int>(colorTheme);controlsUntil=monotime()+3;};
         p.theme.choice=colorTheme;p.setWindowIcon(window);
+#ifdef _WIN32
         WindowsVideoUpload videoUploads;
         WindowsPlaybackScheduling playbackScheduling;
-        WindowsFrameRate shownCadence,demoCadence;double arrivalFps=0;
-        auto fpsCounts=[&](){auto native=capture.snapshot();return WindowsFpsCounters{demonstration?shared.captured.load():native.samples,shared.captured.load(),presented,shared.skipped.load(),native.pendingDropped,shared.corrupt.load(),native.late,audio.ring.dropped.load(),audio.ring.starved.load()};};
+#endif
+        FrameRate shownCadence,demoCadence;double arrivalFps=0;
+        auto fpsCounts=[&](){
+#ifdef _WIN32
+            auto native=capture.snapshot();return FpsCounters{demonstration?shared.captured.load():native.samples,shared.captured.load(),presented,shared.skipped.load(),native.pendingDropped,shared.corrupt.load(),native.late,audio.ring.dropped.load(),audio.ring.starved.load()};
+#else
+            auto frames=shared.captured.load();return FpsCounters{frames,frames,presented,shared.skipped.load(),0,shared.corrupt.load(),0,audio.ring.dropped.load(),audio.ring.starved.load()};
+#endif
+        };
         auto saveFpsReport=[&](){
             if(!fpsTest.complete||fpsReportSaved)return;
             auto report=fpsTest.report()+"Mode: "+(demonstration?"test picture":shared.mode)+"\nRenderer: "+info.name+"\nAudio: "+audio.mode+"\n";
+#ifdef _WIN32
             report+="Video upload destinations: "+std::to_string(videoUploads.destinations())+"\nScheduling: "+playbackScheduling.mode()+"\n";
+#endif
             SDL_DisplayMode display{};if(SDL_GetCurrentDisplayMode(SDL_GetWindowDisplayIndex(window),&display)==0)report+="Desktop refresh reported by SDL: "+std::to_string(display.refresh_rate)+" Hz\n";
+#ifdef _WIN32
             auto path=settingsPath().parent_path()/"windows-fps-test.txt";
+#else
+            auto path=settingsPath().parent_path()/"fps-test.txt";
+#endif
             std::error_code ec;std::filesystem::create_directories(path.parent_path(),ec);
             std::ofstream out(path);out<<report;
             std::cout<<report<<"FPS report "<<(out?"saved: ":"could not be saved: ")<<path.string()<<std::endl;
             fpsReportSaved=true;
         };
-#endif
         double measuredFps=0,displayFps=0,uploadAge=0;
         double uploadTotal=0,uploadMax=0,presentTotal=0,presentMax=0;
         uint64_t uploadSamples=0,presentSamples=0;
@@ -257,8 +256,8 @@ static int app(const Options &o) {
         };
         refresh();
         auto stop=[&]() {
-#ifdef _WIN32
             if(fpsTest.active){fpsTest.finish(monotime(),fpsCounts());saveFpsReport();}
+#ifdef _WIN32
             playbackScheduling.stop();
 #endif
             capture.stop();audio.stop();playing=false;menu=true;draggingVolume=false;SDL_CaptureMouse(SDL_FALSE);cursor(true);};
@@ -282,26 +281,18 @@ static int app(const Options &o) {
                 }
                 audio.start(demonstration?nullptr:inputs[static_cast<size_t>(ai)].c_str(),oi<0?nullptr:outputs[static_cast<size_t>(oi)].c_str(),demonstration);
                 playing=true;menu=false;startTime=monotime();lastStat=startTime;lastDemo=startTime-1.0/60;prevFrames=shared.captured;prevPresented=presented;controlsUntil=startTime+3;cursor(true);
-#ifdef _WIN32
                 shownCadence.reset();demoCadence.reset();arrivalFps=0;
-#endif
                 if(!demonstration)saveSettings(videos[static_cast<size_t>(vi)].path,inputs[static_cast<size_t>(ai)],oi<0?"":outputs[static_cast<size_t>(oi)],formats[static_cast<size_t>(fi)]
-#ifdef _WIN32
                     ,colorTheme
-#endif
                 );
                 std::cout<<(demonstration?"DEMO - synthetic 1080p60":shared.mode)<<"\nAudio: "<<audio.mode<<"\n";
             } catch(const std::exception &e) {stop();error=e.what();std::cerr<<error<<"\n";if(o.autostart) result=1;}
         };
-#ifdef _WIN32
         auto startFpsTest=[&](){if(!playing)start();if(playing){fpsTest.start(monotime(),fpsCounts(),demonstration);fpsReportSaved=false;menu=false;controlsUntil=monotime()+3;}};
         auto closeFpsTest=[&](){fpsTest.close(monotime(),fpsCounts());saveFpsReport();controlsUntil=monotime()+3;};
         auto toggleFpsTest=[&](){if(fpsTest.visible&&(fpsTest.active||fpsTest.complete))closeFpsTest();else startFpsTest();};
-#endif
         if(o.autostart||o.demo) start();
-#ifdef _WIN32
         if(o.fpsTest)startFpsTest();
-#endif
         auto color=ui::white;auto dim=ui::muted;auto accent=ui::green;
         while(!quit&&!interrupted) {
             SDL_Event event;
@@ -309,7 +300,6 @@ static int app(const Options &o) {
                 if(havePendingEvent){event=pendingEvent;havePendingEvent=false;}
                 if(event.type==SDL_QUIT) quit=true;
                 if(event.type==SDL_AUDIODEVICEREMOVED&&playing&&audio.ownsDevice(event.adevice.which)) {stop();error="A selected audio device was removed. Refresh devices with R and reconnect.";}
-#ifdef _WIN32
                 if(colorPreferences){
                     if(event.type==SDL_MOUSEMOTION){mouseX=event.motion.x;mouseY=event.motion.y;}
                     if(event.type==SDL_KEYDOWN&&!event.key.repeat){
@@ -327,8 +317,14 @@ static int app(const Options &o) {
                     if(event.type!=SDL_RENDER_DEVICE_RESET&&event.type!=SDL_RENDER_TARGETS_RESET)continue;
                 }
                 if(event.type==SDL_KEYDOWN&&!event.key.repeat&&event.key.keysym.sym==SDLK_F8)toggleFpsTest();
-                if(event.type==SDL_RENDER_DEVICE_RESET||event.type==SDL_RENDER_TARGETS_RESET){videoUploads.reset();texture=nullptr;}
+                if(event.type==SDL_RENDER_DEVICE_RESET||event.type==SDL_RENDER_TARGETS_RESET){
+#ifdef _WIN32
+                    videoUploads.reset();
+#else
+                    if(texture)SDL_DestroyTexture(texture);
 #endif
+                    texture=nullptr;
+                }
                 if(event.type==SDL_MOUSEMOTION) {
                     mouseX=event.motion.x;mouseY=event.motion.y;
                     controlsUntil=monotime()+3;
@@ -355,11 +351,9 @@ static int app(const Options &o) {
                     auto inside=[&](int left,int top,int width,int height){return x>=left&&x<left+width&&y>=top&&y<top+height;};
                     bool controls=menu||monotime()<controlsUntil;
                     controlsUntil=monotime()+3;
-#ifdef _WIN32
                     if(menu&&ui::Box{282,38,174,42}.contains(x,y)){openColors();continue;}
                     if(!menu&&fpsTest.visible&&ui::Box{744,68,66,34}.contains(x,y)){closeFpsTest();continue;}
                     if(menu?ui::Box{470,38,152,42}.contains(x,y):(!fpsTest.visible&&controls&&ui::Box{22,62,152,34}.contains(x,y))){toggleFpsTest();continue;}
-#endif
                     if(menu&&ui::fullscreen.contains(x,y)) {fullscreen();continue;}
                     if(menu&&ui::motion.contains(x,y)){reducedMotion=!reducedMotion;std::cout<<"Menu motion: "<<(reducedMotion?"off":"on")<<std::endl;continue;}
                     if(controls&&(menu?ui::mute.contains(x,y):inside(220,654,90,40))) {mute();continue;}
@@ -388,16 +382,10 @@ static int app(const Options &o) {
             }
             double now=monotime();bool newFrame=false;
             double uiInterval=menu?(reducedMotion?1.0/20:1.0/30):1.0/10;
-#ifdef _WIN32
             accent=p.theme.accent();
             cursor(colorPreferences||menu||now<controlsUntil||draggingVolume);
-#else
-            cursor(menu||now<controlsUntil||draggingVolume);
-#endif
             if(playing&&demonstration&&now-lastDemo>=1.0/60) {Frame f;demoFrame(f,now-startTime);shared.publish(f);
-#ifdef _WIN32
                 demoCadence.record(monotime());
-#endif
                 lastDemo+=1.0/60;if(now-lastDemo>0.1)lastDemo=now;}
             std::string streamError;
             {
@@ -413,20 +401,25 @@ static int app(const Options &o) {
                 fpsTest.recordUpload((monotime()-uploadBegan)*1000);
                 if(!texture)streamError="Cannot upload video texture: "+std::string(SDL_GetError());
 #else
+                double uploadBegan=monotime();
                 if(!texture||texturePixel!=f.pixel) {if(texture) SDL_DestroyTexture(texture); texture=SDL_CreateTexture(renderer,f.pixel,SDL_TEXTUREACCESS_STREAMING,1920,1080);texturePixel=f.pixel;if(texture)SDL_SetTextureScaleMode(texture,SDL_ScaleModeLinear);}
                 if(!texture||SDL_UpdateTexture(texture,nullptr,f.data.data(),f.pitch)<0) streamError="Cannot upload video texture: "+std::string(SDL_GetError());
 #endif
-                else {uploadAge=(monotime()-f.received)*1000;uploadTotal+=uploadAge;uploadMax=std::max(uploadMax,uploadAge);++uploadSamples;newFrame=true;}
+                else {
+#ifndef _WIN32
+                    fpsTest.recordUpload((monotime()-uploadBegan)*1000);
+#endif
+                    uploadAge=(monotime()-f.received)*1000;uploadTotal+=uploadAge;uploadMax=std::max(uploadMax,uploadAge);++uploadSamples;newFrame=true;}
             }
             if(playing&&!streamError.empty()) {stop();error=streamError;std::cerr<<error<<"\n";result=1;}
-#ifdef _WIN32
             if(fpsTest.active){fpsTest.update(monotime(),fpsCounts());saveFpsReport();}
-#endif
             if(now-lastStat>=1) {double elapsed=now-lastStat;measuredFps=static_cast<double>(shared.captured-prevFrames)/elapsed;displayFps=static_cast<double>(presented-prevPresented)/elapsed;prevFrames=shared.captured;prevPresented=presented;lastStat=now;}
 #ifdef _WIN32
             arrivalFps=demonstration?demoCadence.fps(monotime()):capture.snapshot().fps;
-            measuredFps=arrivalFps;displayFps=shownCadence.fps(monotime());
+#else
+            arrivalFps=demonstration?demoCadence.fps(monotime()):shared.captureFps();
 #endif
+            measuredFps=arrivalFps;displayFps=shownCadence.fps(monotime());
             bool timedExit=o.seconds&&now-began>=o.seconds;
             if(newFrame || now-lastPaint>uiInterval || timedExit) {
                 SDL_RenderSetLogicalSize(renderer,1100,ui::height);
@@ -448,21 +441,15 @@ static int app(const Options &o) {
                     double drift=reducedMotion?0:std::sin((now-began)*.3)*18;
                     p.glow({float(650+drift),-170,600,600},{155,240,11,35});
                     p.glow({float(-210-drift),400,520,520},{44,137,230,23});
-#ifdef _WIN32
                     p.round({40,32,48,48},13,accent);p.icon(ui::Icon::Controller,44,36,40,p.theme.ink(),false,-10);
-#else
-                    p.round({40,32,48,48},13,accent);p.text("XR",46,41,{15,27,6,255},p.heading);
-#endif
                     p.text("XR1 Play",102,32,color,p.heading);p.text("CAPTURE VIEWER",103,62,dim,p.tiny);
                     std::string status=playing?(demonstration?"TEST PICTURE":"LIVE PREVIEW"):videos.empty()?"CONNECT YOUR XR1":"READY TO PLAY";
                     p.round({688,42,184,34},17,{30,37,32,255});
                     auto liveDot=playing||!videos.empty()?accent:dim;
                     if(playing&&!reducedMotion)liveDot.a=static_cast<Uint8>(190+std::sin((now-began)*3)*50);
                     p.round({703,55,8,8},4,liveDot);p.text(status,721,51,playing||!videos.empty()?accent:dim,p.tiny);
-#ifdef _WIN32
                     p.button({282,38,174,42},"Color preference",hover({282,38,174,42}),false,p.small);
                     p.button({470,38,152,42},fpsTest.visible&&(fpsTest.active||fpsTest.complete)?"Close FPS test":"FPS test (F8)",hover({470,38,152,42}));
-#endif
                     p.button(ui::fullscreen,(SDL_GetWindowFlags(window)&SDL_WINDOW_FULLSCREEN_DESKTOP)?"Exit fullscreen":"Fullscreen",hover(ui::fullscreen));
                     if(!error.empty()){
                         p.card({40,96,1020,42},{48,32,28,255},{110,69,43,255},10);
@@ -519,13 +506,12 @@ static int app(const Options &o) {
 #ifdef _WIN32
                     p.text("XR1 PLAY 1.5.5",954,697,dim,p.tiny);
 #else
-                    p.text("XR1 PLAY 1.5",969,697,dim,p.tiny);
+                    p.text("XR1 PLAY 1.5.6",954,697,dim,p.tiny);
 #endif
                 } else {
                     if(demonstration){p.round({22,20,380,34},10,{16,23,15,220});p.text("TEST PICTURE  /  1080p60 + stereo tone",36,29,color,p.small);}
                     if(audio.muted){p.round({952,20,122,34},10,{16,23,15,220});p.icon(ui::Icon::Speaker,964,28,18,dim,true);p.text("Muted",992,29,dim,p.small);}
                 }
-#ifdef _WIN32
                 if(playing&&!menu){
                     p.offsetY=0;
                     std::ostringstream live;live<<std::fixed<<std::setprecision(1)<<"Capture "<<arrivalFps<<" fps  /  Shown "<<displayFps<<" fps  /  Audio "<<audio.ring.queued()/96<<" ms";
@@ -535,7 +521,6 @@ static int app(const Options &o) {
                         p.button({744,68,66,34},"Close",hover({744,68,66,34}),false,p.small);
                     }else if(now<controlsUntil)p.button({22,62,152,34},"FPS test (F8)",hover({22,62,152,34}),false,p.small);
                 }
-#endif
                 if(menu||now<controlsUntil||draggingVolume) {
                     p.offsetY=menu?ui::menuOffset:ui::toolbarOffset;
                     if(!menu){
@@ -553,7 +538,6 @@ static int app(const Options &o) {
                     p.round({left+fill-7,top-4,14,14},7,color);
                     p.text(std::to_string(static_cast<int>(std::lround(audio.volume*100)))+"%",menu?895:650,menu?562:664,dim);
                 }
-#ifdef _WIN32
                 if(colorPreferences){
                     p.offsetY=0;p.rect(0,0,1100,ui::height,{5,7,11,194});
                     p.card({220,160,660,328},{23,27,34,255},{57,64,75,255},18);
@@ -577,7 +561,6 @@ static int app(const Options &o) {
                     p.text("Arrows: browse   Enter: select   Esc: close",248,443,dim,p.tiny);
                     p.button({696,424,148,40},"Done",colorFocus==3||ui::Box{696,424,148,40}.contains(mouseX,mouseY),true,p.small);
                 }
-#endif
                 if(timedExit&&!o.screenshot.empty()) {
                     // Read the entire drawable, rather than the logical UI viewport.
                     SDL_RenderSetLogicalSize(renderer,0,0);
@@ -587,10 +570,8 @@ static int app(const Options &o) {
                 }
                 double beforePresent=monotime();SDL_RenderPresent(renderer);
                 double presentMs=(monotime()-beforePresent)*1000;
-#ifdef _WIN32
                 fpsTest.recordPresent(presentMs);
                 if(newFrame&&playing&&texture)shownCadence.record(monotime());
-#endif
                 presentTotal+=presentMs;presentMax=std::max(presentMax,presentMs);++presentSamples;
                 lastPaint=now;
             }

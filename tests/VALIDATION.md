@@ -178,3 +178,41 @@ artwork was incorporated.
 - Portable ZIP integrity, embedded executable identity and all icon assets checked.
 - Linux main/UI preprocessor output and AppImage checksum remain unchanged.
 - No GitHub source/package upload was performed.
+
+
+## Linux 1.5.6 local UI port (not published)
+
+Ported the completed Windows in-app color preferences, original controller
+branding, refined buttons, live FPS readout and closable 30-second FPS test.
+The selected color persists across launches. F8 or Close saves a partial report
+and hides the FPS panel while playback continues. The Linux report is
+`~/.config/xr1-play/fps-test.txt` (or the XDG_CONFIG_HOME equivalent).
+
+Linux retains its existing V4L2 backend, texture upload path, audio ring with a
+20 ms queue cap and 128-sample audio callback. Windows capture/scheduling/audio
+workarounds were not applied to Linux. New cadence counters measure actual
+frame events; generated-picture tests are not hardware or input-latency tests.
+
+Validation:
+
+- Optimized Linux build; all three CMake/CTest targets passed: codec/layouts,
+  saved preferences and FPS state/cadence.
+- Mock V4L2 capture suite passed, including padded formats, frame-rate selection,
+  buffer handling, error/disconnect handling and JPEG crop cases.
+- Accelerated renderer upload/readback passed for YUY2, NV12, IYUV, YV12 and
+  UYVY, with linear scaling verified; latest-frame handoff checks passed.
+- Both native and packaged control checks passed: volume/mute, fullscreen,
+  settings/back-to-game, motion, all three color selections, preference save,
+  Escape, F8 restart/close and the visible FPS Close button. Audio-device hooks
+  verified that opening/closing these panels did not stop playback. PCM checks
+  verified stereo output, gain and the unchanged callback period.
+- Packaged 30-second generated test: 60.02 received / 59.99 submitted fps,
+  zero skipped/invalid frames and zero dropped/starved audio samples. This is a
+  software smoke check, not XR1 Lite hardware performance validation.
+- Dashboard screenshots checked with the Linux X11 renderer and all themes.
+- AppImage/tar package includes branding assets and the Linux instructions.
+- Original Linux 1.5.0 AppImage and Windows 1.5.5 ZIP checksums remain unchanged.
+
+The source is saved on local branch `linux-local-preview`; no source, package,
+branch or release was uploaded to GitHub. Real Bazzite/XR1 Lite playback and
+sound require user testing before publication.

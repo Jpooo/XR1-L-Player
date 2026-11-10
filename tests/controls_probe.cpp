@@ -4,6 +4,8 @@
 #include <cstdio>
 #include <cstdlib>
 struct Action {Uint32 at,type;int x,y;SDL_Keycode key=0;Uint8 clicks=1;};
+static Uint32 firstPollTick=0;
+static bool firstPollSeen=false;
 static const Action actions[]={
     {200,SDL_MOUSEMOTION,450,606},
     {300,SDL_MOUSEBUTTONDOWN,400,606},
@@ -26,14 +28,28 @@ static const Action actions[]={
     {3200,SDL_MOUSEBUTTONDOWN,1000,498},
     {3400,SDL_MOUSEBUTTONDOWN,1000,498}
 };
+static const Action appearanceActions[]={
+    {100,SDL_KEYDOWN,0,0,SDLK_TAB},
+    {200,SDL_MOUSEBUTTONDOWN,360,58},{300,SDL_MOUSEBUTTONDOWN,520,310},{400,SDL_KEYDOWN,0,0,SDLK_ESCAPE},
+    {500,SDL_MOUSEBUTTONDOWN,360,58},{600,SDL_MOUSEBUTTONDOWN,720,310},{700,SDL_KEYDOWN,0,0,SDLK_ESCAPE},
+    {800,SDL_MOUSEBUTTONDOWN,360,58},{900,SDL_MOUSEBUTTONDOWN,320,310},{1000,SDL_KEYDOWN,0,0,SDLK_ESCAPE},
+    {1100,SDL_MOUSEBUTTONDOWN,360,58},{1200,SDL_MOUSEBUTTONDOWN,520,310},{1300,SDL_KEYDOWN,0,0,SDLK_ESCAPE},
+    {1400,SDL_KEYDOWN,0,0,SDLK_TAB},{1600,SDL_KEYDOWN,0,0,SDLK_F8},{2000,SDL_KEYDOWN,0,0,SDLK_F8},
+    {2200,SDL_KEYDOWN,0,0,SDLK_F8},{2600,SDL_MOUSEBUTTONDOWN,775,84},
+    {2800,SDL_KEYDOWN,0,0,SDLK_TAB},{3000,SDL_MOUSEBUTTONDOWN,360,58}
+};
 extern "C" int SDL_PollEvent(SDL_Event *event) {
     static auto real=reinterpret_cast<int(*)(SDL_Event*)>(dlsym(RTLD_NEXT,"SDL_PollEvent"));
+    if(!firstPollSeen){firstPollTick=SDL_GetTicks();firstPollSeen=true;}
     static bool resized=false;
     if(!resized&&std::getenv("XR1_TEST_SMALL")){if(auto *window=SDL_GetWindowFromID(1)){SDL_SetWindowSize(window,900,680);resized=true;}}
     if(real(event))return 1;
     static Uint32 began=SDL_GetTicks();static size_t next=0;
-    if(next>=sizeof(actions)/sizeof(actions[0])||SDL_GetTicks()-began<actions[next].at)return 0;
-    const auto &a=actions[next++];*event={};event->type=a.type;
+    bool appearance=std::getenv("XR1_TEST_APPEARANCE")!=nullptr;
+    const auto *script=appearance?appearanceActions:actions;
+    size_t length=appearance?sizeof(appearanceActions)/sizeof(appearanceActions[0]):sizeof(actions)/sizeof(actions[0]);
+    if(next>=length||SDL_GetTicks()-began<script[next].at)return 0;
+    const auto &a=script[next++];*event={};event->type=a.type;
     if(a.type==SDL_KEYDOWN)event->key.keysym.sym=a.key;
     else if(a.type==SDL_MOUSEMOTION){event->motion.x=a.x;event->motion.y=a.y;}
     else {event->button.button=SDL_BUTTON_LEFT;event->button.clicks=a.clicks;event->button.x=a.x;event->button.y=a.y;}
@@ -44,4 +60,12 @@ extern "C" int SDL_RenderCopy(SDL_Renderer *r,SDL_Texture *t,const SDL_Rect *src
     int w=0,h=0;SDL_QueryTexture(t,nullptr,nullptr,&w,&h);
     if(w==1920&&h==1080){SDL_ScaleMode mode;SDL_GetTextureScaleMode(t,&mode);if(mode!=SDL_ScaleModeLinear){std::fprintf(stderr,"FAIL: video is not smoothly filtered\n");std::abort();}}
     return real(r,t,src,dst);
+}
+
+extern "C" void SDL_CloseAudioDevice(SDL_AudioDeviceID device){
+    static auto real=reinterpret_cast<void(*)(SDL_AudioDeviceID)>(dlsym(RTLD_NEXT,"SDL_CloseAudioDevice"));
+    if(std::getenv("XR1_TEST_APPEARANCE")&&device&&firstPollSeen&&SDL_GetTicks()-firstPollTick<3600){
+        std::fprintf(stderr,"FAIL: appearance/FPS controls stopped audio playback early\n");std::abort();
+    }
+    real(device);
 }

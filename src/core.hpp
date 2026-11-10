@@ -10,6 +10,9 @@
 #include <mutex>
 #include <string>
 #include <vector>
+#ifndef _WIN32
+#include "frame_cadence.hpp"
+#endif
 inline double monotime() { return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count(); }
 inline std::string lower(std::string s) { for (auto &c:s) c=static_cast<char>(std::tolower(static_cast<unsigned char>(c))); return s; }
 inline bool xrname(const std::string &s) { auto l=lower(s); return l.find("xr1")!=std::string::npos || l.find("evga")!=std::string::npos; }
@@ -53,12 +56,20 @@ struct SharedVideo {
     std::atomic<uint64_t> captured{0}, skipped{0}, corrupt{0};
     // Assigned before starting capture. Only one notification is needed while
     // a frame is pending; replacing it must not build a queue of SDL events.
+#ifndef _WIN32
+    FrameRate captureCadence;
+    double captureFps(){std::lock_guard<std::mutex> lock(mutex);return captureCadence.fps(monotime());}
+#endif
     Uint32 wakeEvent=0;
     void wake() { if(wakeEvent) {SDL_Event e{};e.type=wakeEvent;SDL_PushEvent(&e);} }
     void publish(Frame &f) {
         bool notify=false;
         {
             std::lock_guard<std::mutex> lock(mutex);
+#ifndef _WIN32
+            if(captured==0)captureCadence.reset();
+            captureCadence.record(f.received);
+#endif
             notify=!dirty;
             if(dirty)++skipped;
             std::swap(frame,f);dirty=true;++captured;

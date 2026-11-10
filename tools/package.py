@@ -10,6 +10,7 @@ shutil.copy2(root/'build/xr1-play',app/'usr/bin/xr1-play')
 subprocess.run(['strip',str(app/'usr/bin/xr1-play')],check=True)
 shutil.copy2(root/'assets/DejaVuSans.ttf',app/'usr/share/xr1-play')
 shutil.copytree(root/'assets/icons',app/'usr/share/xr1-play/icons')
+shutil.copytree(root/'assets/branding',app/'usr/share/xr1-play/branding')
 shutil.copy2(root/'assets/icons/LICENSE',app/'usr/share/licenses/Lucide.LICENSE')
 # Keep the host's libc, graphics drivers, Wayland/libdecor plugins and audio
 # backends together. Their stable ABIs are supplied by current Bazzite images.
@@ -39,9 +40,8 @@ for name,path in libs:
     else:raise RuntimeError(f'Missing license for {name}')
 for path in ('/usr/share/doc/fonts-dejavu-core/copyright','/usr/share/doc/fonts-dejavu/copyright'):
     if Path(path).is_file():shutil.copy2(path,app/'usr/share/licenses/DejaVuSans.copyright');break
-shutil.copy2(root/'README.md',app/'README.md')
+shutil.copy2(root/'README-Linux.md',app/'README.md')
 shutil.copy2(root/'COMPATIBILITY.md',app/'COMPATIBILITY.md')
-shutil.copy2(root/'README-Windows.md',app/'README-Windows.md')
 shutil.copy2(root/'LICENSE',app/'usr/share/licenses/XR1-Play.LICENSE')
 (app/'BUNDLED-LIBRARIES.txt').write_text('\n'.join(f'{name} ({path})' for name,path in libs)+'\n')
 (app/'AppRun').write_text('''#!/bin/sh
@@ -64,26 +64,13 @@ Categories=AudioVideo;Video;
 Terminal=false
 StartupWMClass=xr1-play
 ''')
-(app/'xr1-play.svg').write_text('''<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><rect width="256" height="256" rx="52" fill="#10160e"/><rect x="35" y="53" width="186" height="132" rx="14" fill="none" stroke="#9bf00b" stroke-width="12"/><path d="M107 89 L157 119 L107 149 Z" fill="#9bf00b"/><path d="M95 211 H161" stroke="#91a3b8" stroke-width="12" stroke-linecap="round"/></svg>''')
-# A raster icon for file managers and AppImage thumbnailers.
-import struct, zlib
-pixels=bytearray()
-for y in range(256):
-    pixels.append(0)
-    for x in range(256):
-        color=(16,22,14,255)
-        if (35<=x<221 and 53<=y<65) or (35<=x<221 and 173<=y<185) or (35<=x<47 and 53<=y<185) or (209<=x<221 and 53<=y<185):color=(155,240,11,255)
-        if 107<=x<=157 and abs(y-119)<=(157-x)*0.6:color=(155,240,11,255)
-        if 95<=x<161 and 205<=y<217:color=(145,163,184,255)
-        pixels.extend(color)
-def chunk(kind,data):return struct.pack('>I',len(data))+kind+data+struct.pack('>I',zlib.crc32(kind+data)&0xffffffff)
-png=b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',256,256,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(pixels))+chunk(b'IEND',b'')
-(app/'xr1-play.png').write_bytes(png)
+shutil.copy2(root/'assets/branding/xr1-play-xbox.svg',app/'xr1-play.svg')
+shutil.copy2(root/'assets/branding/xr1-play-xbox.png',app/'xr1-play.png')
 shutil.copy2(app/'xr1-play.png',app/'.DirIcon')
 for path in [app,*app.rglob('*')]:
     path.chmod(0o755 if path.is_dir() or path.name=='AppRun' or path==app/'usr/bin/xr1-play' else 0o644)
 dist=root/'dist';dist.mkdir(exist_ok=True)
-archive=dist/'XR1-Play-1.5.0-x86_64.tar.gz'
+archive=dist/'XR1-Play-1.5.6-Linux-Beta-x86_64.tar.gz'
 with tarfile.open(archive,'w:gz') as tar:tar.add(app,arcname='XR1-Play')
 archive.chmod(0o644)
 print(f'Bundled {len(libs)} libraries; portable tar.gz created.')

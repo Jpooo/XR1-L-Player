@@ -27,3 +27,6 @@
 - Local 1.5.9 recheck: retain/retry unsaved volume after transient write failure
   and suppress stale Linux capture FPS before a restarted feed receives frames.
   Keep packages/source local; preserve the prior 1.5.8 downloads.
+
+- Local 1.5.10: smooth menu/controller animation without changing capture/audio
+  timing or original logo artwork. Future logo work waits for the user photo.

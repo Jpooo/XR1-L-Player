@@ -8,6 +8,7 @@
 #include <limits>
 #include <filesystem>
 #include "menu_theme.hpp"
+#include "menu_motion.hpp"
 namespace ui {
 inline constexpr int height=650,menuOffset=-72,toolbarOffset=-64;
 struct Box {int x,y,w,h;bool contains(int px,int py)const{return px>=x&&px<x+w&&py>=y&&py<y+h;}};
@@ -94,7 +95,7 @@ struct Painter {
         }
         SDL_Rect dst{b.x,b.y,b.w,b.h};SDL_RenderCopy(r,backdrop,nullptr,&dst);
     }
-    void round(ui::Box b,float radius,SDL_Color color){
+    void round(ui::Box b,float radius,SDL_Color color,float shiftY=0){
         color=resolve(color);
         b.y+=offsetY;
         if(b.w<=0||b.h<=0)return;
@@ -121,9 +122,9 @@ struct Painter {
             found=shapes.emplace(std::move(key),texture).first;
         }
         SDL_SetTextureColorMod(found->second,color.r,color.g,color.b);SDL_SetTextureAlphaMod(found->second,color.a);
-        SDL_FRect dst{float(b.x),float(b.y),float(b.w),float(b.h)};SDL_RenderCopyF(r,found->second,nullptr,&dst);
+        SDL_FRect dst{float(b.x),float(b.y)+shiftY,float(b.w),float(b.h)};SDL_RenderCopyF(r,found->second,nullptr,&dst);
     }
-    void card(ui::Box b,SDL_Color fill,SDL_Color stroke,int radius=14){round(b,float(radius),stroke);round({b.x+1,b.y+1,b.w-2,b.h-2},float(radius-1),fill);}
+    void card(ui::Box b,SDL_Color fill,SDL_Color stroke,int radius=14,float shiftY=0){round(b,float(radius),stroke,shiftY);round({b.x+1,b.y+1,b.w-2,b.h-2},float(radius-1),fill,shiftY);}
     void line(float x1,float y1,float x2,float y2,SDL_Color c,float width=2){
         c=resolve(c);
         y1+=offsetY;y2+=offsetY;
@@ -148,7 +149,7 @@ struct Painter {
         }
         SDL_SetTextureColorMod(glowTexture,color.r,color.g,color.b);SDL_SetTextureAlphaMod(glowTexture,color.a);SDL_RenderCopyF(r,glowTexture,nullptr,&dst);
     }
-    void icon(ui::Icon type,int x,int y,int size,SDL_Color c,bool secondary=false,double angle=0){
+    void icon(ui::Icon type,float x,float y,float size,SDL_Color c,bool secondary=false,double angle=0){
         c=resolve(c);
         y+=offsetY;
         static const char *names[]={"monitor","volume-2","gamepad-2","maximize","refresh-cw","play","square","chevron-right","check"};
@@ -165,7 +166,7 @@ struct Painter {
         if(type==ui::Icon::Chevron&&secondary)angle=180;
         SDL_RenderCopyExF(r,found->second,nullptr,&dst,angle,nullptr,SDL_FLIP_NONE);
     }
-    void text(const std::string &s,int x,int y,SDL_Color color,TTF_Font *font=nullptr,int wrap=0){
+    void text(const std::string &s,float x,float y,SDL_Color color,TTF_Font *font=nullptr,int wrap=0){
         color=resolve(color);
         y+=offsetY;
         if(s.empty())return;
@@ -197,12 +198,11 @@ struct Painter {
     }
     void button(ui::Box b,const std::string &label,bool hovered,bool primary=false,TTF_Font *font=nullptr){
         if(!font)font=normal;
-        float energy=animate(b.x*1000+b.y,hovered);int lift=int(std::lround(energy*2));
-        b.y-=lift;
+        float energy=animate(b.x*1000+b.y,hovered);float lift=energy*2;
         auto accent=theme.accent();auto glow=accent;glow.a=static_cast<Uint8>(8+energy*10);
-        if(primary)round({b.x-2,b.y+3,b.w+4,b.h+3},10,glow);
+        if(primary)round({b.x-2,b.y+3,b.w+4,b.h+3},10,glow,-lift);
         auto fill=primary?mix(accent,ui::white,energy*.10f):mix(ui::raised,{44,49,57,255},energy);
-        card(b,fill,primary?accent:mix(ui::border,accent,energy*.55f),9);
-        int w=0,h=0;TTF_SizeUTF8(font,label.c_str(),&w,&h);text(label,b.x+(b.w-int(w/fontScale))/2,b.y+(b.h-int(h/fontScale))/2,primary?theme.ink():ui::white,font);
+        card(b,fill,primary?accent:mix(ui::border,accent,energy*.55f),9,-lift);
+        int w=0,h=0;TTF_SizeUTF8(font,label.c_str(),&w,&h);text(label,b.x+(b.w-int(w/fontScale))/2,b.y+(b.h-int(h/fontScale))/2-lift,primary?theme.ink():ui::white,font);
     }
 };

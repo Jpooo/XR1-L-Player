@@ -38,6 +38,17 @@ int main(){
         assert(maximum<=2);
 #endif
         SDL_DestroyTexture(texture);
+        if(std::getenv("XR1_PRESENTATION_GPU")){
+            auto centroid=[&](float x){
+                SDL_SetRenderDrawColor(r,0,0,0,255);SDL_RenderClear(r);
+                painter.icon(ui::Icon::Controller,x,100,212,{255,255,255,255});
+                assert(SDL_RenderReadPixels(r,nullptr,SDL_PIXELFORMAT_ARGB8888,result.data(),1920*4)==0);
+                double weight=0,total=0;for(size_t i=0;i<result.size();++i){double value=(result[i]>>16)&255;weight+=value;total+=(i%1920)*value;}
+                assert(weight>0);return total/weight;
+            };
+            double start=centroid(100),shifted=centroid(100.25f);assert(std::abs((shifted-start)-.25)<.08);
+            std::cout<<"PASS accelerated controller subpixel readback: "<<shifted-start<<" px\n";
+        }
         painter.round({20,20,80,40},8,{100,100,100,255});
         painter.icon(ui::Icon::Controller,40,40,40,{255,255,255,255});
         painter.glow({20,20,80,80},{100,100,100,80});

@@ -92,9 +92,9 @@ static void handleSignal(int) {interrupted=1;}
 static void help() {
     std::cout<<
 #ifdef _WIN32
-    "XR1-L Player 1.5.9 - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.10 - native 1080p60 HDMI viewer ("
 #else
-    "XR1-L Player 1.5.9 Linux test build - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.10 Linux test build - native 1080p60 HDMI viewer ("
 #endif
 #ifdef _WIN32
     "Windows x86_64"
@@ -226,6 +226,9 @@ static int app(const Options &o) {
         int mouseX=-1,mouseY=-1;
         auto hover=[&](ui::Box box){int y=mouseY;if(menu&&box.y>=100)y-=ui::menuOffset;else if(!menu&&box.y>=600)y-=ui::toolbarOffset;return box.contains(mouseX,y);};
         int cursorState=SDL_ENABLE;
+        ui::MenuFrameClock menuClock;int menuRefresh=60;
+        auto refreshMenuRate=[&](){SDL_DisplayMode mode{};int display=SDL_GetWindowDisplayIndex(window);menuRefresh=display>=0&&SDL_GetCurrentDisplayMode(display,&mode)==0?mode.refresh_rate:60;};
+        refreshMenuRate();
         uint64_t prevFrames=0,presented=0,prevPresented=0;
         FpsTest fpsTest;bool fpsReportSaved=false;
         bool colorPreferences=o.colorPreference;int colorFocus=static_cast<int>(o.colorTheme);
@@ -344,6 +347,7 @@ static int app(const Options &o) {
             while(havePendingEvent||SDL_PollEvent(&event)) {
                 if(havePendingEvent){event=pendingEvent;havePendingEvent=false;}
                 if(event.type==SDL_QUIT) quit=true;
+                if(event.type==SDL_DISPLAYEVENT||(event.type==SDL_WINDOWEVENT&&event.window.event==SDL_WINDOWEVENT_DISPLAY_CHANGED))refreshMenuRate();
                 if(event.type==SDL_AUDIODEVICEREMOVED&&playing&&audio.ownsDevice(event.adevice.which)) {stop();error="A selected audio device was removed. Refresh devices with R and reconnect.";}
                 if(event.type==SDL_WINDOWEVENT&&event.window.event==SDL_WINDOWEVENT_FOCUS_LOST&&draggingVolume){draggingVolume=false;SDL_CaptureMouse(SDL_FALSE);persistVolume();}
                 if(colorPreferences){
@@ -428,7 +432,8 @@ static int app(const Options &o) {
             }
             double now=monotime();bool newFrame=false;
             if(volumeDirty&&!draggingVolume&&now>=volumeSaveAfter)persistVolume();
-            double uiInterval=menu?(reducedMotion?1.0/20:1.0/30):1.0/10;
+            double uiInterval=1.0/10;
+            if(menu)menuClock.rate(ui::menuFrameRate(menuRefresh,reducedMotion,playing));
             accent=p.theme.accent();
             cursor(colorPreferences||menu||now<controlsUntil||draggingVolume);
             if(playing&&demonstration&&now-lastDemo>=1.0/60) {Frame f;demoFrame(f,now-startTime);shared.publish(f);
@@ -468,7 +473,7 @@ static int app(const Options &o) {
 #endif
             measuredFps=arrivalFps;displayFps=shownCadence.fps(monotime());
             bool timedExit=o.seconds&&now-began>=o.seconds;
-            if(newFrame || now-lastPaint>uiInterval || timedExit) {
+            if(newFrame || (menu?menuClock.due(now):now-lastPaint>uiInterval) || timedExit) {
                 SDL_RenderSetLogicalSize(renderer,1100,ui::height);
                 p.prepare();p.offsetY=0;
                 p.motion=!reducedMotion;p.frame(now);
@@ -525,7 +530,7 @@ static int app(const Options &o) {
                         SDL_Rect clip{726,234+ui::menuOffset,322,288};SDL_RenderSetClipRect(renderer,&clip);
                         for(int i=0;i<5;++i)p.line(650.0f+i*100,230,930.0f+i*100,535,{10,34,0,13},38);
                         p.text("PLAY",740,260,{10,34,0,17},p.display);SDL_RenderSetClipRect(renderer,nullptr);
-                        int bob=reducedMotion?0:static_cast<int>(std::lround(std::sin((now-began)*1.1)*3));
+                        float bob=ui::controllerBob(now-began,reducedMotion);
                         double tilt=reducedMotion?-10:-10+std::sin((now-began)*.7)*2;
                         p.icon(ui::Icon::Controller,786,250+bob+7,212,{12,32,0,24},false,tilt);
                         p.icon(ui::Icon::Controller,780,244+bob,212,{12,30,2,255},false,tilt);
@@ -551,9 +556,9 @@ static int app(const Options &o) {
                     if(playing){std::ostringstream stats;stats<<std::fixed<<std::setprecision(1)<<"Capture "<<measuredFps<<" fps   /   Display "<<displayFps<<" fps   /   Audio queued "<<audio.ring.queued()/96<<" ms   /   Skipped "<<shared.skipped<<"   /   Invalid "<<shared.corrupt;p.text(stats.str(),40,697,dim,p.tiny);}
                     else p.text("DIRECT CAPTURE    /    1080p60    /    STEREO SOUND",40,697,dim,p.tiny);
 #ifdef _WIN32
-                    p.text("XR1-L PLAYER 1.5.9",906,697,dim,p.tiny);
+                    p.text("XR1-L PLAYER 1.5.10",906,697,dim,p.tiny);
 #else
-                    p.text("XR1-L PLAYER 1.5.9",906,697,dim,p.tiny);
+                    p.text("XR1-L PLAYER 1.5.10",906,697,dim,p.tiny);
 #endif
                 } else {
                     if(demonstration){p.round({22,20,380,34},10,{16,23,15,220});p.text("TEST PICTURE  /  1080p60 + stereo tone",36,29,color,p.small);}
@@ -625,12 +630,12 @@ static int app(const Options &o) {
                 fpsTest.recordPresent(presentMs);
                 if(newFrame&&playing&&texture)shownCadence.record(monotime());
                 presentTotal+=presentMs;presentMax=std::max(presentMax,presentMs);++presentSamples;
-                lastPaint=now;
+                lastPaint=now;if(menu)menuClock.painted(now);
             }
             if(timedExit) quit=true;
             // Sleep until a frame or UI event arrives, instead of polling at
             // 1 ms intervals. Keep timer deadlines for demo/UI/automatic exit.
-            double deadline=lastPaint+uiInterval;
+            double deadline=menu?menuClock.deadline(monotime()):lastPaint+uiInterval;
             if(playing&&demonstration)deadline=std::min(deadline,lastDemo+1.0/60);
             if(o.seconds)deadline=std::min(deadline,began+o.seconds);
             int timeout=std::clamp(static_cast<int>(std::ceil((deadline-monotime())*1000)),1,100);

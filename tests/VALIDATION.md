@@ -241,3 +241,10 @@ Volume/mute persistence was also added to this local 1.5.8 build. Shared prefere
 Two new regression cases failed on 1.5.8 and pass after fixes: failed volume saves remain pending and retry (with a two-second backoff and final exit attempt), and Linux capture FPS is zero before the first received frame following a restart. The volume test deliberately causes one save failure, then verifies the corrected value while the player is still running.
 
 Five Linux tests, seven Windows executables under Wine, mocked native capture/codec/audio checks and a Linux real-player UI run with address/undefined-behavior sanitizers and leak detection passed. Packaged Linux controls/appearance/audio and Windows playback smoke checks passed. No physical capture or native Windows GPU is available. Prior downloads are preserved; no remote source/package/release updates were made.
+
+
+## XR1-L Player 1.5.10 local smooth-menu update
+
+Idle menu animation follows the current display refresh (24–240 Hz, 60 Hz fallback) instead of a fixed 30 fps. A fixed-phase menu clock prevents accumulating timer oversleep and skips missed deadlines without catch-up queues. Settings shown during capture remain capped at 60 Hz; Motion Off retains 20 Hz idle updates. Controller bob and button lift use fractional coordinates while text stays aligned to physical pixels. Original artwork, motion amplitude/speed, audio, V4L2/Media Foundation, upload destinations, native wake path and vsync preference are unchanged.
+
+Six Linux CMake targets passed, including new menu timing/fractional-coordinate/Motion Off checks. Windows motion, presentation, player UI and preference checks passed under Wine. OpenGL readback verified real subpixel controller movement and retained exact fullscreen font-raster fidelity. Packaged control/appearance/audio and Windows playback checks passed. Virtual-host timing is diagnostic only; native Windows/GPU smoothness still requires the user's hardware test. No source or packages were uploaded. New logo work waits for the user's reference photo.

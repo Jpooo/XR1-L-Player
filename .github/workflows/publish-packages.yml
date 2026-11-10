@@ -1,0 +1,41 @@
+name: Attach v1.5.0 release packages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/publish-packages.yml]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-v1.5.0-packages
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download and verify the existing release packages
+        env:
+          PACKAGE_BASE: https://raw.githubusercontent.com/Jpooo/XR1-Play/69041114f672df991fb0f69b5f8c3f03d70bc0ba/v1.5.0
+        run: |
+          mkdir packages
+          cd packages
+          for package in SHA256SUMS XR1-Play-1.5.0-Windows-x64.zip XR1-Play-1.5.0-x86_64.AppImage XR1-Play-1.5.0-x86_64.run; do
+            curl --fail --location --retry 3 --max-time 120 "$PACKAGE_BASE/$package" --output "$package"
+          done
+          sha256sum --check SHA256SUMS
+
+      - name: Attach packages to the published Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release upload v1.5.0 \
+            packages/XR1-Play-1.5.0-x86_64.AppImage \
+            packages/XR1-Play-1.5.0-x86_64.run \
+            packages/XR1-Play-1.5.0-Windows-x64.zip \
+            packages/SHA256SUMS

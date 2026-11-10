@@ -92,9 +92,9 @@ static void handleSignal(int) {interrupted=1;}
 static void help() {
     std::cout<<
 #ifdef _WIN32
-    "XR1-L Player 1.5.8 - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.9 - native 1080p60 HDMI viewer ("
 #else
-    "XR1-L Player 1.5.8 Linux test build - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.9 Linux test build - native 1080p60 HDMI viewer ("
 #endif
 #ifdef _WIN32
     "Windows x86_64"
@@ -279,9 +279,13 @@ static int app(const Options &o) {
             controlsUntil=monotime()+3;
         };
         bool volumeDirty=false;double volumeSaveAfter=0;
+        const std::string volumeSaveError="Volume could not be saved. Check the settings folder permissions and free space.";
         auto persistVolume=[&](){if(volumeDirty){
-            if(!saveVolumePreference(audio.volume.load(),audio.muted.load()))error="Volume could not be saved. Check the settings folder permissions and free space.";
-            volumeDirty=false;
+            if(saveVolumePreference(audio.volume.load(),audio.muted.load())){
+                volumeDirty=false;if(error==volumeSaveError)error.clear();
+            }else{
+                error=volumeSaveError;volumeSaveAfter=monotime()+2;
+            }
         }};
         auto volumeChanged=[&](){volumeDirty=true;volumeSaveAfter=monotime()+.35;};
         auto changeVolume=[&](float gain) {volumeChanged();audio.volume=std::clamp(gain,0.0f,1.0f);audio.muted=false;controlsUntil=monotime()+3;};
@@ -547,9 +551,9 @@ static int app(const Options &o) {
                     if(playing){std::ostringstream stats;stats<<std::fixed<<std::setprecision(1)<<"Capture "<<measuredFps<<" fps   /   Display "<<displayFps<<" fps   /   Audio queued "<<audio.ring.queued()/96<<" ms   /   Skipped "<<shared.skipped<<"   /   Invalid "<<shared.corrupt;p.text(stats.str(),40,697,dim,p.tiny);}
                     else p.text("DIRECT CAPTURE    /    1080p60    /    STEREO SOUND",40,697,dim,p.tiny);
 #ifdef _WIN32
-                    p.text("XR1-L PLAYER 1.5.8",906,697,dim,p.tiny);
+                    p.text("XR1-L PLAYER 1.5.9",906,697,dim,p.tiny);
 #else
-                    p.text("XR1-L PLAYER 1.5.8",906,697,dim,p.tiny);
+                    p.text("XR1-L PLAYER 1.5.9",906,697,dim,p.tiny);
 #endif
                 } else {
                     if(demonstration){p.round({22,20,380,34},10,{16,23,15,220});p.text("TEST PICTURE  /  1080p60 + stereo tone",36,29,color,p.small);}

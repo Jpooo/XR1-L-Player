@@ -23,3 +23,7 @@
 
 - Also persist volume and mute on both builds. Merge preferences atomically so
   changing volume, color or device selection preserves the other settings.
+
+- Local 1.5.9 recheck: retain/retry unsaved volume after transient write failure
+  and suppress stale Linux capture FPS before a restarted feed receives frames.
+  Keep packages/source local; preserve the prior 1.5.8 downloads.

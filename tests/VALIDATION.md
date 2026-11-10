@@ -234,3 +234,10 @@ The FPS panel now defaults closed and resets on every new feed. Restarted feeds 
 Five native Linux CMake tests and seven Windows executables under Wine passed. The real player UI tests check hidden startup, explicit/F8 open, F8 close, stop/restart, renderer-reset recovery and report-write/flush failure. Native V4L2 mocks and address/undefined-behavior sanitizers with leak checking passed. Packaged controls, appearance/audio checks, Windows playback and startup screenshot pixel checks passed. There is no physical capture device or native Windows GPU available; these are software checks, not hardware certification. Both packages remain local; the Linux AppImage is also exported in a ZIP.
 
 Volume/mute persistence was also added to this local 1.5.8 build. Shared preference writes now merge device/theme/volume fields and atomically replace the settings file after a successful write/close. Tests cover 0/100% levels, mute/unmute, invalid numeric values, legacy migration, cross-preference preservation and failed-write preservation. Actual player relaunch checks verify the restored slider and mute indicator on both platforms. Separate packaged processes verified 50% PCM gain on Linux and a restored 37% slider with muted PCM output on Windows under Wine. All five Linux tests and seven Windows check programs pass.
+
+
+## XR1-L Player 1.5.9 local follow-up check
+
+Two new regression cases failed on 1.5.8 and pass after fixes: failed volume saves remain pending and retry (with a two-second backoff and final exit attempt), and Linux capture FPS is zero before the first received frame following a restart. The volume test deliberately causes one save failure, then verifies the corrected value while the player is still running.
+
+Five Linux tests, seven Windows executables under Wine, mocked native capture/codec/audio checks and a Linux real-player UI run with address/undefined-behavior sanitizers and leak detection passed. Packaged Linux controls/appearance/audio and Windows playback smoke checks passed. No physical capture or native Windows GPU is available. Prior downloads are preserved; no remote source/package/release updates were made.

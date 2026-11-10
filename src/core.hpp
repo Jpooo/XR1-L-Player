@@ -60,7 +60,7 @@ struct SharedVideo {
     // a frame is pending; replacing it must not build a queue of SDL events.
 #ifndef _WIN32
     FrameRate captureCadence;
-    double captureFps(){std::lock_guard<std::mutex> lock(mutex);return captureCadence.fps(monotime());}
+    double captureFps(){std::lock_guard<std::mutex> lock(mutex);return captured.load()?captureCadence.fps(monotime()):0;}
 #endif
     Uint32 wakeEvent=0;
     void wake() { if(wakeEvent) {SDL_Event e{};e.type=wakeEvent;SDL_PushEvent(&e);} }

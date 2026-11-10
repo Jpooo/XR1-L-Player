@@ -18,6 +18,7 @@ static int injectedPoll(SDL_Event *event){
     if(nextInput==script.size()||SDL_GetTicks()-pollBegan<script[nextInput].at)return 0;
     const auto &input=script[nextInput++];*event={};event->type=input.type;
     if(input.type==SDL_KEYDOWN)event->key.keysym.sym=input.key;
+    if(input.type==SDL_USEREVENT){Options saved;loadSettings(saved);assert(std::abs(saved.volume-.65f)<.0001f&&!saved.muted);}
     return 1;
 }
 int main(){
@@ -37,9 +38,9 @@ int main(){
     SDL_setenv("XDG_CONFIG_HOME",folder.string().c_str(),1);
 #endif
     assert(settingsPath()==folder/"xr1-l-player/settings");
-    auto check=[&](const char *name,bool explicitTest,std::vector<Input> inputs,bool expectOverlay){
+    auto check=[&](const char *name,bool explicitTest,std::vector<Input> inputs,bool expectOverlay,int seconds=1){
         script=std::move(inputs);nextInput=0;firstPoll=true;
-        Options options;loadSettings(options);options.demo=true;options.fpsTest=explicitTest;options.seconds=1;options.screenshot=(folder/(std::string(name)+".bmp")).string();
+        Options options;loadSettings(options);options.demo=true;options.fpsTest=explicitTest;options.seconds=seconds;options.screenshot=(folder/(std::string(name)+".bmp")).string();
         std::ostringstream output;auto *previous=std::cout.rdbuf(output.rdbuf());
         int result=app(options);std::cout.rdbuf(previous);std::cout<<output.str();assert(result==0);assert(nextInput==script.size());
         auto summary=output.str();auto at=summary.rfind("Frames received:");assert(at!=std::string::npos);
@@ -76,6 +77,15 @@ int main(){
     check("volume-unmuted",false,{{150,SDL_KEYDOWN,SDLK_m}},false);
     Options unmuted;loadSettings(unmuted);assert(std::abs(unmuted.volume-.6f)<.0001f&&!unmuted.muted);
     std::cout<<"PASS volume level and mute/unmute restored across actual player launches\n";
+    auto temporary=settingsPath();
+#ifdef _WIN32
+    temporary+=".tmp."+std::to_string(GetCurrentProcessId());
+#else
+    temporary+=".tmp."+std::to_string(getpid());
+#endif
+    std::filesystem::create_directory(temporary); // Fail once; failed-save cleanup removes this blocker.
+    check("volume-save-retry",false,{{150,SDL_KEYDOWN,SDLK_PLUS},{3000,SDL_USEREVENT}},false,4);
+    Options retried;loadSettings(retried);assert(std::abs(retried.volume-.65f)<.0001f&&!retried.muted);
     auto report=folder/"xr1-l-player"/
 #ifdef _WIN32
         "windows-fps-test.txt";

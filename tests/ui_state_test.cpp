@@ -3,6 +3,10 @@
 #include <cassert>
 #include <iostream>
 int main(){
+    SharedVideo stream;Frame frame;double now=monotime();
+    for(int i=0;i<=60;++i){frame.received=now-1+i/60.0;stream.publish(frame);}
+    assert(std::abs(stream.captureFps()-60)<.001);
+    stream.captured=0;assert(stream.captureFps()==0); // A restarted feed has no received frames yet.
     FpsTest test;assert(!test.visible&&!test.active&&!test.complete);test.start(0,{});assert(test.visible&&test.active);test.update(30,{1800,1800,1740});
     assert(test.complete&&test.receivedFps()==60&&test.shownFps()==58);
     test.close(31,{1800,1800,1740});assert(!test.visible&&!test.active&&test.complete);

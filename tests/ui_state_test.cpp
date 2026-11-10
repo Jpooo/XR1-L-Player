@@ -3,7 +3,7 @@
 #include <cassert>
 #include <iostream>
 int main(){
-    FpsTest test;test.start(0,{});test.update(30,{1800,1800,1740});
+    FpsTest test;assert(!test.visible&&!test.active&&!test.complete);test.start(0,{});assert(test.visible&&test.active);test.update(30,{1800,1800,1740});
     assert(test.complete&&test.receivedFps()==60&&test.shownFps()==58);
     test.close(31,{1800,1800,1740});assert(!test.visible&&!test.active&&test.complete);
     test.start(40,{100,100,100});test.close(45,{400,400,400});

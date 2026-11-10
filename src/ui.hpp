@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <stdexcept>
 #include <limits>
+#include <filesystem>
 #include "menu_theme.hpp"
 namespace ui {
 inline constexpr int height=650,menuOffset=-72,toolbarOffset=-64;
@@ -55,7 +56,15 @@ struct Painter {
         fontPath=assetPath+"/DejaVuSans.ttf";prepare();
     }
     void clearLabels(){for(auto &item:labels)SDL_DestroyTexture(item.second.texture);labels.clear();}
-    ~Painter(){clearLabels();clearShapes();for(auto &item:icons)SDL_DestroyTexture(item.second);if(glowTexture)SDL_DestroyTexture(glowTexture);if(backdrop)SDL_DestroyTexture(backdrop);for(auto *font:{normal,small,title,heading,tiny,display})if(font)TTF_CloseFont(font);}
+    void resetTextures(){
+        clearLabels();clearShapes();
+        for(auto &item:icons)SDL_DestroyTexture(item.second);
+        icons.clear();
+        if(glowTexture)SDL_DestroyTexture(glowTexture);
+        if(backdrop)SDL_DestroyTexture(backdrop);
+        glowTexture=backdrop=nullptr;backdropW=backdropH=0;backdropColors=0;
+    }
+    ~Painter(){resetTextures();for(auto *font:{normal,small,title,heading,tiny,display})if(font)TTF_CloseFont(font);}
     void prepare() {
         int w=0,h=0;SDL_GetRendererOutputSize(r,&w,&h);
         float scale=std::max(0.5f,std::min(w/1100.0f,h/float(ui::height)));

@@ -8,7 +8,7 @@ static int mockFps=60;
 static bool fractional=false;
 static size_t mockBytes=0,mockStride=0,mockMap=0;
 static std::atomic<bool> disconnected{false};
-static bool noGetRate=false,noSetRate=false,rejectTwo=false,multiFormat=false,failRawStream=false,zeroStride=false;
+static bool emptyGetRate=false,noGetRate=false,noSetRate=false,rejectTwo=false,multiFormat=false,failRawStream=false,zeroStride=false;
 static int advertised=0;static uint32_t selectedFormat=0;
 static unsigned mockMinimumBuffers=2,mockActualBuffers=2;
 static std::array<bool,3> queued{},ready{};
@@ -17,7 +17,7 @@ extern "C" int __wrap_ioctl(int,unsigned long request,...) {
     switch(request) {
     case VIDIOC_ENUM_FMT: {auto &f=*static_cast<v4l2_fmtdesc*>(arg);if(multiFormat){if(f.index>1)break;f.pixelformat=f.index?V4L2_PIX_FMT_MJPEG:V4L2_PIX_FMT_YUYV;}else {if(f.index)break;f.pixelformat=mockFormat;}return 0;}
     case VIDIOC_S_FMT: {auto &f=*static_cast<v4l2_format*>(arg);if(!multiFormat&&f.fmt.pix.pixelformat!=mockFormat)break;selectedFormat=f.fmt.pix.pixelformat;f.fmt.pix.bytesperline=zeroStride?0:mockStride;return 0;}
-    case VIDIOC_G_PARM: {if(noGetRate)break;auto &p=*static_cast<v4l2_streamparm*>(arg);p.parm.capture.timeperframe=fractional?v4l2_fract{1001,60000}:v4l2_fract{1,static_cast<unsigned>(mockFps)};return 0;}
+    case VIDIOC_G_PARM: {if(noGetRate)break;auto &p=*static_cast<v4l2_streamparm*>(arg);p.parm.capture.timeperframe=emptyGetRate?v4l2_fract{0,0}:fractional?v4l2_fract{1001,60000}:v4l2_fract{1,static_cast<unsigned>(mockFps)};return 0;}
     case VIDIOC_S_PARM:if(noSetRate)break;return 0;
     case VIDIOC_ENUM_FRAMEINTERVALS: {auto &v=*static_cast<v4l2_frmivalenum*>(arg);if(!advertised||v.index>=static_cast<unsigned>(advertised))break;v.type=V4L2_FRMIVAL_TYPE_DISCRETE;v.discrete={1,advertised==2&&v.index==0?30u:60u};return 0;}
     case VIDIOC_REQBUFS: {auto &r=*static_cast<v4l2_requestbuffers*>(arg);if(rejectTwo&&r.count==2)break;mockActualBuffers=std::max(mockMinimumBuffers,r.count);r.count=mockActualBuffers;queued={};ready={};return 0;}
@@ -73,7 +73,11 @@ int main() {
     noSetRate=true;advertised=1;card.start(path,"auto");waitFor(compatibility);card.stop();
     advertised=2;bool refused=false;try{card.start(path,"auto");}catch(const std::runtime_error &){refused=true;}assert(refused);
     noGetRate=false;mockFps=30;advertised=1;refused=false;try{card.start(path,"auto");}catch(const std::runtime_error &){refused=true;}assert(refused);
-    noSetRate=false;mockFps=60;advertised=0;
+    mockFps=60;emptyGetRate=true;advertised=0;
+    refused=false;try{card.start(path,"auto");}catch(const std::runtime_error &){refused=true;}assert(refused);
+    advertised=2;refused=false;try{card.start(path,"auto");}catch(const std::runtime_error &){refused=true;}assert(refused);
+    advertised=1;card.start(path,"auto");waitFor(compatibility);card.stop(); // Fixed 60 fps remains valid evidence.
+    emptyGetRate=false;noSetRate=false;mockFps=60;advertised=0;
     rejectTwo=true;card.start(path,"auto");waitFor(compatibility);card.stop();assert(mockActualBuffers==3);rejectTwo=false;
     multiFormat=true;failRawStream=true;card.start(path,"auto");waitFor(compatibility);card.stop();assert(compatibility.mode.find("MJPG")!=std::string::npos);multiFormat=false;failRawStream=false;
     card.start(path,"auto");waitFor(compatibility);disconnected=true;for(int i=0;i<100;++i){{std::lock_guard<std::mutex> lock(compatibility.mutex);if(!compatibility.error.empty())break;}std::this_thread::sleep_for(std::chrono::milliseconds(5));}card.stop();assert(!compatibility.error.empty());disconnected=false;

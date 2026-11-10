@@ -16,3 +16,10 @@
   text, measured software latency comparisons, and the XR1-L Player name.
   Export the Linux AppImage inside a ZIP for USB transfer. Do not push or
   upload these new builds/source until the user explicitly authorizes it.
+
+- Current local update: 1.5.8 fixes the FPS panel default/restart state, renderer
+  reset texture caches and unconfirmed Linux frame-rate acceptance. Review and
+  test both builds; keep GitHub unchanged and the Linux download in a ZIP.
+
+- Also persist volume and mute on both builds. Merge preferences atomically so
+  changing volume, color or device selection preserves the other settings.

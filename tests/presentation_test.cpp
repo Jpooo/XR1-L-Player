@@ -38,6 +38,14 @@ int main(){
         assert(maximum<=2);
 #endif
         SDL_DestroyTexture(texture);
+        painter.round({20,20,80,40},8,{100,100,100,255});
+        painter.icon(ui::Icon::Controller,40,40,40,{255,255,255,255});
+        painter.glow({20,20,80,80},{100,100,100,80});
+        painter.gradient({0,0,100,100},{0,0,0,255},{100,100,100,255});
+        assert(!painter.labels.empty()&&!painter.shapes.empty()&&!painter.icons.empty()&&painter.glowTexture&&painter.backdrop);
+        painter.resetTextures();assert(painter.labels.empty()&&painter.shapes.empty()&&painter.icons.empty()&&!painter.glowTexture&&!painter.backdrop);
+        painter.text("Recovered",20,20,{255,255,255,255});assert(!painter.labels.empty());
+        std::cout<<"PASS renderer-reset UI caches cleared and text rebuilt\n";
     }
     SDL_DestroyRenderer(r);SDL_DestroyWindow(window);TTF_Quit();SDL_Quit();
 }

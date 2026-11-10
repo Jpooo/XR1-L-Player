@@ -10,7 +10,7 @@ class FpsTest {
     double began=0,ended=0,uploadTotal=0,uploadMax=0,presentTotal=0,presentMax=0;
     uint64_t uploads=0,presents=0,slowUploads=0,slowPresents=0;
 public:
-    bool active=false,complete=false,testPicture=false,visible=true;
+    bool active=false,complete=false,testPicture=false,visible=false;
     void start(double now,const FpsCounters &counts,bool demo=false){uploadTotal=uploadMax=presentTotal=presentMax=0;uploads=presents=slowUploads=slowPresents=0;baseline=latest=counts;began=now;ended=now;active=true;complete=false;testPicture=demo;visible=true;}
     void update(double now,const FpsCounters &counts){if(!active)return;latest=counts;ended=now;if(now-began>=30){active=false;complete=true;}}
     void finish(double now,const FpsCounters &counts){if(!active)return;update(now,counts);active=false;complete=true;}
@@ -32,9 +32,9 @@ public:
         std::ostringstream s;s<<std::fixed<<std::setprecision(2);
         s<<
 #ifdef _WIN32
-        "XR1-L Player 1.5.7 Windows FPS test\nSource: "
+        "XR1-L Player 1.5.8 Windows FPS test\nSource: "
 #else
-        "XR1-L Player 1.5.7 Linux FPS test\nSource: "
+        "XR1-L Player 1.5.8 Linux FPS test\nSource: "
 #endif
          <<(testPicture?"generated test picture (not a hardware test)":"native capture card")
          <<"\nTest status: "<<(elapsed()>=30?"completed":"stopped early")<<"\nDuration: "<<elapsed()<<" seconds"

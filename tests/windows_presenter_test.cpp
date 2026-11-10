@@ -43,7 +43,7 @@ int main(){
         cadence.reset();assert(cadence.fps(0)==0);
         for(int i=0;i<=290;++i)cadence.record(i/58.0);
         assert(std::abs(cadence.fps(5.01)-58)<.001);
-        WindowsFpsTest test;test.start(1,{});test.recordUpload(2);test.recordUpload(10);test.recordPresent(1);test.recordPresent(9);test.update(31,{1800,1800,1740});
+        WindowsFpsTest test;assert(!test.visible&&!test.active);test.start(1,{});test.recordUpload(2);test.recordUpload(10);test.recordPresent(1);test.recordPresent(9);test.update(31,{1800,1800,1740});
         auto report=test.report();assert(report.find("Texture upload call mean/max: 6.00 / 10.00 ms")!=std::string::npos);
         assert(report.find("Uploads/presents over 8 ms: 1 / 1")!=std::string::npos);
         assert(test.receivedFps()==60&&test.shownFps()==58); // No rounding a real loss up to 60.

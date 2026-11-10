@@ -55,7 +55,7 @@ inline bool configureRate60(int fd,uint32_t pixel,double &fps){
         auto reportedRate=get.parm.capture.timeperframe;
         if(reported&&reportedRate.numerator&&reportedRate.denominator&&!rate60(reportedRate.denominator,reportedRate.numerator))conflicting=true;
         auto t=reported&&reportedRate.numerator&&reportedRate.denominator?reportedRate:set.parm.capture.timeperframe;
-        if((reported||accepted)&&rate60(t.denominator,t.numerator)){fps=double(t.denominator)/t.numerator;return true;}
+        if(((reported&&reportedRate.numerator&&reportedRate.denominator)||accepted)&&rate60(t.denominator,t.numerator)){fps=double(t.denominator)/t.numerator;return true;}
     }
     if(fixed&&!conflicting){auto t=advertised.front();fps=double(t.denominator)/t.numerator;return true;}
     return false;

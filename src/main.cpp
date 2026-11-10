@@ -6,13 +6,16 @@
 #include <iomanip>
 #include <cstdlib>
 #include <csignal>
+#include <initializer_list>
+#include <utility>
 #include "fps_test.hpp"
 #include "frame_cadence.hpp"
 #ifdef _WIN32
 #include "windows_presenter.hpp"
 #endif
 struct Options {
-    bool fpsTest=false,colorPreference=false;
+    bool fpsTest=false,colorPreference=false,muted=false;
+    float volume=0.7f;
     ui::ConsoleColor colorTheme=ui::ConsoleColor::Xbox;
     bool demo=false,fullscreen=false,vsync=false,diagnose=false,autostart=false,reduceMotion=false;
     bool videoSet=false,audioSet=false,outputSet=false;
@@ -45,32 +48,53 @@ static void loadSettings(Options &o) {
         if(key=="output")o.output=value;
         if(key=="format")o.format=value;
         if(key=="theme")o.colorTheme=ui::parseColor(value);
+        if(key=="volume")try{size_t used=0;float gain=std::stof(value,&used);if(used==value.size()&&std::isfinite(gain)&&gain>=0&&gain<=1)o.volume=gain;}catch(const std::exception &){}
+        if(key=="muted"){if(value=="true"||value=="1")o.muted=true;else if(value=="false"||value=="0")o.muted=false;}
     }
 }
-static void saveSettings(const std::string &video,const std::string &audio,const std::string &output,const std::string &format
-,ui::ConsoleColor colorTheme
-) {
-    auto path=settingsPath();if(path.empty())return;
-    std::error_code ec;std::filesystem::create_directories(path.parent_path(),ec);if(ec)return;
-    std::ofstream out(path);out<<"video "<<std::quoted(video)<<"\naudio "<<std::quoted(audio)<<"\noutput "<<std::quoted(output)<<"\nformat "<<std::quoted(format)<<"\n";
-    out<<"theme "<<std::quoted(ui::colorKey(colorTheme))<<"\n";
-}
-static bool saveColorPreference(ui::ConsoleColor choice){
+// Merge preference updates so volume, theme and device choices never erase
+// one another. Replace a complete file only after a successful write/close.
+static bool updateSettings(std::initializer_list<std::pair<std::string,std::string>> updates){
     auto path=settingsPath();if(path.empty())return false;
     std::error_code ec;std::filesystem::create_directories(path.parent_path(),ec);if(ec)return false;
-    std::ifstream in(existingSettingsPath());std::ostringstream contents;std::string line;
-    while(std::getline(in,line)){std::istringstream field(line);std::string key;field>>key;if(key!="theme")contents<<line<<"\n";}
-    in.close();contents<<"theme "<<std::quoted(ui::colorKey(choice))<<"\n";
-    std::ofstream out(path);out<<contents.str();out.flush();return bool(out);
+    auto source=existingSettingsPath();bool exists=std::filesystem::exists(source,ec);if(ec)return false;
+    std::ifstream in(source);if(exists&&!in)return false;
+    std::ostringstream contents;std::string line;
+    while(std::getline(in,line)){
+        std::istringstream field(line);std::string key;field>>key;bool replaced=false;
+        for(const auto &item:updates)if(key==item.first)replaced=true;
+        if(!replaced)contents<<line<<"\n";
+    }
+    if(in.bad())return false;
+    in.close();for(const auto &item:updates)contents<<item.first<<" "<<std::quoted(item.second)<<"\n";
+#ifdef _WIN32
+    auto id=GetCurrentProcessId();
+#else
+    auto id=getpid();
+#endif
+    auto temporary=path;temporary+=".tmp."+std::to_string(id);
+    std::ofstream out(temporary);out<<contents.str();out.flush();out.close();
+    if(!out){std::filesystem::remove(temporary,ec);return false;}
+#ifdef _WIN32
+    if(MoveFileExW(temporary.c_str(),path.c_str(),MOVEFILE_REPLACE_EXISTING))return true;
+#else
+    std::filesystem::rename(temporary,path,ec);if(!ec)return true;
+#endif
+    std::filesystem::remove(temporary,ec);return false;
 }
+static bool saveSettings(const std::string &video,const std::string &audio,const std::string &output,const std::string &format,ui::ConsoleColor colorTheme,float volume,bool muted){
+    return updateSettings({{"video",video},{"audio",audio},{"output",output},{"format",format},{"theme",ui::colorKey(colorTheme)},{"volume",std::to_string(volume)},{"muted",muted?"true":"false"}});
+}
+static bool saveColorPreference(ui::ConsoleColor choice){return updateSettings({{"theme",ui::colorKey(choice)}});}
+static bool saveVolumePreference(float volume,bool muted){return updateSettings({{"volume",std::to_string(volume)},{"muted",muted?"true":"false"}});}
 static volatile std::sig_atomic_t interrupted=0;
 static void handleSignal(int) {interrupted=1;}
 static void help() {
     std::cout<<
 #ifdef _WIN32
-    "XR1-L Player 1.5.7 - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.8 - native 1080p60 HDMI viewer ("
 #else
-    "XR1-L Player 1.5.7 Linux test build - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.8 Linux test build - native 1080p60 HDMI viewer ("
 #endif
 #ifdef _WIN32
     "Windows x86_64"
@@ -184,6 +208,7 @@ static int app(const Options &o) {
     int result=0;
     {
         Painter p(renderer);SharedVideo shared;Capture capture(shared);Audio audio(o.latency);
+        audio.volume=o.volume;audio.muted=o.muted;
         // Native capture wakes this thread directly. SDL still handles window
         // and input events; no extra video-event relay is needed.
         Frame uploadFrame;
@@ -233,7 +258,8 @@ static int app(const Options &o) {
             auto path=settingsPath().parent_path()/"fps-test.txt";
 #endif
             std::error_code ec;std::filesystem::create_directories(path.parent_path(),ec);
-            std::ofstream out(path);out<<report;
+            std::ofstream out(path);out<<report;out.flush();
+            if(!out)error="FPS report could not be saved. Check the settings folder permissions and free space.";
             std::cout<<report<<"FPS report "<<(out?"saved: ":"could not be saved: ")<<path.string()<<std::endl;
             fpsReportSaved=true;
         };
@@ -252,8 +278,14 @@ static int app(const Options &o) {
             else std::cout<<"Fullscreen: "<<(active?"off":"on")<<std::endl;
             controlsUntil=monotime()+3;
         };
-        auto changeVolume=[&](float gain) {audio.volume=std::clamp(gain,0.0f,1.0f);audio.muted=false;controlsUntil=monotime()+3;};
-        auto mute=[&]() {audio.muted=!audio.muted;controlsUntil=monotime()+3;std::cout<<"Muted: "<<(audio.muted?"yes":"no")<<std::endl;};
+        bool volumeDirty=false;double volumeSaveAfter=0;
+        auto persistVolume=[&](){if(volumeDirty){
+            if(!saveVolumePreference(audio.volume.load(),audio.muted.load()))error="Volume could not be saved. Check the settings folder permissions and free space.";
+            volumeDirty=false;
+        }};
+        auto volumeChanged=[&](){volumeDirty=true;volumeSaveAfter=monotime()+.35;};
+        auto changeVolume=[&](float gain) {volumeChanged();audio.volume=std::clamp(gain,0.0f,1.0f);audio.muted=false;controlsUntil=monotime()+3;};
+        auto mute=[&]() {volumeChanged();audio.muted=!audio.muted;controlsUntil=monotime()+3;std::cout<<"Muted: "<<(audio.muted?"yes":"no")<<std::endl;};
         auto refresh=[&]() {
             videos=videoDevices();inputs=audioDevices(true);outputs=audioDevices(false);vi=0;ai=-1;oi=-1;
             for(size_t i=0;i<videos.size();++i)if(isXr1(videos[i])){vi=static_cast<int>(i);break;}
@@ -263,13 +295,14 @@ static int app(const Options &o) {
         };
         refresh();
         auto stop=[&]() {
+            persistVolume();
             if(fpsTest.active){fpsTest.finish(monotime(),fpsCounts());saveFpsReport();}
 #ifdef _WIN32
             playbackScheduling.stop();
 #endif
             capture.stop();audio.stop();playing=false;menu=true;draggingVolume=false;SDL_CaptureMouse(SDL_FALSE);cursor(true);};
         auto start=[&]() {
-            error.clear();
+            error.clear();fpsTest=FpsTest{};fpsReportSaved=false;liveText.clear();
             try {
 #ifdef _WIN32
                 playbackScheduling.start();
@@ -287,11 +320,12 @@ static int app(const Options &o) {
                     capture.start(videos[static_cast<size_t>(vi)].path,formats[static_cast<size_t>(fi)],static_cast<unsigned>(o.buffers));
                 }
                 audio.start(demonstration?nullptr:inputs[static_cast<size_t>(ai)].c_str(),oi<0?nullptr:outputs[static_cast<size_t>(oi)].c_str(),demonstration);
-                playing=true;menu=false;startTime=monotime();lastStat=startTime;lastDemo=startTime-1.0/60;prevFrames=shared.captured;prevPresented=presented;controlsUntil=startTime+3;cursor(true);
+                playing=true;menu=false;startTime=monotime();lastStat=startTime;lastDemo=startTime-1.0/60;prevFrames=shared.captured;presented=prevPresented=0;controlsUntil=startTime+3;cursor(true);
+                measuredFps=displayFps=uploadAge=0;uploadTotal=uploadMax=presentTotal=presentMax=0;uploadSamples=presentSamples=0;lastLiveText=-1;
                 shownCadence.reset();demoCadence.reset();arrivalFps=0;
-                if(!demonstration)saveSettings(videos[static_cast<size_t>(vi)].path,inputs[static_cast<size_t>(ai)],oi<0?"":outputs[static_cast<size_t>(oi)],formats[static_cast<size_t>(fi)]
-                    ,colorTheme
-                );
+                if(!demonstration&&!saveSettings(videos[static_cast<size_t>(vi)].path,inputs[static_cast<size_t>(ai)],oi<0?"":outputs[static_cast<size_t>(oi)],formats[static_cast<size_t>(fi)]
+                    ,colorTheme,audio.volume.load(),audio.muted.load()
+                ))error="Settings could not be saved. Check the settings folder permissions and free space.";
                 std::cout<<(demonstration?"DEMO - synthetic 1080p60":shared.mode)<<"\nAudio: "<<audio.mode<<"\n";
             } catch(const std::exception &e) {stop();error=e.what();std::cerr<<error<<"\n";if(o.autostart) result=1;}
         };
@@ -307,6 +341,7 @@ static int app(const Options &o) {
                 if(havePendingEvent){event=pendingEvent;havePendingEvent=false;}
                 if(event.type==SDL_QUIT) quit=true;
                 if(event.type==SDL_AUDIODEVICEREMOVED&&playing&&audio.ownsDevice(event.adevice.which)) {stop();error="A selected audio device was removed. Refresh devices with R and reconnect.";}
+                if(event.type==SDL_WINDOWEVENT&&event.window.event==SDL_WINDOWEVENT_FOCUS_LOST&&draggingVolume){draggingVolume=false;SDL_CaptureMouse(SDL_FALSE);persistVolume();}
                 if(colorPreferences){
                     if(event.type==SDL_MOUSEMOTION){mouseX=event.motion.x;mouseY=event.motion.y;}
                     if(event.type==SDL_KEYDOWN&&!event.key.repeat){
@@ -330,7 +365,7 @@ static int app(const Options &o) {
 #else
                     if(texture)SDL_DestroyTexture(texture);
 #endif
-                    texture=nullptr;
+                    texture=nullptr;p.resetTextures();
                 }
                 if(event.type==SDL_MOUSEMOTION) {
                     mouseX=event.motion.x;mouseY=event.motion.y;
@@ -338,7 +373,7 @@ static int app(const Options &o) {
                     if(draggingVolume)changeVolume((event.motion.x-(menu?float(ui::volumeLeft):335.0f))/(menu?float(ui::volumeWidth):300.0f));
                 }
                 if(event.type==SDL_MOUSEBUTTONUP&&event.button.button==SDL_BUTTON_LEFT&&draggingVolume) {
-                    draggingVolume=false;SDL_CaptureMouse(SDL_FALSE);
+                    draggingVolume=false;SDL_CaptureMouse(SDL_FALSE);persistVolume();
                     std::cout<<"Volume: "<<static_cast<int>(std::lround(audio.volume*100))<<"%"<<std::endl;
                 }
                 if(event.type==SDL_KEYDOWN&&!event.key.repeat) {
@@ -388,6 +423,7 @@ static int app(const Options &o) {
                 }
             }
             double now=monotime();bool newFrame=false;
+            if(volumeDirty&&!draggingVolume&&now>=volumeSaveAfter)persistVolume();
             double uiInterval=menu?(reducedMotion?1.0/20:1.0/30):1.0/10;
             accent=p.theme.accent();
             cursor(colorPreferences||menu||now<controlsUntil||draggingVolume);
@@ -511,9 +547,9 @@ static int app(const Options &o) {
                     if(playing){std::ostringstream stats;stats<<std::fixed<<std::setprecision(1)<<"Capture "<<measuredFps<<" fps   /   Display "<<displayFps<<" fps   /   Audio queued "<<audio.ring.queued()/96<<" ms   /   Skipped "<<shared.skipped<<"   /   Invalid "<<shared.corrupt;p.text(stats.str(),40,697,dim,p.tiny);}
                     else p.text("DIRECT CAPTURE    /    1080p60    /    STEREO SOUND",40,697,dim,p.tiny);
 #ifdef _WIN32
-                    p.text("XR1-L PLAYER 1.5.7",906,697,dim,p.tiny);
+                    p.text("XR1-L PLAYER 1.5.8",906,697,dim,p.tiny);
 #else
-                    p.text("XR1-L PLAYER 1.5.7",906,697,dim,p.tiny);
+                    p.text("XR1-L PLAYER 1.5.8",906,697,dim,p.tiny);
 #endif
                 } else {
                     if(demonstration){p.round({22,20,380,34},10,{16,23,15,220});p.text("TEST PICTURE  /  1080p60 + stereo tone",36,29,color,p.small);}

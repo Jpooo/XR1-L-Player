@@ -8,6 +8,7 @@ on:
       - src/**
       - tests/windows_*.cpp
       - tests/preferences_test.cpp
+      - tests/player_ui_test.cpp
       - CMakeLists.txt
       - .github/workflows/windows-tests.yml
 

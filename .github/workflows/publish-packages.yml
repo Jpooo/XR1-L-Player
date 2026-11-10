@@ -20,11 +20,11 @@ jobs:
     steps:
       - name: Download and verify the existing release packages
         env:
-          PACKAGE_BASE: https://raw.githubusercontent.com/Jpooo/XR1-Play/69041114f672df991fb0f69b5f8c3f03d70bc0ba/v1.5.0
+          PACKAGE_BASE: https://raw.githubusercontent.com/Jpooo/XR1-Play/0b69cfbd5a3452cc162d72307be0080bfc29f3ac/v1.5.0
         run: |
           mkdir packages
           cd packages
-          for package in SHA256SUMS XR1-Play-1.5.0-Windows-x64.zip XR1-Play-1.5.0-x86_64.AppImage XR1-Play-1.5.0-x86_64.run; do
+          for package in SHA256SUMS XR1-Play-1.5.0-Windows-x64.zip XR1-Play-1.5.0-x86_64.AppImage; do
             curl --fail --location --retry 3 --max-time 120 "$PACKAGE_BASE/$package" --output "$package"
           done
           sha256sum --check SHA256SUMS
@@ -34,8 +34,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh release upload v1.5.0 \
-            packages/XR1-Play-1.5.0-x86_64.AppImage \
-            packages/XR1-Play-1.5.0-x86_64.run \
-            packages/XR1-Play-1.5.0-Windows-x64.zip \
-            packages/SHA256SUMS
+          existing=$(gh release view v1.5.0 --json assets --jq '.assets[].name')
+          for package in XR1-Play-1.5.0-x86_64.AppImage XR1-Play-1.5.0-Windows-x64.zip; do
+            if ! printf '%s\n' "$existing" | grep -Fxq "$package"; then
+              gh release upload v1.5.0 "packages/$package"
+            fi
+          done
+          gh release upload v1.5.0 packages/SHA256SUMS --clobber

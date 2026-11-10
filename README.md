@@ -6,7 +6,7 @@ are native on both systems. No recorder, server, browser or frame interpolation.
 Controllers stay connected to the Xbox.
 
 Prebuilt applications are available in the repository's **Releases** section.
-Use the Linux AppImage/`.run`, or the complete Windows portable ZIP (preview).
+Use the Linux AppImage, or the complete Windows portable ZIP (preview).
 
 ![XR1 Play interface](docs/screenshot.png)
 
@@ -23,16 +23,11 @@ chmod +x XR1-Play-1.5.0-x86_64.AppImage
 ./XR1-Play-1.5.0-x86_64.AppImage
 ```
 
-Without FUSE, use `--appimage-extract-and-run`, or the single-file `.run`:
+Without FUSE, run:
 
 ```sh
-chmod +x XR1-Play-1.5.0-x86_64.run
-./XR1-Play-1.5.0-x86_64.run
+./XR1-Play-1.5.0-x86_64.AppImage --appimage-extract-and-run
 ```
-
-The `.run` verifies its payload and extracts to a temporary folder without
-installing packages or requiring root. The portable `.tar.gz` can be extracted
-anywhere; launch `XR1-Play/AppRun` and keep the folder together.
 
 **Windows 10/11 x64 preview**: extract `XR1-Play-1.5.0-Windows-x64.zip` completely
 and open `XR1-Play.exe`. Keep its DLLs and assets directory together. See

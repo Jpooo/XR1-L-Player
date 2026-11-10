@@ -86,38 +86,4 @@ dist=root/'dist';dist.mkdir(exist_ok=True)
 archive=dist/'XR1-Play-1.5.0-x86_64.tar.gz'
 with tarfile.open(archive,'w:gz') as tar:tar.add(app,arcname='XR1-Play')
 archive.chmod(0o644)
-# A single-file executable alternative for installations without FUSE.
-payload=archive.read_bytes()
-import hashlib
-checksum=hashlib.sha256(payload).hexdigest()
-header='''#!/bin/sh
-# XR1 Play portable executable. No root, installer or FUSE required.
-set -eu
-if [ "${1:-}" = "--portable-help" ]; then
-  echo 'Run this file normally. --extract DIRECTORY extracts a replaceable portable folder.'
-  exit 0
-fi
-line=$(awk '/^__XR1_ARCHIVE_BELOW__$/ {print NR + 1; exit}' "$0")
-work=$(mktemp -d "${TMPDIR:-/tmp}/xr1-play.XXXXXXXX")
-trap 'rm -rf -- "$work"' EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
-# Verify the appended payload before using it.
-tail -n +"$line" "$0" > "$work/payload.tar.gz"
-actual=$(sha256sum "$work/payload.tar.gz")
-actual=${actual%% *}
-if [ "$actual" != "CHECKSUM" ]; then echo 'XR1 Play: damaged download (checksum mismatch).' >&2; exit 1; fi
-if [ "${1:-}" = "--extract" ]; then
-  [ "$#" = 2 ] || { echo 'Usage: --extract DIRECTORY' >&2; exit 1; }
-  mkdir -p -- "$2"
-  tar -xzf "$work/payload.tar.gz" -C "$2"
-  echo "Extracted to $2/XR1-Play. Run its AppRun executable."
-  exit 0
-fi
-tar -xzf "$work/payload.tar.gz" -C "$work"
-"$work/XR1-Play/AppRun" "$@"
-exit $?
-__XR1_ARCHIVE_BELOW__
-'''.replace('CHECKSUM',checksum).encode()
-run=dist/'XR1-Play-1.5.0-x86_64.run';run.write_bytes(header+payload);run.chmod(0o755)
-print(f'Bundled {len(libs)} libraries; portable .run and tar.gz created.')
+print(f'Bundled {len(libs)} libraries; portable tar.gz created.')

@@ -67,3 +67,29 @@ machine, but this release still needs that hardware regression test.
 Build/test entry points: Makefile, CMakeLists.txt, tests/capture_test.cpp,
 tests/common_test.cpp, tests/render_test.cpp, tests/controls_test.py,
 and tools/build-windows.sh. SDK/library notices accompany the release folders.
+
+## Windows 1.5.1 preview update
+
+Windows-only changes: asynchronous callback rearm before worker decoding;
+latest-sample bound with COM ownership and clean shutdown; effective native
+60/59.94 mode verification; D3D11 and native planar-format preference; primed
+clock-tracking audio with short fades; on-screen 30-second FPS test/report.
+
+- Native Windows MF callback regression test passed under Wine: no inline
+  decoding before rearm, newest pending sample retained, sample lifetime after
+  callback return, stream ticks, stopped callbacks and failed reads.
+- Windows audio regression test passed both as a host test and as a native PE
+  under Wine: 120-second simulations at -300/0/+300 ppm with uneven 480-frame
+  input and 256-frame output callbacks, no overflow/underrun, stereo equality,
+  bounded signal edges, starvation recovery, mute ramp and overflow handling.
+- FPS counters distinguish 60 from 30 fps and label test-picture runs.
+- A 30-second Windows PE playback/FPS-test smoke run under Wine reported 60.02
+  received / 59.98 submitted fps, with no skipped or invalid frames; the report
+  file and overlay were verified. This uses generated video, not capture hardware.
+- Linux main/audio preprocessor output matches the previous release. The Linux
+  AppImage was not rebuilt or replaced. No Linux video backend changes.
+
+The user's Windows 11 hardware report for 1.5.0 confirms basic capture, with
+uneven video timing and intermittent audio crackle. These fixes need a new
+physical XR1 Lite / Windows test; no minimum CPU/GPU model or end-to-end latency
+has been established by the software tests.

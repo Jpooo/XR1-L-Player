@@ -1,13 +1,13 @@
-XR1 Play 1.5.0 — Windows x64 preview
+XR1 Play 1.5.1 — Windows x64 preview
 
 Extract the entire ZIP, then open XR1-Play.exe. Keep the DLLs and assets folder
 beside the executable. No Python, browser or Linux compatibility layer is
 needed on Windows. Do not launch the executable from inside the ZIP.
 
 Requires Windows 10/11 x64 with Media Foundation. Windows N editions require
-the Media Feature Pack. This native build has been compiled and run under
-Wine for software checks; physical XR1 Lite capture on Windows is not yet
-verified. See COMPATIBILITY.md before redistributing it as hardware-tested.
+the Media Feature Pack. Version 1.5.0 was reported working on Windows 11, with uneven video timing
+and intermittent crackling. Version 1.5.1 addresses those paths and needs a
+new physical-card test. See COMPATIBILITY.md for the current test status.
 
 1. Xbox HDMI OUT -> XR1 Lite HDMI IN. Connect XR1 directly over USB 3.
 2. Xbox output: 1080p, 60 Hz, SDR. HDMI audio: Stereo uncompressed.
@@ -21,6 +21,14 @@ Enter starts/stops. F/F11 or double-click toggles fullscreen. Tab opens settings
 M mutes, +/- changes volume. Move the mouse for the player controls. Refresh
 rescans stopped devices. Settings are saved in %APPDATA%\XR1 Play\settings.
 
+FPS test: click **FPS test** or press **F8** to measure 30 seconds of live
+capture. The player shows capture arrivals and displayed-frame submissions.
+Results remain on screen and are saved to:
+  %APPDATA%\XR1 Play\windows-fps-test.txt
+Use real capture with Test picture OFF for hardware testing. 59.94 fps is valid.
+The report also counts late arrivals, skipped/invalid frames and audio faults;
+it does not measure controller latency or the console game's own frame rate.
+
 For a device/mode report, run in a terminal:
   .\XR1-Play.exe --diagnose > xr1-diagnostics.txt 2>&1
 
@@ -29,8 +37,11 @@ For the optional test picture/tone:
 
 Normal capture uses native Media Foundation; audio uses SDL/WASAPI. It requires
 an advertised native 1920x1080 60/59.94 fps mode and does not interpolate 30 fps.
-Volume controls, bounded audio buffering and latest-frame delivery are shared
-with Linux. --capture-buffers affects Linux V4L2 only; Windows driver/source-reader
+This Windows update prefers D3D11 and native NV12/planar formats, rearms camera
+reads before decoding, and keeps only the newest pending sample. Windows audio
+uses a small priming reserve (~13 ms), gentle clock correction and short fades
+through signal gaps. The queue cap is 32 ms; it does not deliberately hold 32 ms
+of audio. Long USB/driver outages can still interrupt sound. --capture-buffers affects Linux V4L2 only; Windows driver/source-reader
 buffering is managed by Media Foundation, with the low-latency attribute enabled.
 
 If the camera is busy, close OBS/Camera/other video apps. For silent sound check
@@ -42,6 +53,12 @@ The software is unsigned: these downloads have no purchased Windows signing
 certificate. SHA256SUMS accompanies this release. No blanket compatibility or
 measured end-to-end latency claim is made. Report hardware tests using the
 checklist in COMPATIBILITY.md.
+
+Hardware: x86_64 PC, USB 3 data port/cable, XR1 Lite, HDMI 1080p60 SDR source,
+and a 60 Hz or faster display. Integrated graphics are a target; no dedicated
+encoder or AVX2 CPU is required. There is no measured minimum CPU/RAM/GPU model
+yet. EVGA's Lite manual specifies USB 3 and 1080p60, not a CPU/RAM minimum.
+https://www.evga.com/Support/manuals/files/141-U1-CB20-LR.pdf
 
 Licenses and original icon sources are included. XR1 Play is MIT licensed;
 third-party libraries/fonts/icons retain their own licenses.

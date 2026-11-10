@@ -8,7 +8,7 @@ objdump=os.environ.get('CROSS_OBJDUMP',str(root/'.deps/toolchain/usr/bin/x86_64-
 roots=[exe.parent,root/'.deps/win-sdk/SDL2-2.32.4/x86_64-w64-mingw32/bin',root/'.deps/win-sdk/SDL2_ttf-2.24.0/x86_64-w64-mingw32/bin',root/'.deps/win-sdk/mingw64/bin',root/'.deps/toolchain/usr/x86_64-w64-mingw32/lib',root/'.deps/toolchain/usr/lib/gcc/x86_64-w64-mingw32/14-posix']
 if os.environ.get('MINGW_PREFIX'):roots.append(Path(os.environ['MINGW_PREFIX'])/'bin')
 lookup={p.name.lower():p for folder in roots if folder.is_dir() for p in folder.glob('*') if p.is_file() and p.suffix.lower()=='.dll'}
-system=set('kernel32.dll ntdll.dll msvcrt.dll ucrtbase.dll user32.dll gdi32.dll gdi32full.dll advapi32.dll ole32.dll oleaut32.dll combase.dll setupapi.dll shell32.dll shlwapi.dll shcore.dll propsys.dll mf.dll mfplat.dll mfreadwrite.dll rpcrt4.dll imm32.dll version.dll winmm.dll ws2_32.dll bcrypt.dll crypt32.dll secur32.dll usp10.dll d3d11.dll d3d9.dll dxgi.dll dwrite.dll d2d1.dll winhttp.dll wininet.dll iphlpapi.dll winspool.drv'.split())
+system=set('kernel32.dll ntdll.dll msvcrt.dll ucrtbase.dll user32.dll gdi32.dll gdi32full.dll advapi32.dll ole32.dll oleaut32.dll combase.dll setupapi.dll shell32.dll shlwapi.dll shcore.dll propsys.dll mf.dll mfplat.dll mfreadwrite.dll rpcrt4.dll imm32.dll version.dll winmm.dll ws2_32.dll bcrypt.dll crypt32.dll secur32.dll usp10.dll d3d11.dll d3d9.dll dxgi.dll dwrite.dll d2d1.dll winhttp.dll wininet.dll iphlpapi.dll winspool.drv avrt.dll'.split())
 folder=root/'build/XR1-Play-Windows'
 if folder.exists():shutil.rmtree(folder)
 folder.mkdir();shutil.copy2(exe,folder/'XR1-Play.exe')
@@ -36,7 +36,7 @@ shutil.copy2(root/'COMPATIBILITY.md',folder/'COMPATIBILITY.md')
 shutil.copy2('/usr/share/doc/libfreetype6/copyright',folder/'licenses/FreeType-notice.txt')
 shutil.copy2('/usr/share/doc/libharfbuzz0b/copyright',folder/'licenses/HarfBuzz-notice.txt')
 (folder/'dependencies.txt').write_text('Native Windows 10/11 x64; Media Foundation video and SDL WASAPI audio.\nBundled DLLs:\n'+'\n'.join(sorted(copied))+'\nHardware compatibility is not universally verified. See COMPATIBILITY.md.\n')
-archive=root/'dist/XR1-Play-1.5.1-Windows-x64.zip';archive.parent.mkdir(exist_ok=True)
+archive=root/'dist/XR1-Play-1.5.2-Windows-x64.zip';archive.parent.mkdir(exist_ok=True)
 with zipfile.ZipFile(archive,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=9) as z:
     for path in folder.rglob('*'):
         if path.is_file():z.write(path,Path('XR1-Play')/path.relative_to(folder))

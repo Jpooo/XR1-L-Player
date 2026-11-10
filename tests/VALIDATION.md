@@ -93,3 +93,32 @@ The user's Windows 11 hardware report for 1.5.0 confirms basic capture, with
 uneven video timing and intermittent audio crackle. These fixes need a new
 physical XR1 Lite / Windows test; no minimum CPU/GPU model or end-to-end latency
 has been established by the software tests.
+
+## Windows 1.5.2 local test build (not published)
+
+The user reports capture near 60 fps with about 58 shown in 1.5.1. This update
+alternates two reusable GPU upload destinations and scopes MMCSS Games/high
+scheduling to active playback. A failed scheduling request uses normal priority;
+failed second-texture allocation retains a single-texture fallback. No extra
+video frame queue is introduced. The Windows audio path is unchanged.
+
+The live FPS readout now uses up to 120 measured frame intervals. This removes
+the sampling-phase mismatch between received counts and the previous submitted
+frame count. The 30-second test still uses actual frame counts and elapsed time.
+The report includes upload/present call timings, slow calls, scheduling mode,
+upload destination count, and the desktop refresh rate reported by SDL.
+
+- Warning-free native PE cross-build of the app, render test and capture test.
+- Native PE render test passed under Wine with newest-frame pixel readback for
+  NV12, IYUV, YV12, YUY2, UYVY and RGB24; alternating texture ownership, reset,
+  scheduling cleanup and accurate 60-versus-58 rate/report regression cases.
+- Native MF callback and Windows jitter/clock-drift/audio tests passed under Wine.
+- Final 30-second generated-picture run under Wine: 60.02 received / 59.98
+  submitted fps, zero skipped/invalid frames, upload call mean/max 0.99/7.45 ms,
+  present call mean/max 0.23/2.41 ms. Latest interval-based readouts were about
+  60.04 received / 60.05 shown. These are software checks, not a card benchmark.
+- Windows ZIP checked for corruption, exe identity and all bundled dependencies.
+- Linux main/audio preprocessor output and AppImage checksum remain unchanged.
+
+No GitHub upload or Release mutation was performed. Real Windows 11 capture,
+GPU behavior and any throughput improvement require another hardware test.

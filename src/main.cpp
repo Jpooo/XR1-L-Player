@@ -8,6 +8,7 @@
 #include <csignal>
 #ifdef _WIN32
 #include "windows_fps.hpp"
+#include "windows_presenter.hpp"
 #endif
 struct Options {
 #ifdef _WIN32
@@ -51,7 +52,7 @@ static void handleSignal(int) {interrupted=1;}
 static void help() {
     std::cout<<
 #ifdef _WIN32
-    "XR1 Play 1.5.1 - native 1080p60 HDMI viewer ("
+    "XR1 Play 1.5.2 - native 1080p60 HDMI viewer ("
 #else
     "XR1 Play 1.5.0 - native 1080p60 HDMI viewer ("
 #endif
@@ -187,11 +188,15 @@ static int app(const Options &o) {
         uint64_t prevFrames=0,presented=0,prevPresented=0;
 #ifdef _WIN32
         WindowsFpsTest fpsTest;bool fpsReportSaved=false;
-        uint64_t previousArrivals=0;double arrivalFps=0;
+        WindowsVideoUpload videoUploads;
+        WindowsPlaybackScheduling playbackScheduling;
+        WindowsFrameRate shownCadence,demoCadence;double arrivalFps=0;
         auto fpsCounts=[&](){auto native=capture.snapshot();return WindowsFpsCounters{demonstration?shared.captured.load():native.samples,shared.captured.load(),presented,shared.skipped.load(),native.pendingDropped,shared.corrupt.load(),native.late,audio.ring.dropped.load(),audio.ring.starved.load()};};
         auto saveFpsReport=[&](){
             if(!fpsTest.complete||fpsReportSaved)return;
             auto report=fpsTest.report()+"Mode: "+(demonstration?"test picture":shared.mode)+"\nRenderer: "+info.name+"\nAudio: "+audio.mode+"\n";
+            report+="Video upload destinations: "+std::to_string(videoUploads.destinations())+"\nScheduling: "+playbackScheduling.mode()+"\n";
+            SDL_DisplayMode display{};if(SDL_GetCurrentDisplayMode(SDL_GetWindowDisplayIndex(window),&display)==0)report+="Desktop refresh reported by SDL: "+std::to_string(display.refresh_rate)+" Hz\n";
             auto path=settingsPath().parent_path()/"windows-fps-test.txt";
             std::error_code ec;std::filesystem::create_directories(path.parent_path(),ec);
             std::ofstream out(path);out<<report;
@@ -202,7 +207,10 @@ static int app(const Options &o) {
         double measuredFps=0,displayFps=0,uploadAge=0;
         double uploadTotal=0,uploadMax=0,presentTotal=0,presentMax=0;
         uint64_t uploadSamples=0,presentSamples=0;
-        SDL_Texture *texture=nullptr;Uint32 texturePixel=0;
+        SDL_Texture *texture=nullptr;
+#ifndef _WIN32
+        Uint32 texturePixel=0;
+#endif
         auto cursor=[&](bool visible) {int state=visible?SDL_ENABLE:SDL_DISABLE;if(state!=cursorState){SDL_ShowCursor(state);cursorState=state;}};
         auto fullscreen=[&]() {
             bool active=(SDL_GetWindowFlags(window)&SDL_WINDOW_FULLSCREEN_DESKTOP)!=0;
@@ -223,11 +231,15 @@ static int app(const Options &o) {
         auto stop=[&]() {
 #ifdef _WIN32
             if(fpsTest.active){fpsTest.finish(monotime(),fpsCounts());saveFpsReport();}
+            playbackScheduling.stop();
 #endif
             capture.stop();audio.stop();playing=false;menu=true;draggingVolume=false;SDL_CaptureMouse(SDL_FALSE);cursor(true);};
         auto start=[&]() {
             error.clear();
             try {
+#ifdef _WIN32
+                playbackScheduling.start();
+#endif
                 if(demonstration) {
                     std::lock_guard<std::mutex> lock(shared.mutex);
                     shared.error.clear();shared.dirty=false;shared.captured=0;shared.skipped=0;shared.corrupt=0;
@@ -243,7 +255,7 @@ static int app(const Options &o) {
                 audio.start(demonstration?nullptr:inputs[static_cast<size_t>(ai)].c_str(),oi<0?nullptr:outputs[static_cast<size_t>(oi)].c_str(),demonstration);
                 playing=true;menu=false;startTime=monotime();lastStat=startTime;lastDemo=startTime-1.0/60;prevFrames=shared.captured;prevPresented=presented;controlsUntil=startTime+3;cursor(true);
 #ifdef _WIN32
-                previousArrivals=fpsCounts().received;arrivalFps=0;
+                shownCadence.reset();demoCadence.reset();arrivalFps=0;
 #endif
                 if(!demonstration)saveSettings(videos[static_cast<size_t>(vi)].path,inputs[static_cast<size_t>(ai)],oi<0?"":outputs[static_cast<size_t>(oi)],formats[static_cast<size_t>(fi)]);
                 std::cout<<(demonstration?"DEMO - synthetic 1080p60":shared.mode)<<"\nAudio: "<<audio.mode<<"\n";
@@ -265,6 +277,7 @@ static int app(const Options &o) {
                 if(event.type==SDL_AUDIODEVICEREMOVED&&playing&&audio.ownsDevice(event.adevice.which)) {stop();error="A selected audio device was removed. Refresh devices with R and reconnect.";}
 #ifdef _WIN32
                 if(event.type==SDL_KEYDOWN&&!event.key.repeat&&event.key.keysym.sym==SDLK_F8)startFpsTest();
+                if(event.type==SDL_RENDER_DEVICE_RESET||event.type==SDL_RENDER_TARGETS_RESET){videoUploads.reset();texture=nullptr;}
 #endif
                 if(event.type==SDL_MOUSEMOTION) {
                     mouseX=event.motion.x;mouseY=event.motion.y;
@@ -324,7 +337,11 @@ static int app(const Options &o) {
             double now=monotime();bool newFrame=false;
             double uiInterval=menu?(reducedMotion?1.0/20:1.0/30):1.0/10;
             cursor(menu||now<controlsUntil||draggingVolume);
-            if(playing&&demonstration&&now-lastDemo>=1.0/60) {Frame f;demoFrame(f,now-startTime);shared.publish(f);lastDemo+=1.0/60;if(now-lastDemo>0.1)lastDemo=now;}
+            if(playing&&demonstration&&now-lastDemo>=1.0/60) {Frame f;demoFrame(f,now-startTime);shared.publish(f);
+#ifdef _WIN32
+                demoCadence.record(monotime());
+#endif
+                lastDemo+=1.0/60;if(now-lastDemo>0.1)lastDemo=now;}
             std::string streamError;
             {
                 std::lock_guard<std::mutex> lock(shared.mutex);
@@ -334,16 +351,25 @@ static int app(const Options &o) {
             // from publishing a newer frame and draining the card's buffers.
             if(playing&&shared.take(uploadFrame)) {
                 auto &f=uploadFrame;
+#ifdef _WIN32
+                double uploadBegan=monotime();texture=videoUploads.upload(renderer,f);
+                fpsTest.recordUpload((monotime()-uploadBegan)*1000);
+                if(!texture)streamError="Cannot upload video texture: "+std::string(SDL_GetError());
+#else
                 if(!texture||texturePixel!=f.pixel) {if(texture) SDL_DestroyTexture(texture); texture=SDL_CreateTexture(renderer,f.pixel,SDL_TEXTUREACCESS_STREAMING,1920,1080);texturePixel=f.pixel;if(texture)SDL_SetTextureScaleMode(texture,SDL_ScaleModeLinear);}
                 if(!texture||SDL_UpdateTexture(texture,nullptr,f.data.data(),f.pitch)<0) streamError="Cannot upload video texture: "+std::string(SDL_GetError());
+#endif
                 else {uploadAge=(monotime()-f.received)*1000;uploadTotal+=uploadAge;uploadMax=std::max(uploadMax,uploadAge);++uploadSamples;newFrame=true;}
             }
             if(playing&&!streamError.empty()) {stop();error=streamError;std::cerr<<error<<"\n";result=1;}
 #ifdef _WIN32
             if(fpsTest.active){fpsTest.update(monotime(),fpsCounts());saveFpsReport();}
-            if(now-lastStat>=1){auto received=demonstration?shared.captured.load():capture.snapshot().samples;arrivalFps=double(received-previousArrivals)/(now-lastStat);previousArrivals=received;}
 #endif
             if(now-lastStat>=1) {double elapsed=now-lastStat;measuredFps=static_cast<double>(shared.captured-prevFrames)/elapsed;displayFps=static_cast<double>(presented-prevPresented)/elapsed;prevFrames=shared.captured;prevPresented=presented;lastStat=now;}
+#ifdef _WIN32
+            arrivalFps=demonstration?demoCadence.fps(monotime()):capture.snapshot().fps;
+            measuredFps=arrivalFps;displayFps=shownCadence.fps(monotime());
+#endif
             bool timedExit=o.seconds&&now-began>=o.seconds;
             if(newFrame || now-lastPaint>uiInterval || timedExit) {
                 SDL_RenderSetLogicalSize(renderer,1100,ui::height);
@@ -429,7 +455,7 @@ static int app(const Options &o) {
                     if(playing){std::ostringstream stats;stats<<std::fixed<<std::setprecision(1)<<"Capture "<<measuredFps<<" fps   /   Display "<<displayFps<<" fps   /   Audio queued "<<audio.ring.queued()/96<<" ms   /   Skipped "<<shared.skipped<<"   /   Invalid "<<shared.corrupt;p.text(stats.str(),40,697,dim,p.tiny);}
                     else p.text("DIRECT CAPTURE    /    1080p60    /    STEREO SOUND",40,697,dim,p.tiny);
 #ifdef _WIN32
-                    p.text("XR1 PLAY 1.5.1",954,697,dim,p.tiny);
+                    p.text("XR1 PLAY 1.5.2",954,697,dim,p.tiny);
 #else
                     p.text("XR1 PLAY 1.5",969,697,dim,p.tiny);
 #endif
@@ -472,6 +498,10 @@ static int app(const Options &o) {
                 }
                 double beforePresent=monotime();SDL_RenderPresent(renderer);
                 double presentMs=(monotime()-beforePresent)*1000;
+#ifdef _WIN32
+                fpsTest.recordPresent(presentMs);
+                if(newFrame&&playing&&texture)shownCadence.record(monotime());
+#endif
                 presentTotal+=presentMs;presentMax=std::max(presentMax,presentMs);++presentSamples;
                 lastPaint=now;
             }
@@ -486,7 +516,10 @@ static int app(const Options &o) {
         }
         std::cout<<std::fixed<<std::setprecision(2)<<"Frames received: "<<shared.captured<<" / displayed: "<<presented<<" / stale skipped: "<<shared.skipped<<" / invalid: "<<shared.corrupt<<"\nLast measured receive fps: "<<measuredFps<<" / display fps: "<<displayFps<<" / last CPU upload wait: "<<uploadAge<<" ms (not end-to-end latency)\nAudio overflow samples: "<<audio.ring.dropped<<" / underflow samples: "<<audio.ring.starved<<"\n";
         std::cout<<"Ready-to-upload mean/max: "<<(uploadSamples?uploadTotal/uploadSamples:0)<<" / "<<uploadMax<<" ms; present-call mean/max: "<<(presentSamples?presentTotal/presentSamples:0)<<" / "<<presentMax<<" ms. These exclude card/monitor latency.\n";
-        stop();if(texture) SDL_DestroyTexture(texture);
+        stop();
+#ifndef _WIN32
+        if(texture) SDL_DestroyTexture(texture);
+#endif
     }
     SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);TTF_Quit();SDL_Quit();return result;
 }

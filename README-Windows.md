@@ -1,13 +1,14 @@
-XR1 Play 1.5.1 — Windows x64 preview
+XR1 Play 1.5.2 (local test build) — Windows x64 preview
 
 Extract the entire ZIP, then open XR1-Play.exe. Keep the DLLs and assets folder
 beside the executable. No Python, browser or Linux compatibility layer is
 needed on Windows. Do not launch the executable from inside the ZIP.
 
 Requires Windows 10/11 x64 with Media Foundation. Windows N editions require
-the Media Feature Pack. Version 1.5.0 was reported working on Windows 11, with uneven video timing
-and intermittent crackling. Version 1.5.1 addresses those paths and needs a
-new physical-card test. See COMPATIBILITY.md for the current test status.
+the Media Feature Pack. Version 1.5.1 receives about 60 fps on the user's Windows machine but displays
+about 58. Version 1.5.2 tests alternating reusable GPU upload destinations and
+Windows multimedia scheduling to reduce display-side stalls. No fixed-rate or
+minimum-PC performance guarantee has been verified with a physical card.
 
 1. Xbox HDMI OUT -> XR1 Lite HDMI IN. Connect XR1 directly over USB 3.
 2. Xbox output: 1080p, 60 Hz, SDR. HDMI audio: Stereo uncompressed.
@@ -22,11 +23,14 @@ M mutes, +/- changes volume. Move the mouse for the player controls. Refresh
 rescans stopped devices. Settings are saved in %APPDATA%\XR1 Play\settings.
 
 FPS test: click **FPS test** or press **F8** to measure 30 seconds of live
-capture. The player shows capture arrivals and displayed-frame submissions.
+capture. The live readout uses recent frame intervals; the test result uses
+actual counts over its full duration. The player counts capture arrivals and
+frames submitted for display.
 Results remain on screen and are saved to:
   %APPDATA%\XR1 Play\windows-fps-test.txt
 Use real capture with Test picture OFF for hardware testing. 59.94 fps is valid.
-The report also counts late arrivals, skipped/invalid frames and audio faults;
+The report also counts late arrivals, skipped/invalid frames and audio faults,
+and records GPU upload/present timings and the desktop refresh rate;
 it does not measure controller latency or the console game's own frame rate.
 
 For a device/mode report, run in a terminal:

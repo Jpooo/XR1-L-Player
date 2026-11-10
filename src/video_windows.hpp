@@ -10,6 +10,7 @@
 #include <condition_variable>
 #include <memory>
 #include <iomanip>
+#include "windows_cadence.hpp"
 template<class T> class Com {
     T *pointer=nullptr;
 public:
@@ -52,11 +53,11 @@ inline std::vector<WinMode> windowsModes(IMFSourceReader *reader,IMFMediaSource 
     }
     std::stable_sort(result.begin(),result.end(),[](const auto &a,const auto &b){return a.rank<b.rank;});return result;
 }
-struct WinCaptureSnapshot {uint64_t samples=0,pendingDropped=0,late=0;};
+struct WinCaptureSnapshot {uint64_t samples=0,pendingDropped=0,late=0;double fps=0;};
 struct WinReaderState {
     std::mutex mutex;std::atomic<bool> running{false};SharedVideo *target=nullptr;IMFSourceReader *reader=nullptr;WinMode mode;Frame frame;JpegDecoder jpeg;double lastValid=0;
     std::condition_variable ready;Com<IMFSample> pending;double pendingReceived=0,lastArrival=0;
-    WinCaptureSnapshot stats;
+    WinCaptureSnapshot stats;WindowsFrameRate cadence;
     void fail(const std::string &error){running=false;ready.notify_all();if(target)target->fail(error);}
     bool decode(IMFSample *sample){
         Com<IMFMediaBuffer> buffer;if(FAILED(sample->ConvertToContiguousBuffer(buffer.put())))return false;
@@ -94,7 +95,7 @@ public:
             if(sample){
                 double arrival=monotime();
                 if(state->lastArrival&&arrival-state->lastArrival>0.025)++state->stats.late;
-                state->lastArrival=arrival;++state->stats.samples;
+                state->lastArrival=arrival;++state->stats.samples;state->cadence.record(arrival);
                 if(state->pending)++state->stats.pendingDropped;
                 sample->AddRef();state->pending=Com<IMFSample>(sample);
                 state->pendingReceived=arrival;state->ready.notify_one();
@@ -151,7 +152,7 @@ public:
             auto active=state;watchdog=std::thread([active](){while(active->running){std::this_thread::sleep_for(std::chrono::milliseconds(100));std::lock_guard<std::mutex> lock(active->mutex);if(active->running&&monotime()-active->lastValid>5)active->fail("No valid video frames for 5 seconds. Check HDMI, USB 3 and Xbox 1080p/60 settings.");}});
         }catch(...){stop();throw;}
     }
-    WinCaptureSnapshot snapshot(){if(!state)return {};std::lock_guard<std::mutex> lock(state->mutex);return state->stats;}
+    WinCaptureSnapshot snapshot(){if(!state)return {};std::lock_guard<std::mutex> lock(state->mutex);auto result=state->stats;result.fps=state->cadence.fps(monotime());return result;}
     void stop(){
         if(state){{std::lock_guard<std::mutex> lock(state->mutex);state->running=false;state->target=nullptr;state->reader=nullptr;state->ready.notify_all();}if(decoder.joinable())decoder.join();if(watchdog.joinable())watchdog.join();}
         if(reader)reader->Flush(MF_SOURCE_READER_ALL_STREAMS);

@@ -421,3 +421,21 @@ permissions are checked at export.
 No physical XR1 Lite or native Windows 11 hardware was available; these checks do
 not measure hardware capture throughput or end-to-end latency. Both local builds
 and source remain unuploaded; GitHub and prior downloads are unchanged.
+
+
+## XR1-L Player 1.5.16 publication preparation
+
+The user approved publishing the tested builds as Latest and the XR1-L Player
+name. Current build targets, documentation and package metadata use that name.
+Historical configuration keys and asset filenames are retained for compatibility.
+The README preview is the exact user-provided PNG (SHA-256
+`7ead0d9d8a6a510c255c3bfe8dd47afdf19f877c700a1d3413acc2f9d41b045d`).
+The renamed CMake/Make build and all eight Linux CTest checks passed. Public ZIPs
+update only archive naming/instructions; tested AppImage, EXE, DLL, font and artwork
+bytes match the approved 1.5.16 downloads. The beta-v1-only uploader was retired;
+no automatic package publishing is enabled.
+
+GitHub's integration token refused repository-settings changes with HTTP 403
+(Resource not accessible by integration). The owner can rename the repository
+from XR1-Play to XR1-L-Player in Settings; download links use the accessible
+repository URL until that action is complete.

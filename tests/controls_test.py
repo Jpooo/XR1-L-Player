@@ -9,7 +9,7 @@ with tempfile.TemporaryDirectory(prefix='xr1-controls-') as work:
                SDL_DISKAUDIOFILE=work+'/audio.raw',XDG_CONFIG_HOME=work,
                LD_LIBRARY_PATH=str(root/'.deps/root/usr/lib/x86_64-linux-gnu'),
                LD_PRELOAD=str(root/'build/controls-probe.so'))
-    command=sys.argv[1:] or [str(root/'build/xr1-play')]
+    command=sys.argv[1:] or [str(root/'build/xr1-l-player')]
     run=subprocess.run([*command,'--demo','--seconds','4',
                         '--screenshot',str(root/'build/controls-menu.bmp')],
                        cwd=root,env=env,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=20)

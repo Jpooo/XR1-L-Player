@@ -3,10 +3,10 @@
 from pathlib import Path
 import os, re, shutil, subprocess, tarfile
 root=Path(__file__).resolve().parents[1]
-app=root/'build/XR1Play.AppDir'
+app=root/'build/XR1LPlayer.AppDir'
 if app.exists(): shutil.rmtree(app)
 for d in ('usr/bin','usr/lib','usr/share/xr1-l-player','usr/share/licenses'):(app/d).mkdir(parents=True,exist_ok=True)
-shutil.copy2(root/'build/xr1-play',app/'usr/bin/xr1-l-player')
+shutil.copy2(root/'build/xr1-l-player',app/'usr/bin/xr1-l-player')
 subprocess.run(['strip',str(app/'usr/bin/xr1-l-player')],check=True)
 shutil.copy2(root/'assets/DejaVuSans.ttf',app/'usr/share/xr1-l-player')
 shutil.copytree(root/'assets/icons',app/'usr/share/xr1-l-player/icons')
@@ -16,7 +16,7 @@ shutil.copy2(root/'assets/icons/LICENSE',app/'usr/share/licenses/Lucide.LICENSE'
 # backends together. Their stable ABIs are supplied by current Bazzite images.
 host=re.compile(r'^(?:libc\.|libm\.|libpthread\.|libdl\.|librt\.|ld-linux|libresolv\.|libutil\.|libanl\.|libnss_|libasound\.|libpulse(?:common|-simple)?[.-]|libsystemd\.|libudev\.|libgbm\.|libdrm|libwayland|libxkbcommon\.|libdecor-)')
 env=os.environ.copy();env['LD_LIBRARY_PATH']=str(root/'.deps/root/usr/lib/x86_64-linux-gnu')
-listing=subprocess.check_output(['ldd',str(root/'build/xr1-play')],env=env,text=True)
+listing=subprocess.check_output(['ldd',str(root/'build/xr1-l-player')],env=env,text=True)
 if 'not found' in listing: raise RuntimeError(listing)
 libs=[]
 for line in listing.splitlines():
@@ -70,7 +70,7 @@ shutil.copy2(app/'xr1-l-player.png',app/'.DirIcon')
 for path in [app,*app.rglob('*')]:
     path.chmod(0o755 if path.is_dir() or path.name=='AppRun' or path==app/'usr/bin/xr1-l-player' else 0o644)
 dist=root/'dist';dist.mkdir(exist_ok=True)
-archive=dist/'XR1-L-Player-1.5.16-Linux-Test-x86_64.tar.gz'
+archive=dist/'XR1-L-Player-1.5.16-Linux-x86_64.tar.gz'
 with tarfile.open(archive,'w:gz') as tar:tar.add(app,arcname='XR1-L-Player')
 archive.chmod(0o644)
 print(f'Bundled {len(libs)} libraries; portable tar.gz created.')

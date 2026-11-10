@@ -62,3 +62,8 @@
   Software renderers use cached uniform subdivision to avoid large-triangle
   gaps at scaled sizes; accelerated renderers use the small native mesh.
   Both builds stay local, with previous downloads preserved.
+
+- Release authorization: the user explicitly requested publishing both tested
+  1.5.16 builds as Latest and renaming the project XR1-L Player. Include their
+  exact PNG screenshot in README. Preserve tested executable/AppImage bytes.
+  Future unrequested uploads still require explicit authorization.

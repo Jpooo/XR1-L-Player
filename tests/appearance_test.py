@@ -8,7 +8,7 @@ with tempfile.TemporaryDirectory(prefix='xr1-appearance-') as folder:
         SDL_DISKAUDIOFILE=folder+'/audio.raw',XDG_CONFIG_HOME=folder,
         LD_LIBRARY_PATH=str(root/'.deps/root/usr/lib/x86_64-linux-gnu'),
         LD_PRELOAD=str(root/'build/controls-probe.so'),XR1_TEST_APPEARANCE='1')
-    command=sys.argv[1:] or [str(root/'build/xr1-play')]
+    command=sys.argv[1:] or [str(root/'build/xr1-l-player')]
     run=subprocess.run([*command,'--demo','--seconds','4','--screenshot',str(root/'build/linux-appearance-panel.bmp')],cwd=root,env=env,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=25)
     print(run.stdout);assert run.returncode==0
     config=Path(folder)/'xr1-l-player'

@@ -4,7 +4,7 @@ body:
   - type: input
     id: release
     attributes:
-      label: XR1 Play version or commit
+      label: XR1-L Player version or commit
     validations:
       required: true
   - type: input

@@ -1,15 +1,15 @@
-# XR1-L Play beta v1
+# XR1-L Player
 
 Native **1080p60 live preview and HDMI stereo audio** for EVGA XR1 Lite on Linux and Windows.
 
-- [Linux AppImage](https://github.com/Jpooo/XR1-Play/releases/download/beta-v1/XR1-L-Play-beta-v1-Linux-x86_64.AppImage)
-- [Windows x64 portable ZIP](https://github.com/Jpooo/XR1-Play/releases/download/beta-v1/XR1-L-Play-beta-v1-Windows-x64.zip)
+- [Linux ZIP](https://github.com/Jpooo/XR1-Play/releases/download/v1.5.16/XR1-L-Player-1.5.16-Linux-x86_64.zip) · [AppImage](https://github.com/Jpooo/XR1-Play/releases/download/v1.5.16/XR1-L-Player-1.5.16-Linux-x86_64.AppImage)
+- [Windows x64 ZIP](https://github.com/Jpooo/XR1-Play/releases/download/v1.5.16/XR1-L-Player-1.5.16-Windows-x64.zip)
 
-![XR1 Play interface](docs/screenshot.png)
+![XR1-L Player 1.5.16 interface](docs/screenshot.png)
 
 ## XR1 Lite system requirements
 
-These requirements also apply when using XR1-L Play.
+These requirements also apply when using XR1-L Player.
 
 | CPU option | Required GPU |
 | --- | --- |
@@ -23,8 +23,8 @@ These requirements also apply when using XR1-L Play.
 
 1. Connect console HDMI OUT to XR1 Lite HDMI IN, then connect the card directly to USB 3 with a USB 3 data cable.
 2. Set the console to **1080p, 60 Hz, SDR** and HDMI audio to **Stereo uncompressed**. Close other capture apps.
-3. **Linux:** make the AppImage executable, then open it. **Windows:** extract the whole ZIP and open `XR1-L-Player.exe`; keep the DLLs and assets together.
+3. **Linux:** extract the ZIP, make the AppImage executable, then open it. **Windows:** extract the whole ZIP and open `XR1-L-Player.exe`; keep the DLLs and assets together.
 4. Open **Settings**, choose the card's video source, HDMI audio input and your speakers/headphones, then return and choose **Play**.
 
 Use **Preferences** to save Neon Green, Electric Blue or Crimson Red and Motion On/Off.
-**F/F11** toggles fullscreen, **M** mutes, **+/-** changes volume and **Tab** opens settings / returns to video. Use the mouse or arrows and Enter in menus; **Esc** goes back.
+**F/F11** toggles fullscreen, **M** mutes, **+/-** changes volume and **Tab** opens settings / returns to video. Move the mouse during playback to reveal **Main menu** and playback controls. Use the mouse or arrows and Enter in menus; **Esc** goes back.

@@ -10,6 +10,7 @@ on:
       - tests/preferences_test.cpp
       - tests/player_ui_test.cpp
       - tests/menu_motion_test.cpp
+      - tests/panel_preview_test.cpp
       - CMakeLists.txt
       - .github/workflows/windows-tests.yml
 
@@ -49,7 +50,7 @@ jobs:
             -DSDL2_DIR="$PWD/.deps/windows-ci/SDL2-2.32.4/x86_64-w64-mingw32/lib/cmake/SDL2" \
             -DSDL2_ttf_DIR="$PWD/.deps/windows-ci/SDL2_ttf-2.24.0/x86_64-w64-mingw32/lib/cmake/SDL2_ttf"
           cmake --build build-windows-tests --parallel 2
-      - name: Test codecs, Media Foundation callbacks, audio timing and FPS counts
+      - name: Test codecs, capture, audio, menus and panel rendering
         shell: msys2 {0}
         run: |
           export PATH="$PWD/.deps/windows-ci/SDL2-2.32.4/x86_64-w64-mingw32/bin:$PWD/.deps/windows-ci/SDL2_ttf-2.24.0/x86_64-w64-mingw32/bin:$PATH"

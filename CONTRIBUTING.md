@@ -1,4 +1,4 @@
-# Contributing to XR1 Play
+# Contributing to XR1-L Player
 
 The project is intended to remain a native, live-only capture viewer with audio.
 Useful contributions include real-device compatibility reports, driver fixes,
@@ -9,7 +9,7 @@ low-latency improvements, accessibility, packaging and clearer UI behavior.
 Start with README.md and COMPATIBILITY.md. CMake supports the shared application
 and a codec/layout test. The Makefile also runs Linux V4L2 mock tests, rendering
 checks, and scripted controls/audio checks. tools/build-windows.sh is the
-cross-build recipe used for the current Windows preview.
+cross-build recipe used for the Windows build.
 
 Keep generated builds, binaries, downloaded dependencies and local configuration
 out of source changes. Include the test commands and results with a contribution.
@@ -23,7 +23,7 @@ which platform or hardware was unavailable.
 - src/video_windows.hpp: native Media Foundation discovery and asynchronous capture.
 - src/core.hpp: newest-frame handoff and bounded PCM queue.
 - src/audio.hpp: capture/playback audio and volume handling.
-- src/main.cpp and src/ui.hpp: shared application flow and SDL user interface.
+- src/main.cpp, src/ui.hpp and src/menu_ui.hpp: shared application flow and SDL user interface.
 - tests/: codec/layout, driver, rendering, audio and control checks.
 
 ## Capture changes
@@ -45,5 +45,5 @@ capture path independent of decorative animation and retain a reduced-motion
 option. The existing icons are licensed Lucide assets; retain their notices
 and original source when redistributing them.
 
-XR1 Play code is MIT licensed. Third-party libraries, fonts and icons retain
+XR1-L Player code is MIT licensed. Third-party libraries, fonts and icons retain
 their own licenses. Update relevant notices if replacing bundled dependencies.

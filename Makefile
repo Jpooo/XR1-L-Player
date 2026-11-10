@@ -7,8 +7,8 @@ LDLIBS = -l:libSDL2-2.0.so.0 -l:libSDL2_ttf-2.0.so.0 -l:libjpeg.so.62
 LDFLAGS += -L$(DEPS)/lib/x86_64-linux-gnu
 UI_HEADERS = src/menu_motion.hpp src/ui.hpp src/menu_theme.hpp src/menu_ui.hpp src/frame_cadence.hpp
 VIDEO_HEADERS = src/video.hpp src/video_common.hpp src/video_linux.hpp src/video_windows.hpp
-all: build/xr1-play
-build/xr1-play: src/main.cpp src/core.hpp src/frame_cadence.hpp $(VIDEO_HEADERS) src/audio.hpp $(UI_HEADERS)
+all: build/xr1-l-player
+build/xr1-l-player: src/main.cpp src/core.hpp src/frame_cadence.hpp $(VIDEO_HEADERS) src/audio.hpp $(UI_HEADERS)
 	mkdir -p build
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) src/main.cpp $(LDFLAGS) $(LDLIBS) -o $@
 clean:
@@ -29,7 +29,7 @@ build/render-test: tests/render_test.cpp src/core.hpp src/frame_cadence.hpp
 build/controls-probe.so: tests/controls_probe.cpp
 	mkdir -p build
 	$(CXX) $(CPPFLAGS) -O2 -std=c++17 -Wall -Wextra -shared -fPIC $< -ldl -o $@
-controls-test: build/xr1-play build/controls-probe.so
+controls-test: build/xr1-l-player build/controls-probe.so
 	python3 tests/controls_test.py
 .PHONY: controls-test
 build/handoff-test: tests/handoff_test.cpp src/core.hpp src/frame_cadence.hpp

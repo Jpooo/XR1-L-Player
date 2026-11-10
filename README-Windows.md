@@ -1,4 +1,4 @@
-# XR1-L Player 1.5.16 — Windows local test build
+# XR1-L Player 1.5.16 — Windows
 
 1080p60 live preview and HDMI stereo audio for EVGA XR1 Lite.
 
@@ -16,5 +16,3 @@ Use **Settings** for video/audio devices, format and volume. **Preferences** sav
 
 F/F11: fullscreen; Tab: settings / return to video; Enter: stop playback; M: mute; +/-: volume. In menus use the mouse, arrows and Enter; Esc goes back. Volume and mute are saved across launches.
 Settings use %APPDATA%\XR1-L Player\. Previous XR1 Play settings are imported when no new settings exist.
-
-This local test build has not been uploaded to GitHub. Windows checks under Wine do not establish native hardware capture performance.

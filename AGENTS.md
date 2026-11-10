@@ -69,3 +69,10 @@
   Future unrequested uploads still require explicit authorization.
 
 - Repository rename completed: canonical URL is https://github.com/Jpooo/XR1-L-Player. Use this URL for future pushes and releases.
+
+- Published with explicit user approval: XR1-L Player 1.5.16 is the Latest
+  non-draft release at https://github.com/Jpooo/XR1-L-Player/releases/tag/v1.5.16.
+  Both ZIPs and the standalone AppImage were uploaded via the manual approved
+  workflow; GitHub's asset digests match the verified local release files.
+  The exact user screenshot is in docs/screenshot.png. Native Windows CI passed
+  in addition to the local checks. Future changes still require upload approval.

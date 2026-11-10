@@ -441,3 +441,12 @@ from XR1-Play to XR1-L-Player in Settings; download links use the accessible
 repository URL until that action is complete.
 
 The owner subsequently completed the repository rename to `Jpooo/XR1-L-Player`. Current README links and remotes use the canonical name.
+
+Publication completed: `v1.5.16` is the non-draft, non-prerelease Latest release
+in `Jpooo/XR1-L-Player`. GitHub reported matching SHA-256 digests for the Linux
+AppImage, Linux ZIP, Windows ZIP and SHA256SUMS. The README image's Git blob SHA
+matches the exact uploaded PNG. The manual release workflow succeeded:
+https://github.com/Jpooo/XR1-L-Player/actions/runs/42912054037.
+Native Windows compilation and its automated test job also succeeded:
+https://github.com/Jpooo/XR1-L-Player/actions/runs/42911585897.
+This adds native OS software verification, not physical XR1 Lite hardware testing.

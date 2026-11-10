@@ -248,3 +248,28 @@ Five Linux tests, seven Windows executables under Wine, mocked native capture/co
 Idle menu animation follows the current display refresh (24–240 Hz, 60 Hz fallback) instead of a fixed 30 fps. A fixed-phase menu clock prevents accumulating timer oversleep and skips missed deadlines without catch-up queues. Settings shown during capture remain capped at 60 Hz; Motion Off retains 20 Hz idle updates. Controller bob and button lift use fractional coordinates while text stays aligned to physical pixels. Original artwork, motion amplitude/speed, audio, V4L2/Media Foundation, upload destinations, native wake path and vsync preference are unchanged.
 
 Six Linux CMake targets passed, including new menu timing/fractional-coordinate/Motion Off checks. Windows motion, presentation, player UI and preference checks passed under Wine. OpenGL readback verified real subpixel controller movement and retained exact fullscreen font-raster fidelity. Packaged control/appearance/audio and Windows playback checks passed. Virtual-host timing is diagnostic only; native Windows/GPU smoothness still requires the user's hardware test. No source or packages were uploaded. New logo work waits for the user's reference photo.
+
+## XR1-L Player 1.5.11 local device-logo update
+
+Replaced the controller with the user-approved XR1 Lite artwork in the menu tile,
+header badge, three themed window icons, Windows executable resource/ICO, and
+Linux AppImage desktop icon. The tile has a solid preference color without the
+PLAY watermark or diagonal stripes. The device floats by 2 logical pixels with
+at most 0.8 degrees of tilt; Motion Off holds it level and stationary. Capture,
+audio, video scaling, saved preferences and presentation scheduling are unchanged.
+
+Validation: Make capture/audio/codec checks passed; all six Linux CTest checks
+passed. Accelerated Linux readback preserved native 1080p video pixels and the
+physical-resolution text raster (mean/max error 0/0); logo subpixel movement was
+0.221 pixels for a requested 0.25-pixel step. Normal and reduced menu motion
+passed on Linux and Windows. Windows presentation and actual-player FPS/volume
+start/restart/persistence/retry tests passed under Wine using the new packaged
+assets. The Windows package itself launched and produced the expected menu.
+Packaged AppImage controls and appearance checks passed, including audio volume,
+fullscreen, theme selection and FPS Close/reopen. Both ZIPs passed CRC checks;
+embedded executable/artwork bytes match the build outputs. AppImage executable
+permissions are retained inside its ZIP.
+
+Windows checks used Wine, not a physical Windows 11 machine or XR1 Lite. These
+UI tests do not measure capture-card throughput or physical end-to-end latency.
+Both 1.5.11 ZIPs are local only; prior downloads and GitHub releases are unchanged.

@@ -26,5 +26,7 @@ public:
         if(now>=next){next+=(std::floor((now-next)/interval)+1)*interval;if(next<=now)next+=interval;}
     }
 };
-inline float controllerBob(double seconds,bool reducedMotion){return reducedMotion?0.0f:float(std::sin(seconds*1.1)*3);}
+// A quiet hover suits the rectangular capture box; Motion Off is level and still.
+inline float deviceBob(double seconds,bool reducedMotion){return reducedMotion?0.0f:float(std::sin(seconds*1.05)*2);}
+inline double deviceTilt(double seconds,bool reducedMotion){return reducedMotion?0.0:std::sin(seconds*.7)*.8;}
 }

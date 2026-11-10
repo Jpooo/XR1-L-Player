@@ -30,3 +30,5 @@
 
 - Local 1.5.10: smooth menu/controller animation without changing capture/audio
   timing or original logo artwork. Future logo work waits for the user photo.
+
+- Local 1.5.11: approved XR1 Lite device logo across the poster, header and native/package icons. Solid theme backgrounds; gentle device hover/tilt. Keep all packages local.

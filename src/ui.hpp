@@ -20,7 +20,7 @@ inline constexpr int volumeLeft=680,volumeWidth=190,volumeTop=570;
 inline constexpr Box primary{40,622,650,56},stop{714,622,346,56},motion{960,552,100,42};
 inline constexpr SDL_Color white{243,246,248,255},muted{155,163,172,255},green{155,240,11,255};
 inline constexpr SDL_Color surface{24,27,31,255},raised{32,36,41,255},border{48,54,61,255};
-enum class Icon {Video,Speaker,Controller,Expand,Refresh,Play,Stop,Chevron,Check};
+enum class Icon {Video,Speaker,Capture,Expand,Refresh,Play,Stop,Chevron,Check};
 }
 struct Painter {
     SDL_Renderer *r;
@@ -152,7 +152,7 @@ struct Painter {
     void icon(ui::Icon type,float x,float y,float size,SDL_Color c,bool secondary=false,double angle=0){
         c=resolve(c);
         y+=offsetY;
-        static const char *names[]={"monitor","volume-2","gamepad-2","maximize","refresh-cw","play","square","chevron-right","check"};
+        static const char *names[]={"monitor","volume-2","xr1-lite","maximize","refresh-cw","play","square","chevron-right","check"};
         std::string name=type==ui::Icon::Speaker&&secondary?"volume-x":names[static_cast<int>(type)];
         auto found=icons.find(name);
         if(found==icons.end()){

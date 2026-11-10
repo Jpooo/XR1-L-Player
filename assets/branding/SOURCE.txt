@@ -1,5 +1,5 @@
-Windows app badge composition using unchanged Lucide gamepad-2 geometry.
-Lucide 0.468.0 source: ../icons/gamepad-2.svg
-ISC license: ../icons/LICENSE
-Badge color/rounded background/rotation exported by tools/prepare-app-icon.py.
-No generated replacement controller artwork is used.
+XR1 Lite device artwork generated from the user-provided hardware reference and approved in chat.
+Master: xr1-lite-master.png. Format/size exports: tools/prepare-app-icon.py.
+The same artwork supplies the menu, header, window and package icons.
+Solid theme-color backgrounds; no PLAY watermark or diagonal decoration.
+Other interface symbols retain their Lucide ISC license in ../icons/LICENSE.

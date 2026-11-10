@@ -14,7 +14,7 @@ static std::vector<float> positions;
 static std::vector<double> angles;
 static void measuredPresent(SDL_Renderer *renderer){paintTimes.push_back(monotime());SDL_RenderPresent(renderer);}
 static int measuredIcon(SDL_Renderer *r,SDL_Texture *t,const SDL_Rect *src,const SDL_FRect *dst,double angle,const SDL_FPoint *center,SDL_RendererFlip flip){
-    if(dst&&std::abs(dst->x-780)<.01f&&std::abs(dst->w-212)<.01f){positions.push_back(dst->y);angles.push_back(angle);}
+    if(dst&&std::abs(dst->x-737)<.01f&&std::abs(dst->w-300)<.01f){positions.push_back(dst->y);angles.push_back(angle);}
     return SDL_RenderCopyExF(r,t,src,dst,angle,center,flip);
 }
 int main(){
@@ -25,7 +25,8 @@ int main(){
     for(int i=1;i<=600;++i){clock.painted(clock.deadline(0)+.0004);assert(std::abs(clock.deadline(0)-(i+1)/60.0)<1e-8);}
     clock.painted(30);assert(!clock.due(30)&&clock.deadline(0)<=30+1.0/60+1e-8);
     clock.rate(144);assert(clock.due(30));clock.painted(30);assert(std::abs(clock.deadline(0)-(30+1.0/144))<1e-8);
-    assert(ui::controllerBob(.1,false)>0&&ui::controllerBob(.1,false)<1&&ui::controllerBob(.1,true)==0);
+    assert(ui::deviceBob(.1,false)>0&&ui::deviceBob(.1,false)<1&&ui::deviceBob(.1,true)==0);
+    assert(ui::deviceTilt(.1,false)>0&&ui::deviceTilt(.1,false)<1&&ui::deviceTilt(.1,true)==0);
     std::cout<<"PASS refresh-aware menu rate, fixed-phase deadlines, stall recovery and fractional motion\n";
     [[maybe_unused]] CapturePlatform platform;
     if(!std::getenv("XR1_MOTION_GPU")){
@@ -38,8 +39,8 @@ int main(){
     for(bool reduced:{false,true}){
         paintTimes.clear();positions.clear();angles.clear();
         Options options;options.seconds=2;options.reduceMotion=reduced;assert(app(options)==0);assert(positions.size()>2);
-        bool fractional=false;for(auto y:positions){if(std::abs(y-std::round(y))>.001f)fractional=true;if(reduced)assert(std::abs(y-(244+ui::menuOffset))<.001f);}
-        if(reduced){assert(!fractional);for(auto angle:angles)assert(angle==-10);}
+        bool fractional=false;for(auto y:positions){if(std::abs(y-std::round(y))>.001f)fractional=true;if(reduced)assert(std::abs(y-(192+ui::menuOffset))<.001f);}
+        if(reduced){assert(!fractional);for(auto angle:angles)assert(angle==0);}
         else assert(fractional);
         // Report observed timing; do not turn virtual-host speed into a hard
         // performance assertion or a claim about capture-card throughput.

@@ -92,9 +92,9 @@ static void handleSignal(int) {interrupted=1;}
 static void help() {
     std::cout<<
 #ifdef _WIN32
-    "XR1-L Player 1.5.10 - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.11 - native 1080p60 HDMI viewer ("
 #else
-    "XR1-L Player 1.5.10 Linux test build - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.11 Linux test build - native 1080p60 HDMI viewer ("
 #endif
 #ifdef _WIN32
     "Windows x86_64"
@@ -493,7 +493,7 @@ static int app(const Options &o) {
                     double drift=reducedMotion?0:std::sin((now-began)*.3)*18;
                     p.glow({float(650+drift),-170,600,600},{155,240,11,35});
                     p.glow({float(-210-drift),400,520,520},{44,137,230,23});
-                    p.round({40,32,48,48},13,accent);p.icon(ui::Icon::Controller,44,36,40,p.theme.ink(),false,-10);
+                    p.round({40,32,48,48},13,accent);p.icon(ui::Icon::Capture,44,36,40,p.theme.ink());
                     p.text("XR1-L Player",102,32,color,p.heading);p.text("CAPTURE VIEWER",103,62,dim,p.tiny);
                     std::string status=playing?(demonstration?"TEST PICTURE":"LIVE PREVIEW"):videos.empty()?"CONNECT YOUR XR1 LITE":"READY TO PLAY";
                     p.round({688,42,184,34},17,{30,37,32,255});
@@ -527,13 +527,9 @@ static int app(const Options &o) {
                     if(playing&&texture){
                         SDL_Rect preview{730,238+ui::menuOffset,314,177};SDL_RenderCopy(renderer,texture,nullptr,&preview);if(newFrame)++presented;
                     }else{
-                        SDL_Rect clip{726,234+ui::menuOffset,322,288};SDL_RenderSetClipRect(renderer,&clip);
-                        for(int i=0;i<5;++i)p.line(650.0f+i*100,230,930.0f+i*100,535,{10,34,0,13},38);
-                        p.text("PLAY",740,260,{10,34,0,17},p.display);SDL_RenderSetClipRect(renderer,nullptr);
-                        float bob=ui::controllerBob(now-began,reducedMotion);
-                        double tilt=reducedMotion?-10:-10+std::sin((now-began)*.7)*2;
-                        p.icon(ui::Icon::Controller,786,250+bob+7,212,{12,32,0,24},false,tilt);
-                        p.icon(ui::Icon::Controller,780,244+bob,212,{12,30,2,255},false,tilt);
+                        const double elapsed=now-began;
+                        p.icon(ui::Icon::Capture,737,192+ui::deviceBob(elapsed,reducedMotion),300,
+                               p.theme.ink(),false,ui::deviceTilt(elapsed,reducedMotion));
                     }
                     if(playing){
                         p.text("Preview",734,431,color,p.heading);
@@ -556,9 +552,9 @@ static int app(const Options &o) {
                     if(playing){std::ostringstream stats;stats<<std::fixed<<std::setprecision(1)<<"Capture "<<measuredFps<<" fps   /   Display "<<displayFps<<" fps   /   Audio queued "<<audio.ring.queued()/96<<" ms   /   Skipped "<<shared.skipped<<"   /   Invalid "<<shared.corrupt;p.text(stats.str(),40,697,dim,p.tiny);}
                     else p.text("DIRECT CAPTURE    /    1080p60    /    STEREO SOUND",40,697,dim,p.tiny);
 #ifdef _WIN32
-                    p.text("XR1-L PLAYER 1.5.10",906,697,dim,p.tiny);
+                    p.text("XR1-L PLAYER 1.5.11",906,697,dim,p.tiny);
 #else
-                    p.text("XR1-L PLAYER 1.5.10",906,697,dim,p.tiny);
+                    p.text("XR1-L PLAYER 1.5.11",906,697,dim,p.tiny);
 #endif
                 } else {
                     if(demonstration){p.round({22,20,380,34},10,{16,23,15,220});p.text("TEST PICTURE  /  1080p60 + stereo tone",36,29,color,p.small);}

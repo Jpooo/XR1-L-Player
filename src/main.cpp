@@ -52,7 +52,7 @@ static void handleSignal(int) {interrupted=1;}
 static void help() {
     std::cout<<
 #ifdef _WIN32
-    "XR1 Play 1.5.2 - native 1080p60 HDMI viewer ("
+    "XR1 Play 1.5.3 - native 1080p60 HDMI viewer ("
 #else
     "XR1 Play 1.5.0 - native 1080p60 HDMI viewer ("
 #endif
@@ -263,6 +263,8 @@ static int app(const Options &o) {
         };
 #ifdef _WIN32
         auto startFpsTest=[&](){if(!playing)start();if(playing){fpsTest.start(monotime(),fpsCounts(),demonstration);fpsReportSaved=false;menu=false;controlsUntil=monotime()+3;}};
+        auto closeFpsTest=[&](){fpsTest.close(monotime(),fpsCounts());saveFpsReport();controlsUntil=monotime()+3;};
+        auto toggleFpsTest=[&](){if(fpsTest.visible&&(fpsTest.active||fpsTest.complete))closeFpsTest();else startFpsTest();};
 #endif
         if(o.autostart||o.demo) start();
 #ifdef _WIN32
@@ -276,7 +278,7 @@ static int app(const Options &o) {
                 if(event.type==SDL_QUIT) quit=true;
                 if(event.type==SDL_AUDIODEVICEREMOVED&&playing&&audio.ownsDevice(event.adevice.which)) {stop();error="A selected audio device was removed. Refresh devices with R and reconnect.";}
 #ifdef _WIN32
-                if(event.type==SDL_KEYDOWN&&!event.key.repeat&&event.key.keysym.sym==SDLK_F8)startFpsTest();
+                if(event.type==SDL_KEYDOWN&&!event.key.repeat&&event.key.keysym.sym==SDLK_F8)toggleFpsTest();
                 if(event.type==SDL_RENDER_DEVICE_RESET||event.type==SDL_RENDER_TARGETS_RESET){videoUploads.reset();texture=nullptr;}
 #endif
                 if(event.type==SDL_MOUSEMOTION) {
@@ -306,7 +308,8 @@ static int app(const Options &o) {
                     bool controls=menu||monotime()<controlsUntil;
                     controlsUntil=monotime()+3;
 #ifdef _WIN32
-                    if((menu?ui::Box{470,38,152,42}.contains(x,y):(controls&&ui::Box{22,126,152,34}.contains(x,y)))){startFpsTest();continue;}
+                    if(!menu&&fpsTest.visible&&ui::Box{744,68,66,34}.contains(x,y)){closeFpsTest();continue;}
+                    if(menu?ui::Box{470,38,152,42}.contains(x,y):(!fpsTest.visible&&controls&&ui::Box{22,62,152,34}.contains(x,y))){toggleFpsTest();continue;}
 #endif
                     if(menu&&ui::fullscreen.contains(x,y)) {fullscreen();continue;}
                     if(menu&&ui::motion.contains(x,y)){reducedMotion=!reducedMotion;std::cout<<"Menu motion: "<<(reducedMotion?"off":"on")<<std::endl;continue;}
@@ -399,7 +402,7 @@ static int app(const Options &o) {
                     if(playing&&!reducedMotion)liveDot.a=static_cast<Uint8>(190+std::sin((now-began)*3)*50);
                     p.round({703,55,8,8},4,liveDot);p.text(status,721,51,playing||!videos.empty()?accent:dim,p.tiny);
 #ifdef _WIN32
-                    p.button({470,38,152,42},fpsTest.active?"Testing FPS...":"FPS test (F8)",hover({470,38,152,42}));
+                    p.button({470,38,152,42},fpsTest.visible&&(fpsTest.active||fpsTest.complete)?"Close FPS test":"FPS test (F8)",hover({470,38,152,42}));
 #endif
                     p.button(ui::fullscreen,(SDL_GetWindowFlags(window)&SDL_WINDOW_FULLSCREEN_DESKTOP)?"Exit fullscreen":"Fullscreen",hover(ui::fullscreen));
                     if(!error.empty()){
@@ -455,7 +458,7 @@ static int app(const Options &o) {
                     if(playing){std::ostringstream stats;stats<<std::fixed<<std::setprecision(1)<<"Capture "<<measuredFps<<" fps   /   Display "<<displayFps<<" fps   /   Audio queued "<<audio.ring.queued()/96<<" ms   /   Skipped "<<shared.skipped<<"   /   Invalid "<<shared.corrupt;p.text(stats.str(),40,697,dim,p.tiny);}
                     else p.text("DIRECT CAPTURE    /    1080p60    /    STEREO SOUND",40,697,dim,p.tiny);
 #ifdef _WIN32
-                    p.text("XR1 PLAY 1.5.2",954,697,dim,p.tiny);
+                    p.text("XR1 PLAY 1.5.3",954,697,dim,p.tiny);
 #else
                     p.text("XR1 PLAY 1.5",969,697,dim,p.tiny);
 #endif
@@ -467,9 +470,11 @@ static int app(const Options &o) {
                 if(playing&&!menu){
                     p.offsetY=0;
                     std::ostringstream live;live<<std::fixed<<std::setprecision(1)<<"Capture "<<arrivalFps<<" fps  /  Shown "<<displayFps<<" fps  /  Audio "<<audio.ring.queued()/96<<" ms";
-                    p.round({22,62,800,54},10,{16,23,15,225});p.text(live.str(),36,69,color,p.small);
-                    p.text(fpsTest.active||fpsTest.complete?fpsTest.summary():"F8: run a 30-second FPS test",36,91,dim,p.tiny);
-                    if(now<controlsUntil)p.button({22,126,152,34},fpsTest.active?"Restart FPS test":"FPS test (F8)",hover({22,126,152,34}),false,p.small);
+                    if(fpsTest.visible){
+                        p.round({22,62,800,54},10,{16,23,15,225});p.text(live.str(),36,69,color,p.small);
+                        p.text(fpsTest.active||fpsTest.complete?fpsTest.summary():"F8: run a 30-second FPS test",36,91,dim,p.tiny);
+                        p.button({744,68,66,34},"Close",hover({744,68,66,34}),false,p.small);
+                    }else if(now<controlsUntil)p.button({22,62,152,34},"FPS test (F8)",hover({22,62,152,34}),false,p.small);
                 }
 #endif
                 if(menu||now<controlsUntil||draggingVolume) {

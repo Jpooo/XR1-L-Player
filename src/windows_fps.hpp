@@ -10,10 +10,11 @@ class WindowsFpsTest {
     double began=0,ended=0,uploadTotal=0,uploadMax=0,presentTotal=0,presentMax=0;
     uint64_t uploads=0,presents=0,slowUploads=0,slowPresents=0;
 public:
-    bool active=false,complete=false,testPicture=false;
-    void start(double now,const WindowsFpsCounters &counts,bool demo=false){uploadTotal=uploadMax=presentTotal=presentMax=0;uploads=presents=slowUploads=slowPresents=0;baseline=latest=counts;began=now;ended=now;active=true;complete=false;testPicture=demo;}
+    bool active=false,complete=false,testPicture=false,visible=true;
+    void start(double now,const WindowsFpsCounters &counts,bool demo=false){uploadTotal=uploadMax=presentTotal=presentMax=0;uploads=presents=slowUploads=slowPresents=0;baseline=latest=counts;began=now;ended=now;active=true;complete=false;testPicture=demo;visible=true;}
     void update(double now,const WindowsFpsCounters &counts){if(!active)return;latest=counts;ended=now;if(now-began>=30){active=false;complete=true;}}
     void finish(double now,const WindowsFpsCounters &counts){if(!active)return;update(now,counts);active=false;complete=true;}
+    void close(double now,const WindowsFpsCounters &counts){if(active)finish(now,counts);visible=false;}
     void recordUpload(double ms){if(active){uploadTotal+=ms;uploadMax=std::max(uploadMax,ms);++uploads;if(ms>8)++slowUploads;}}
     void recordPresent(double ms){if(active){presentTotal+=ms;presentMax=std::max(presentMax,ms);++presents;if(ms>8)++slowPresents;}}
     double elapsed()const{return std::max(0.0,ended-began);}
@@ -29,8 +30,8 @@ public:
     }
     std::string report()const{
         std::ostringstream s;s<<std::fixed<<std::setprecision(2);
-        s<<"XR1 Play 1.5.2 Windows FPS test\nSource: "<<(testPicture?"generated test picture (not a hardware test)":"native capture card")
-         <<"\nDuration: "<<elapsed()<<" seconds\nCapture arrivals: "<<latest.received-baseline.received<<" / "<<receivedFps()<<" fps"
+        s<<"XR1 Play 1.5.3 Windows FPS test\nSource: "<<(testPicture?"generated test picture (not a hardware test)":"native capture card")
+         <<"\nTest status: "<<(elapsed()>=30?"completed":"stopped early")<<"\nDuration: "<<elapsed()<<" seconds\nCapture arrivals: "<<latest.received-baseline.received<<" / "<<receivedFps()<<" fps"
          <<"\nDecoded frames: "<<latest.decoded-baseline.decoded<<"\nFrames submitted for display: "<<latest.shown-baseline.shown<<" / "<<shownFps()<<" fps"
          <<"\nCapture arrivals more than 25 ms apart: "<<latest.late-baseline.late
          <<"\nReplaced pending decode samples: "<<latest.pendingDropped-baseline.pendingDropped

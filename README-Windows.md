@@ -1,4 +1,4 @@
-XR1 Play 1.5.2 (local test build) — Windows x64 preview
+XR1 Play 1.5.3 (local test build) — Windows x64 preview
 
 Extract the entire ZIP, then open XR1-Play.exe. Keep the DLLs and assets folder
 beside the executable. No Python, browser or Linux compatibility layer is
@@ -26,7 +26,11 @@ FPS test: click **FPS test** or press **F8** to measure 30 seconds of live
 capture. The live readout uses recent frame intervals; the test result uses
 actual counts over its full duration. The player counts capture arrivals and
 frames submitted for display.
-Results remain on screen and are saved to:
+Click **Close** on the FPS overlay, or press **F8** during/after the test, to
+hide it without stopping video or audio. F8 or **FPS test** starts a new test
+when it is hidden. Closing a running test saves its partial results, marked
+"stopped early". Completed results remain available in the report file:
+
   %APPDATA%\XR1 Play\windows-fps-test.txt
 Use real capture with Test picture OFF for hardware testing. 59.94 fps is valid.
 The report also counts late arrivals, skipped/invalid frames and audio faults,

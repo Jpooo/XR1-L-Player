@@ -122,3 +122,16 @@ upload destination count, and the desktop refresh rate reported by SDL.
 
 No GitHub upload or Release mutation was performed. Real Windows 11 capture,
 GPU behavior and any throughput improvement require another hardware test.
+
+## Windows 1.5.3 local UI update (not published)
+
+Added a Close button on the FPS overlay and an F8 toggle for running/completed
+tests. Closing finishes an active measurement, saves a report marked stopped
+early, and hides the overlay. Playback/capture/audio are not stopped. F8 or the
+FPS test button starts a fresh measurement after closing.
+
+The Windows portable package compiled and passed a three-second Wine smoke
+run with 180 received/displayed frames and no skipped/invalid frames. Screenshot
+inspection confirmed the Close button is visible without overlapping the FPS
+text; early-stop report output was verified. Linux preprocessed main code and
+the Linux AppImage checksum are unchanged. No GitHub files were uploaded.

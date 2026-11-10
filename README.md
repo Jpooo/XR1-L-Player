@@ -29,11 +29,11 @@ Without FUSE, run:
 ./XR1-Play-1.5.0-x86_64.AppImage --appimage-extract-and-run
 ```
 
-**Windows 10/11 x64 preview**: extract [`XR1-Play-1.5.1-Windows-x64.zip`](https://github.com/Jpooo/XR1-Play/releases/tag/v1.5.1-windows-preview) completely
+**Windows 10/11 x64 preview**: extract [`XR1-Play-1.5.0-Windows-x64.zip`](https://github.com/Jpooo/XR1-Play/releases/tag/v1.5.0) completely
 and open `XR1-Play.exe`. Keep its DLLs and assets directory together. See
-[README-Windows.md](README-Windows.md) for Windows setup/permissions. This build
-is unsigned and needs a hardware retest after the Windows timing/audio fixes.
-Click **FPS test** or press **F8** for a 30-second measurement in the Windows player.
+[Windows setup](https://github.com/Jpooo/XR1-Play/blob/v1.5.0/README-Windows.md)
+for setup/permissions. This unsigned preview has reported frame-rate fluctuations
+and intermittent audio crackling on Windows 11.
 
 **Compatibility is not universal or guaranteed.** The binaries are not a test
 of every unit/firmware/host. See [COMPATIBILITY.md](COMPATIBILITY.md) for the

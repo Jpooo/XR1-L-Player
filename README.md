@@ -7,6 +7,18 @@ Native **1080p60 live preview and HDMI stereo audio** for EVGA XR1 Lite on Linux
 
 ![XR1 Play interface](docs/screenshot.png)
 
+## XR1 Lite system requirements
+
+These requirements also apply when using XR1-L Play.
+
+| CPU option | Required GPU |
+| --- | --- |
+| Intel i5-6XXX or better | NVIDIA GTX 1060 or AMD Radeon RX 560 XT or above |
+| AMD Ryzen 3 1300X or better | NVIDIA GTX 1060 or AMD Radeon RX 560 XT or above |
+
+- **RAM:** 8 GB minimum; 16 GB recommended.
+- **USB 3.0 is required:** use a USB 3.0 port and USB 3.0 data cable.
+
 ## Connect and play
 
 1. Connect console HDMI OUT to XR1 Lite HDMI IN, then connect the card directly to USB 3 with a USB 3 data cable.

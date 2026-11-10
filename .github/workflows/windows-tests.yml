@@ -27,14 +27,27 @@ jobs:
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-SDL2
-            mingw-w64-x86_64-SDL2_ttf
             mingw-w64-x86_64-libjpeg-turbo
+      - name: Use the same SDL libraries as the portable Windows package
+        shell: msys2 {0}
+        run: |
+          mkdir -p .deps/windows-ci
+          cd .deps/windows-ci
+          curl -fL --retry 3 https://github.com/libsdl-org/SDL/releases/download/release-2.32.4/SDL2-devel-2.32.4-mingw.tar.gz -o SDL2.tar.gz
+          curl -fL --retry 3 https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.24.0/SDL2_ttf-devel-2.24.0-mingw.tar.gz -o SDL2_ttf.tar.gz
+          echo 'c2ec09788ab99b23b8e8e472775e5f728da549ae27898280cedbb15da87f47c1  SDL2.tar.gz' | sha256sum --check
+          echo '3a09e0a967ad53eca3ff2701de4d0df3369c0368739a1088a78d9d74908ef2c3  SDL2_ttf.tar.gz' | sha256sum --check
+          tar -xzf SDL2.tar.gz
+          tar -xzf SDL2_ttf.tar.gz
       - name: Compile the native Windows app and tests
         shell: msys2 {0}
         run: |
-          cmake -S . -B build-windows-tests -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+          cmake -S . -B build-windows-tests -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
+            -DSDL2_DIR="$PWD/.deps/windows-ci/SDL2-2.32.4/x86_64-w64-mingw32/lib/cmake/SDL2" \
+            -DSDL2_ttf_DIR="$PWD/.deps/windows-ci/SDL2_ttf-2.24.0/x86_64-w64-mingw32/lib/cmake/SDL2_ttf"
           cmake --build build-windows-tests --parallel 2
       - name: Test codecs, Media Foundation callbacks, audio timing and FPS counts
         shell: msys2 {0}
-        run: ctest --test-dir build-windows-tests --output-on-failure
+        run: |
+          export PATH="$PWD/.deps/windows-ci/SDL2-2.32.4/x86_64-w64-mingw32/bin:$PWD/.deps/windows-ci/SDL2_ttf-2.24.0/x86_64-w64-mingw32/bin:$PATH"
+          ctest --test-dir build-windows-tests --output-on-failure

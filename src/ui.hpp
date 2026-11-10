@@ -17,7 +17,7 @@ inline constexpr std::array<Box,3> navigation={Box{48,190,350,108},Box{48,322,35
 inline constexpr Box back{920,32,140,42},refresh{40,506,160,44},fullscreen{380,506,180,44};
 inline constexpr std::array<Box,3> devices={Box{60,218,445,66},Box{595,218,445,66},Box{595,304,445,66}};
 inline constexpr Box format{60,304,445,56},demo{60,386,210,44};
-inline constexpr SDL_Rect settingsPreview{300,366,192,108};
+inline constexpr SDL_Rect mainPreview{480,192,544,306};
 inline constexpr Box mute{595,398,44,44},volumeHit{640,398,280,44};
 inline constexpr int volumeLeft=650,volumeWidth=260,volumeTop=418;
 inline constexpr Box primary{845,506,215,44},stop{660,506,160,44},motion{40,376,500,92},preferenceFullscreen{575,376,485,92};

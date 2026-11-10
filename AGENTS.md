@@ -44,3 +44,8 @@
   following the direct-texture approach in 1.5.11. Use the free space in Video
   Settings; keep the 1.5.12 menus, controls, artwork, themes and FPS Test removal.
   Both updated packages remain local; preserve prior downloads.
+
+- Local 1.5.14: show live video only in the main-menu logo panel while playback
+  is active; restore the original animated logo after stopping. Remove the
+  Settings preview per the user's correction. Keep all other controls and
+  capture/audio behavior unchanged. Both packages remain local.

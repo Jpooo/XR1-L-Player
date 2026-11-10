@@ -39,7 +39,7 @@ static const Action appearanceActions[]={
     {2600,SDL_KEYDOWN,0,0,SDLK_TAB},{2800,SDL_KEYDOWN,0,0,SDLK_ESCAPE},
     {3000,SDL_MOUSEBUTTONDOWN,150,460}
 };
-static const Action previewActions[]={{100,SDL_KEYDOWN,0,0,SDLK_TAB}};
+static const Action previewActions[]={{100,SDL_KEYDOWN,0,0,SDLK_TAB},{200,SDL_KEYDOWN,0,0,SDLK_ESCAPE}};
 extern "C" int SDL_PollEvent(SDL_Event *event) {
     static auto real=reinterpret_cast<int(*)(SDL_Event*)>(dlsym(RTLD_NEXT,"SDL_PollEvent"));
     if(!firstPollSeen){firstPollTick=SDL_GetTicks();firstPollSeen=true;}

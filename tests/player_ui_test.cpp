@@ -8,13 +8,16 @@ static int injectedPoll(SDL_Event *);
 static SDL_Window *measuredWindow(const char *,int,int,int,int,Uint32);
 static SDL_Surface *measuredText(TTF_Font *,const char *,SDL_Color);
 static int measuredCopy(SDL_Renderer *,SDL_Texture *,const SDL_Rect *,const SDL_Rect *);
+static int measuredCopyEx(SDL_Renderer *,SDL_Texture *,const SDL_Rect *,const SDL_FRect *,double,const SDL_FPoint *,SDL_RendererFlip);
 #define SDL_PollEvent injectedPoll
 #define SDL_CreateWindow measuredWindow
 #define TTF_RenderUTF8_Blended measuredText
 #define SDL_RenderCopy measuredCopy
+#define SDL_RenderCopyExF measuredCopyEx
 #define main player_application_main
 #include "../src/main.cpp"
 #undef main
+#undef SDL_RenderCopyExF
 #undef SDL_RenderCopy
 #undef SDL_PollEvent
 #undef SDL_CreateWindow
@@ -25,18 +28,23 @@ static std::vector<Input> script;
 static std::set<std::string> labels;
 static Uint32 pollBegan=0;static size_t nextInput=0;static bool firstPoll=true;
 static int targetW=1100,targetH=650;
-static int previewCopies=0;static std::set<Uint32> previewPixels;
+static int previewCopies=0,logoCopies=0,settingsPreviewCopies=0;static bool lastMainWasVideo=false;static std::set<Uint32> previewPixels;
 static int measuredCopy(SDL_Renderer *renderer,SDL_Texture *texture,const SDL_Rect *source,const SDL_Rect *destination){
     int result=SDL_RenderCopy(renderer,texture,source,destination);
-    const auto &preview=ui::settingsPreview;
+    const auto &preview=ui::mainPreview;
     if(result==0&&destination&&destination->x==preview.x&&destination->y==preview.y&&destination->w==preview.w&&destination->h==preview.h){
-        ++previewCopies;
+        ++previewCopies;lastMainWasVideo=true;
         // At this point only the actual video texture has been drawn here.
-        // The moving test marker crosses this pixel while Settings stays open.
-        if(targetW==1100&&targetH==650){SDL_Rect patch{340,400,1,1};Uint32 pixel=0;
+        // The moving test marker crosses this pixel while the main menu stays open.
+        if(targetW==1100&&targetH==650){SDL_Rect patch{592,282,1,1};Uint32 pixel=0;
             assert(SDL_RenderReadPixels(renderer,&patch,SDL_PIXELFORMAT_ARGB8888,&pixel,4)==0);previewPixels.insert(pixel);}
     }
+    if(result==0&&destination&&destination->x==300&&destination->y==366&&destination->w==192&&destination->h==108)++settingsPreviewCopies;
     return result;
+}
+static int measuredCopyEx(SDL_Renderer *renderer,SDL_Texture *texture,const SDL_Rect *source,const SDL_FRect *destination,double angle,const SDL_FPoint *center,SDL_RendererFlip flip){
+    if(destination&&std::abs(destination->x-ui::logoX)<.01f&&std::abs(destination->w-ui::logoSize)<.01f){++logoCopies;lastMainWasVideo=false;}
+    return SDL_RenderCopyExF(renderer,texture,source,destination,angle,center,flip);
 }
 static SDL_Surface *measuredText(TTF_Font *font,const char *text,SDL_Color color){labels.insert(text);return TTF_RenderUTF8_Blended(font,text,color);}
 static SDL_Window *measuredWindow(const char *title,int x,int y,int,int,Uint32 flags){return SDL_CreateWindow(title,x,y,targetW,targetH,flags);}
@@ -69,7 +77,7 @@ int main(){
     auto key=[](Uint32 at,SDL_Keycode k){return Input{at,SDL_KEYDOWN,k};};
     auto click=[](Uint32 at,int x,int y){return Input{at,SDL_MOUSEBUTTONDOWN,0,x,y};};
     auto check=[&](const char *name,bool demo,std::vector<Input> inputs,const char *expected,bool feed,int seconds=1){
-        script=std::move(inputs);nextInput=0;firstPoll=true;labels.clear();previewCopies=0;previewPixels.clear();
+        script=std::move(inputs);nextInput=0;firstPoll=true;labels.clear();previewCopies=logoCopies=settingsPreviewCopies=0;lastMainWasVideo=false;previewPixels.clear();
         Options options;loadSettings(options);options.demo=demo;options.seconds=seconds;options.screenshot=(folder/(std::string(name)+".bmp")).string();
         std::ostringstream output;auto *previous=std::cout.rdbuf(output.rdbuf());int result=app(options);std::cout.rdbuf(previous);std::cout<<output.str();
         assert(result==0&&nextInput==script.size());if(expected)assert(labels.count(expected));
@@ -88,6 +96,7 @@ int main(){
         std::cout<<"PASS real player: "<<name<<"\n";
     };
     check("main-menu",false,{},"PLAY",false);assert(labels.count("SETTINGS")&&labels.count("PREFERENCES"));
+    assert(logoCopies>0&&previewCopies==0&&!lastMainWasVideo);
     check("mouse-settings",false,{click(100,150,350),click(250,180,330)},"yuyv",false);assert(labels.count("VIDEO SETTINGS")&&labels.count("AUDIO SETTINGS"));
     check("keyboard-settings",false,{key(100,SDLK_DOWN),key(200,SDLK_RETURN)},"VIDEO SETTINGS",false);
     check("preferences-all-colors",false,{key(100,SDLK_DOWN),key(150,SDLK_DOWN),key(200,SDLK_RETURN),click(300,800,220),click(400,100,220),click(500,430,220),click(600,100,410)},"Electric Blue",false);
@@ -99,18 +108,22 @@ int main(){
     check("feed-start-clean",true,{},nullptr,true);
     check("removed-shortcut-inert",true,{key(200,SDLK_F8)},nullptr,true);
     check("stop-restart-play",true,{key(150,SDLK_RETURN),key(350,SDLK_RETURN)},"PLAY",true);
-    check("settings-live-preview",true,{key(100,SDLK_TAB)},"AUDIO SETTINGS",false,2);
-    assert(previewCopies>30&&previewPixels.size()>1); // Actual changing video, not a frozen image.
-    std::cout<<"PASS live Settings preview: "<<previewCopies<<" draws and "<<previewPixels.size()<<" source pixel values\n";
+    check("main-live-preview",true,{key(100,SDLK_TAB),key(200,SDLK_ESCAPE)},"PLAY",false,2);
+    assert(previewCopies>30&&previewPixels.size()>1&&logoCopies==0&&lastMainWasVideo);
+    std::cout<<"PASS main menu live preview: "<<previewCopies<<" draws and "<<previewPixels.size()<<" source pixel values\n";
     targetW=900;targetH=560;
-    check("settings-preview-minimum",true,{key(100,SDLK_TAB)},"AUDIO SETTINGS",false);
-    assert(previewCopies>0);targetW=1100;targetH=650;
+    check("main-preview-minimum",true,{key(100,SDLK_TAB),key(200,SDLK_ESCAPE)},"PLAY",false);
+    assert(previewCopies>0&&logoCopies==0);targetW=1100;targetH=650;
+    check("main-preview-stop-restores-logo",true,{key(100,SDLK_TAB),key(200,SDLK_ESCAPE),key(600,SDLK_ESCAPE)},"PLAY",false);
+    assert(previewCopies>0&&logoCopies>0&&!lastMainWasVideo);
+    check("main-preview-resume",true,{key(100,SDLK_TAB),key(200,SDLK_ESCAPE),click(450,150,240)},"PLAY",true);
+    assert(previewCopies>0);
+    check("settings-no-preview",true,{key(100,SDLK_TAB)},"AUDIO SETTINGS",false);
+    assert(previewCopies==0&&settingsPreviewCopies==0&&logoCopies==0);
     check("settings-resume",true,{key(100,SDLK_TAB),key(350,SDLK_TAB)},"AUDIO SETTINGS",true);
-    assert(previewCopies>0);
-    check("settings-preview-reopen",true,{key(100,SDLK_TAB),key(250,SDLK_TAB),key(400,SDLK_TAB)},"AUDIO SETTINGS",false);
-    assert(previewCopies>0);
+    assert(previewCopies==0&&settingsPreviewCopies==0);
     check("idle-settings-no-preview",false,{click(100,150,350)},"AUDIO SETTINGS",false);
-    assert(previewCopies==0);
+    assert(previewCopies==0&&settingsPreviewCopies==0);
     check("preferences-while-playing",true,{key(100,SDLK_TAB),key(200,SDLK_ESCAPE),click(300,150,460),click(400,430,220),key(600,SDLK_ESCAPE),click(700,150,240)},"COLOR PREFERENCE",true);
     check("renderer-reset",true,{{250,SDL_RENDER_DEVICE_RESET}},nullptr,true);
     check("volume-muted",true,{key(150,SDLK_MINUS),key(250,SDLK_MINUS),key(350,SDLK_m)},nullptr,true);

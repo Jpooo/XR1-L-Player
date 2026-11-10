@@ -343,3 +343,27 @@ stereo PCM output continued at the expected gain. These are software-fixture
 checks, not real hardware performance measurements. No XR1 Lite or native
 Windows 11 hardware was available. Export ZIPs are checked for CRC, executable
 identity and Linux executable permissions. No GitHub files/releases changed.
+
+## XR1-L Player 1.5.14 local main-menu preview
+
+Moved live video into the main-menu logo panel and removed it from Settings,
+per the user's follow-up. While playing, the existing texture draws into a
+fixed 544x306 (16:9) area inside the unchanged panel rails. Without active video,
+the same original logo mask, colors and motion functions draw as before. Stopped
+playback never passes its retained video texture to the panel, avoiding stale
+preview frames. Controls, hit areas, capture/audio code, video presenter, artwork
+and logo motion are unchanged. This uses the existing texture and adds no frame
+queue, separate capture path or CPU video-copy stage.
+
+All six Linux CTest checks passed. Real-player readback confirmed changing source
+pixels on the main menu (100 draws / 3 sampled values), no logo over live video,
+logo restoration after stop, main-menu resume, the minimum window size and no
+preview in Settings. The rebuilt Windows UI suite passed under Wine (71 main
+preview draws / 2 sampled values), including the same switch/stop/resume checks
+and the existing preference, volume, restart and reset checks. Screenshots were
+inspected for live video, the restored logo and empty Settings preview area.
+The actual AppImage kept stereo PCM output at the expected gain while displaying
+video on the main menu. Software fixtures do not verify physical XR1 Lite or
+native Windows performance. Both packages stay local; prior downloads and GitHub
+releases are untouched. Export ZIPs are checked for CRC, executable identity and
+Linux executable permissions.

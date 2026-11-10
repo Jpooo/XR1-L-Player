@@ -67,7 +67,7 @@ inline void navigationButton(Painter &p,int index,const std::string &label,bool 
 inline void menuHeader(Painter &p,Screen screen,bool backHovered,ConsoleColor theme){
     auto a=p.theme.accent();
     if(screen==Screen::Main){
-        p.text("XR1-L Player",42,32,white,p.heading);p.text("1.5.13",226,39,muted,p.small);
+        p.text("XR1-L Player",42,32,white,p.heading);p.text("1.5.14",226,39,muted,p.small);
         p.round({847,37,13,13},4,a);p.text(themeName(theme),874,33,white,p.normal);
         p.text("MAIN MENU",48,138,muted,p.tiny);
     }else{
@@ -76,7 +76,7 @@ inline void menuHeader(Painter &p,Screen screen,bool backHovered,ConsoleColor th
         p.button(back,"Back  /  Esc",backHovered,false,p.small);
     }
 }
-inline void logoPanel(Painter &p,double elapsed,bool reducedMotion){
+inline bool logoPanel(Painter &p,double elapsed,bool reducedMotion,SDL_Texture *video=nullptr){
     auto a=p.theme.accent();
     p.glow({425,124,690,430},opacity(a,25));
     // Interrupted rails follow the device proportions rather than enclosing a
@@ -86,17 +86,25 @@ inline void logoPanel(Painter &p,double elapsed,bool reducedMotion){
     p.line(452,268,452,473,opacity(a,170),2);
     p.line(475,515,817,515,opacity(a,110),1.4f);
     p.line(670,174,752,174,a,3);p.line(903,506,1028,506,a,3);
-    // The backing follows the device silhouette inside its opaque border, not
-    // the square image bounds. It supplies the original accent-colored holes
-    // and lettering while preserving the original dark ink and unchanged mask.
-    float bob=deviceBob(elapsed,reducedMotion);double tilt=deviceTilt(elapsed,reducedMotion);
-    Box face{int(logoX+logoSize*.067f),int(logoY+logoSize*.235f),int(logoSize*.87f),int(logoSize*.535f)};
-    face.x+=5;face.y+=5;face.w-=10;face.h-=10;
-    SDL_FPoint center{logoX+logoSize*.5f-face.x,logoY+logoSize*.5f-face.y};
-    p.round(face,logoSize*.075f,a,bob,tilt,&center);
-    p.icon(Icon::Capture,logoX,logoY+bob,logoSize,p.theme.ink(),false,tilt);
+    bool videoShown=false;
+    if(video){
+        const auto &preview=mainPreview;
+        p.card({preview.x-4,preview.y-4,preview.w+8,preview.h+8},surface,border,6);
+        videoShown=SDL_RenderCopy(p.r,video,nullptr,&preview)==0;
+    }else{
+        // The backing follows the device silhouette inside its opaque border, not
+        // the square image bounds. It supplies the original accent-colored holes
+        // and lettering while preserving the original dark ink and unchanged mask.
+        float bob=deviceBob(elapsed,reducedMotion);double tilt=deviceTilt(elapsed,reducedMotion);
+        Box face{int(logoX+logoSize*.067f),int(logoY+logoSize*.235f),int(logoSize*.87f),int(logoSize*.535f)};
+        face.x+=5;face.y+=5;face.w-=10;face.h-=10;
+        SDL_FPoint center{logoX+logoSize*.5f-face.x,logoY+logoSize*.5f-face.y};
+        p.round(face,logoSize*.075f,a,bob,tilt,&center);
+        p.icon(Icon::Capture,logoX,logoY+bob,logoSize,p.theme.ink(),false,tilt);
+    }
     p.text("XR1 LITE",480,545,muted,p.tiny);
     p.text("1080p / 60 fps     HDMI stereo audio",748,545,muted,p.tiny);
+    return videoShown;
 }
 inline void themeCard(Painter &p,int index,bool selected,bool focused){
     auto b=themes[size_t(index)];MenuTheme option;option.choice=static_cast<ConsoleColor>(index);auto swatch=option.accent();

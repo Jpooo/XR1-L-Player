@@ -94,9 +94,9 @@ static void handleSignal(int) {interrupted=1;}
 static void help() {
     std::cout<<
 #ifdef _WIN32
-    "XR1-L Player 1.5.13 - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.14 - native 1080p60 HDMI viewer ("
 #else
-    "XR1-L Player 1.5.13 Linux test build - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.14 Linux test build - native 1080p60 HDMI viewer ("
 #endif
 #ifdef _WIN32
     "Windows x86_64"
@@ -468,7 +468,7 @@ static int app(const Options &o) {
                     ui::menuHeader(p,screen,hover(ui::back)||(keyboardNavigation&&menuFocus==(screen==ui::Screen::Settings?11:5)),colorTheme);
                     if(screen==ui::Screen::Main){
                         for(int i=0;i<3;++i)ui::navigationButton(p,i,i==0?"PLAY":i==1?"SETTINGS":"PREFERENCES",focus(ui::navigation[size_t(i)],i));
-                        ui::logoPanel(p,now-began,reducedMotion);
+                        if(ui::logoPanel(p,now-began,reducedMotion,playing?texture:nullptr)&&newFrame)++presented;
                         p.text("Up / Down  Choose     Enter  Select",40,605,dim,p.small);
                         p.text(playing?"Tab  Return to video":"Esc  Quit",548,605,dim,p.small);
                     }else if(screen==ui::Screen::Settings){
@@ -490,13 +490,6 @@ static int app(const Options &o) {
                         if(!playing){p.icon(ui::Icon::Chevron,429,324,18,dim,true);p.icon(ui::Icon::Chevron,473,324,18,accent);}
                         p.button(ui::demo,demonstration?"Test picture: On":"Test picture: Off",focus(ui::demo,2),false,p.small);
                         p.text(playing?"Stop playback to change devices.":"Changes apply when you press Play.",60,450,dim,p.tiny);
-                        if(playing&&texture){
-                            const auto &preview=ui::settingsPreview;
-                            p.card({preview.x-4,preview.y-4,preview.w+8,preview.h+8},ui::surface,ui::border,6);
-                            // Reuse the current capture texture, as in 1.5.11:
-                            // no second capture path, copies or frame queue.
-                            if(SDL_RenderCopy(renderer,texture,nullptr,&preview)==0&&newFrame)++presented;
-                        }
                         p.button(ui::refresh,"Refresh devices",focus(ui::refresh,7),false,p.small);
                         p.button(ui::fullscreen,(SDL_GetWindowFlags(window)&SDL_WINDOW_FULLSCREEN_DESKTOP)?"Exit fullscreen":"Fullscreen",focus(ui::fullscreen,8),false,p.small);
                         p.button(ui::primary,playing?"Resume":"Play",focus(ui::primary,9),true);

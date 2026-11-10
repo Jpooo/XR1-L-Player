@@ -55,3 +55,10 @@
   to the playback toolbar; retain Settings, mute/volume, Stop and fullscreen.
   Returning to the menu keeps video/audio running. Settings has no preview.
   Keep both builds local and preserve previous downloads.
+
+- Local 1.5.16: fill the entire main-menu panel with uniformly scaled video,
+  clip it to the panel contour and draw the frame over its edges. Keep the
+  Main menu button, no Settings preview, idle logo and existing playback.
+  Software renderers use cached uniform subdivision to avoid large-triangle
+  gaps at scaled sizes; accelerated renderers use the small native mesh.
+  Both builds stay local, with previous downloads preserved.

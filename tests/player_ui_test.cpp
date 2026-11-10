@@ -8,10 +8,12 @@ static int injectedPoll(SDL_Event *);
 static SDL_Window *measuredWindow(const char *,int,int,int,int,Uint32);
 static SDL_Surface *measuredText(TTF_Font *,const char *,SDL_Color);
 static int measuredCopy(SDL_Renderer *,SDL_Texture *,const SDL_Rect *,const SDL_Rect *);
+static int measuredGeometry(SDL_Renderer *,SDL_Texture *,const SDL_Vertex *,int,const int *,int);
 static int measuredCopyEx(SDL_Renderer *,SDL_Texture *,const SDL_Rect *,const SDL_FRect *,double,const SDL_FPoint *,SDL_RendererFlip);
 #define SDL_PollEvent injectedPoll
 #define SDL_CreateWindow measuredWindow
 #define TTF_RenderUTF8_Blended measuredText
+#define SDL_RenderGeometry measuredGeometry
 #define SDL_RenderCopy measuredCopy
 #define SDL_RenderCopyExF measuredCopyEx
 #define main player_application_main
@@ -19,6 +21,7 @@ static int measuredCopyEx(SDL_Renderer *,SDL_Texture *,const SDL_Rect *,const SD
 #undef main
 #undef SDL_RenderCopyExF
 #undef SDL_RenderCopy
+#undef SDL_RenderGeometry
 #undef SDL_PollEvent
 #undef SDL_CreateWindow
 #undef TTF_RenderUTF8_Blended
@@ -31,15 +34,16 @@ static int targetW=1100,targetH=650;
 static int previewCopies=0,logoCopies=0,settingsPreviewCopies=0;static bool lastMainWasVideo=false;static std::set<Uint32> previewPixels;
 static int measuredCopy(SDL_Renderer *renderer,SDL_Texture *texture,const SDL_Rect *source,const SDL_Rect *destination){
     int result=SDL_RenderCopy(renderer,texture,source,destination);
-    const auto &preview=ui::mainPreview;
-    if(result==0&&destination&&destination->x==preview.x&&destination->y==preview.y&&destination->w==preview.w&&destination->h==preview.h){
+    if(result==0&&destination&&destination->x==300&&destination->y==366&&destination->w==192&&destination->h==108)++settingsPreviewCopies;
+    return result;
+}
+static int measuredGeometry(SDL_Renderer *renderer,SDL_Texture *texture,const SDL_Vertex *vertices,int count,const int *indices,int indexCount){
+    int result=SDL_RenderGeometry(renderer,texture,vertices,count,indices,indexCount),width=0,height=0;
+    if(result==0&&texture&&count>=36&&SDL_QueryTexture(texture,nullptr,nullptr,&width,&height)==0&&width==1920&&height==1080){
         ++previewCopies;lastMainWasVideo=true;
-        // At this point only the actual video texture has been drawn here.
-        // The moving test marker crosses this pixel while the main menu stays open.
-        if(targetW==1100&&targetH==650){SDL_Rect patch{preview.x+preview.w*5/24,preview.y+preview.h/3,1,1};Uint32 pixel=0;
+        if(targetW==1100&&targetH==650){const auto &preview=ui::mainPreview;SDL_Rect patch{preview.x+preview.w*5/24,preview.y+preview.h/3,1,1};Uint32 pixel=0;
             assert(SDL_RenderReadPixels(renderer,&patch,SDL_PIXELFORMAT_ARGB8888,&pixel,4)==0);previewPixels.insert(pixel);}
     }
-    if(result==0&&destination&&destination->x==300&&destination->y==366&&destination->w==192&&destination->h==108)++settingsPreviewCopies;
     return result;
 }
 static int measuredCopyEx(SDL_Renderer *renderer,SDL_Texture *texture,const SDL_Rect *source,const SDL_FRect *destination,double angle,const SDL_FPoint *center,SDL_RendererFlip flip){

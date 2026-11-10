@@ -67,7 +67,7 @@ inline void navigationButton(Painter &p,int index,const std::string &label,bool 
 inline void menuHeader(Painter &p,Screen screen,bool backHovered,ConsoleColor theme){
     auto a=p.theme.accent();
     if(screen==Screen::Main){
-        p.text("XR1-L Player",42,32,white,p.heading);p.text("1.5.15",226,39,muted,p.small);
+        p.text("XR1-L Player",42,32,white,p.heading);p.text("1.5.16",226,39,muted,p.small);
         p.round({847,37,13,13},4,a);p.text(themeName(theme),874,33,white,p.normal);
         p.text("MAIN MENU",48,138,muted,p.tiny);
     }else{
@@ -79,18 +79,46 @@ inline void menuHeader(Painter &p,Screen screen,bool backHovered,ConsoleColor th
 inline bool logoPanel(Painter &p,double elapsed,bool reducedMotion,SDL_Texture *video=nullptr){
     auto a=p.theme.accent();
     p.glow({425,124,690,430},opacity(a,25));
-    // Interrupted rails follow the device proportions rather than enclosing a
-    // square image tile. Alpha artwork has no visible rectangular image edge.
-    const std::array<SDL_FPoint,11> rail={SDL_FPoint{452,244},{462,209},{486,185},{637,185},{654,174},{1026,174},{1058,206},{1058,466},{1032,506},{866,506},{850,518}};
-    for(size_t i=1;i<rail.size();++i){p.line(rail[i-1].x,rail[i-1].y,rail[i].x,rail[i].y,opacity(a,16),8);p.line(rail[i-1].x,rail[i-1].y,rail[i].x,rail[i].y,opacity(a,105),1.4f);}
-    p.line(452,268,452,473,opacity(a,170),2);
-    p.line(475,515,817,515,opacity(a,110),1.4f);
-    p.line(670,174,752,174,a,3);p.line(903,506,1028,506,a,3);
     bool videoShown=false;
     if(video){
-        const auto &preview=mainPreview;
-        p.card({preview.x-4,preview.y-4,preview.w+8,preview.h+8},surface,border,6);
-        videoShown=SDL_RenderCopy(p.r,video,nullptr,&preview)==0;
+        // Draw the existing texture directly through the panel's triangles.
+        // Cover the panel uniformly; its angled edges mask the picture below.
+        static const auto vertices=[](){
+            std::array<SDL_Vertex,mainPanelContour.size()> result{};
+            float scale=std::max(mainPreview.w/1920.0f,mainPreview.h/1080.0f);
+            float width=1920*scale,height=1080*scale;
+            float left=mainPreview.x+(mainPreview.w-width)/2,top=mainPreview.y+(mainPreview.h-height)/2;
+            for(size_t i=0;i<result.size();++i){auto point=mainPanelContour[i];result[i]={point,{255,255,255,255},{(point.x-left)/width,(point.y-top)/height}};}
+            return result;
+        }();
+        // SDL's software triangle rasterizer loses large triangles at scaled
+        // window sizes. Uniform subdivision avoids overflow and shared-edge gaps;
+        // accelerated renderers retain the original small, single-draw mesh.
+        SDL_RendererInfo info{};SDL_GetRendererInfo(p.r,&info);
+        int depth=0;
+        if(info.flags&SDL_RENDERER_SOFTWARE){
+            float sx=1,sy=1,longest=0;SDL_RenderGetScale(p.r,&sx,&sy);
+            for(size_t i=0;i<mainPanelTriangles.size();i+=3)for(size_t j=0;j<3;++j){
+                auto a=vertices[size_t(mainPanelTriangles[i+j])].position,b=vertices[size_t(mainPanelTriangles[i+(j+1)%3])].position;
+                longest=std::max(longest,std::hypot(a.x-b.x,a.y-b.y)*std::max(sx,sy));
+            }
+            while(longest>80&&depth<8){longest*=.5f;++depth;}
+        }
+        static int cachedDepth=-1;static std::vector<SDL_Vertex> mesh;
+        if(cachedDepth!=depth){
+            mesh.clear();
+            auto append=[&](auto &&self,SDL_Vertex a,SDL_Vertex b,SDL_Vertex c,int level)->void{
+                if(!level){mesh.insert(mesh.end(),{a,b,c});return;}
+                auto midpoint=[](SDL_Vertex a,SDL_Vertex b){return SDL_Vertex{{(a.position.x+b.position.x)/2,(a.position.y+b.position.y)/2},{255,255,255,255},{(a.tex_coord.x+b.tex_coord.x)/2,(a.tex_coord.y+b.tex_coord.y)/2}};};
+                auto ab=midpoint(a,b),bc=midpoint(b,c),ca=midpoint(c,a);
+                self(self,a,ab,ca,level-1);self(self,ab,b,bc,level-1);self(self,ca,bc,c,level-1);self(self,ab,bc,ca,level-1);
+            };
+            for(size_t i=0;i<mainPanelTriangles.size();i+=3)append(append,vertices[size_t(mainPanelTriangles[i])],vertices[size_t(mainPanelTriangles[i+1])],vertices[size_t(mainPanelTriangles[i+2])],depth);
+            cachedDepth=depth;
+        }
+        videoShown=SDL_RenderGeometry(p.r,video,mesh.data(),int(mesh.size()),nullptr,0)==0;
+        // The frame covers the clipped edge, including its chamfered corners.
+        for(size_t i=0;i<mainPanelContour.size();++i){auto start=mainPanelContour[i],end=mainPanelContour[(i+1)%mainPanelContour.size()];p.line(start.x,start.y,end.x,end.y,{4,7,10,255},3.5f);}
     }else{
         // The backing follows the device silhouette inside its opaque border, not
         // the square image bounds. It supplies the original accent-colored holes
@@ -102,6 +130,13 @@ inline bool logoPanel(Painter &p,double elapsed,bool reducedMotion,SDL_Texture *
         p.round(face,logoSize*.075f,a,bob,tilt,&center);
         p.icon(Icon::Capture,logoX,logoY+bob,logoSize,p.theme.ink(),false,tilt);
     }
+    // Interrupted rails follow the device proportions rather than enclosing a
+    // square image tile. Alpha artwork has no visible rectangular image edge.
+    const std::array<SDL_FPoint,11> rail={SDL_FPoint{452,244},{462,209},{486,185},{637,185},{654,174},{1026,174},{1058,206},{1058,466},{1032,506},{866,506},{850,518}};
+    for(size_t i=1;i<rail.size();++i){p.line(rail[i-1].x,rail[i-1].y,rail[i].x,rail[i].y,opacity(a,16),8);p.line(rail[i-1].x,rail[i-1].y,rail[i].x,rail[i].y,opacity(a,105),1.4f);}
+    p.line(452,268,452,473,opacity(a,170),2);
+    p.line(475,515,817,515,opacity(a,110),1.4f);
+    p.line(670,174,752,174,a,3);p.line(903,506,1028,506,a,3);
     p.text("XR1 LITE",480,545,muted,p.tiny);
     p.text("1080p / 60 fps     HDMI stereo audio",748,545,muted,p.tiny);
     return videoShown;

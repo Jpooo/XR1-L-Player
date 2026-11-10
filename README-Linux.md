@@ -1,4 +1,4 @@
-# XR1-L Player 1.5.15 — Linux local test build
+# XR1-L Player 1.5.16 — Linux local test build
 
 1080p60 live preview and HDMI stereo audio for EVGA XR1 Lite.
 

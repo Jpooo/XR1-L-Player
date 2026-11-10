@@ -389,3 +389,35 @@ button check verifies continuing video and stereo PCM during the transition.
 The original minimum-window, saved volume/mute/retry and renderer-reset checks
 also passed. No physical capture-card/native Windows performance test was
 possible here. Both ZIPs remain local; GitHub and prior downloads are unchanged.
+
+## XR1-L Player 1.5.16 panel-filling preview
+
+The preview now fills the actual angled/notched panel outline. Uniform centered
+cover scaling retains the source proportions; the frame masks the video's edges
+and corners. Textured geometry samples the existing capture texture directly,
+with panel edges and rails drawn afterward. No additional video capture path,
+offscreen video buffer or CPU frame-copy stage was introduced. Full-feed
+rendering, capture/audio engines, idle logo/motion, toolbar Main menu and absent
+Settings preview remain unchanged.
+
+Visual inspection caught missing large triangles in SDL's software renderer at
+fractional window scales. The final implementation uniformly subdivides and
+caches the software mesh according to physical scale, avoiding both lost areas
+and mismatched shared edges. Accelerated renderers keep the original small mesh.
+Tests now sample triangle interiors densely and check masked corners at both
+1100x650 and 1920x1080, with static and streaming textures.
+
+All eight Linux CTest checks passed. Panel coverage/cutout checks passed for RGB24,
+YUY2, UYVY, NV12, IYUV and YV12 on software and accelerated OpenGL, including
+scaled windows and streaming textures. Rebuilt Windows normal/scaled panel tests
+and the real-player UI suite passed under Wine. Real-player checks covered moving
+video, the Main menu button, resume, logo restoration after stop, minimum/1080p
+windows and no Settings preview. Packaged AppImage controls and appearance checks
+passed for volume/stereo output, fullscreen, theme/motion persistence and menu
+navigation. Final scaled and OpenGL screenshots were inspected for filled
+interiors and frame overlap. ZIP CRC, executable identity and Linux executable
+permissions are checked at export.
+
+No physical XR1 Lite or native Windows 11 hardware was available; these checks do
+not measure hardware capture throughput or end-to-end latency. Both local builds
+and source remain unuploaded; GitHub and prior downloads are unchanged.

@@ -17,8 +17,10 @@ inline constexpr std::array<Box,3> navigation={Box{48,190,350,108},Box{48,322,35
 inline constexpr Box back{920,32,140,42},refresh{40,506,160,44},fullscreen{380,506,180,44};
 inline constexpr std::array<Box,3> devices={Box{60,218,445,66},Box{595,218,445,66},Box{595,304,445,66}};
 inline constexpr Box format{60,304,445,56},demo{60,386,210,44};
-// Leave the video and its four-pixel border clear of the panel's angled rails.
-inline constexpr SDL_Rect mainPreview{500,202,512,288};
+// The video is clipped to this panel contour; uniform UV scaling preserves aspect.
+inline constexpr SDL_Rect mainPreview{452,174,606,344};
+inline constexpr std::array<SDL_FPoint,14> mainPanelContour={SDL_FPoint{452,244},SDL_FPoint{462,209},SDL_FPoint{486,185},SDL_FPoint{637,185},SDL_FPoint{654,174},SDL_FPoint{1026,174},SDL_FPoint{1058,206},SDL_FPoint{1058,466},SDL_FPoint{1032,506},SDL_FPoint{866,506},SDL_FPoint{850,518},SDL_FPoint{817,515},SDL_FPoint{475,515},SDL_FPoint{452,473}};
+inline constexpr std::array<int,36> mainPanelTriangles={13,0,1,13,1,2,13,2,3,13,3,4,13,4,5,13,5,6,13,6,7,13,7,8,13,8,9,13,9,10,13,10,11,11,12,13};
 inline constexpr Box mute{595,398,44,44},volumeHit{640,398,280,44};
 inline constexpr int volumeLeft=650,volumeWidth=260,volumeTop=418;
 inline constexpr Box playbackToolbar{28,644,1044,60},playbackMain{42,654,134,40},playbackSettings{188,654,112,40};

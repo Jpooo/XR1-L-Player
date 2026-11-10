@@ -39,6 +39,7 @@ static const Action appearanceActions[]={
     {2600,SDL_KEYDOWN,0,0,SDLK_TAB},{2800,SDL_KEYDOWN,0,0,SDLK_ESCAPE},
     {3000,SDL_MOUSEBUTTONDOWN,150,460}
 };
+static const Action previewActions[]={{100,SDL_KEYDOWN,0,0,SDLK_TAB}};
 extern "C" int SDL_PollEvent(SDL_Event *event) {
     static auto real=reinterpret_cast<int(*)(SDL_Event*)>(dlsym(RTLD_NEXT,"SDL_PollEvent"));
     if(!firstPollSeen){firstPollTick=SDL_GetTicks();firstPollSeen=true;}
@@ -49,6 +50,7 @@ extern "C" int SDL_PollEvent(SDL_Event *event) {
     bool appearance=std::getenv("XR1_TEST_APPEARANCE")!=nullptr;
     const auto *script=appearance?appearanceActions:actions;
     size_t length=appearance?sizeof(appearanceActions)/sizeof(appearanceActions[0]):sizeof(actions)/sizeof(actions[0]);
+    if(std::getenv("XR1_TEST_PREVIEW")){script=previewActions;length=sizeof(previewActions)/sizeof(previewActions[0]);}
     if(next>=length||SDL_GetTicks()-began<script[next].at)return 0;
     const auto &a=script[next++];*event={};event->type=a.type;
     if(a.type==SDL_KEYDOWN)event->key.keysym.sym=a.key;

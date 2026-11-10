@@ -1,17 +1,21 @@
 // Drive the real player with timed keyboard/mouse input, without hardware.
 #include <SDL.h>
 #include <SDL_ttf.h>
+#include <cassert>
 #include <set>
 #include <string>
 static int injectedPoll(SDL_Event *);
 static SDL_Window *measuredWindow(const char *,int,int,int,int,Uint32);
 static SDL_Surface *measuredText(TTF_Font *,const char *,SDL_Color);
+static int measuredCopy(SDL_Renderer *,SDL_Texture *,const SDL_Rect *,const SDL_Rect *);
 #define SDL_PollEvent injectedPoll
 #define SDL_CreateWindow measuredWindow
 #define TTF_RenderUTF8_Blended measuredText
+#define SDL_RenderCopy measuredCopy
 #define main player_application_main
 #include "../src/main.cpp"
 #undef main
+#undef SDL_RenderCopy
 #undef SDL_PollEvent
 #undef SDL_CreateWindow
 #undef TTF_RenderUTF8_Blended
@@ -21,6 +25,19 @@ static std::vector<Input> script;
 static std::set<std::string> labels;
 static Uint32 pollBegan=0;static size_t nextInput=0;static bool firstPoll=true;
 static int targetW=1100,targetH=650;
+static int previewCopies=0;static std::set<Uint32> previewPixels;
+static int measuredCopy(SDL_Renderer *renderer,SDL_Texture *texture,const SDL_Rect *source,const SDL_Rect *destination){
+    int result=SDL_RenderCopy(renderer,texture,source,destination);
+    const auto &preview=ui::settingsPreview;
+    if(result==0&&destination&&destination->x==preview.x&&destination->y==preview.y&&destination->w==preview.w&&destination->h==preview.h){
+        ++previewCopies;
+        // At this point only the actual video texture has been drawn here.
+        // The moving test marker crosses this pixel while Settings stays open.
+        if(targetW==1100&&targetH==650){SDL_Rect patch{340,400,1,1};Uint32 pixel=0;
+            assert(SDL_RenderReadPixels(renderer,&patch,SDL_PIXELFORMAT_ARGB8888,&pixel,4)==0);previewPixels.insert(pixel);}
+    }
+    return result;
+}
 static SDL_Surface *measuredText(TTF_Font *font,const char *text,SDL_Color color){labels.insert(text);return TTF_RenderUTF8_Blended(font,text,color);}
 static SDL_Window *measuredWindow(const char *title,int x,int y,int,int,Uint32 flags){return SDL_CreateWindow(title,x,y,targetW,targetH,flags);}
 static int injectedPoll(SDL_Event *event){
@@ -52,7 +69,7 @@ int main(){
     auto key=[](Uint32 at,SDL_Keycode k){return Input{at,SDL_KEYDOWN,k};};
     auto click=[](Uint32 at,int x,int y){return Input{at,SDL_MOUSEBUTTONDOWN,0,x,y};};
     auto check=[&](const char *name,bool demo,std::vector<Input> inputs,const char *expected,bool feed,int seconds=1){
-        script=std::move(inputs);nextInput=0;firstPoll=true;labels.clear();
+        script=std::move(inputs);nextInput=0;firstPoll=true;labels.clear();previewCopies=0;previewPixels.clear();
         Options options;loadSettings(options);options.demo=demo;options.seconds=seconds;options.screenshot=(folder/(std::string(name)+".bmp")).string();
         std::ostringstream output;auto *previous=std::cout.rdbuf(output.rdbuf());int result=app(options);std::cout.rdbuf(previous);std::cout<<output.str();
         assert(result==0&&nextInput==script.size());if(expected)assert(labels.count(expected));
@@ -82,7 +99,18 @@ int main(){
     check("feed-start-clean",true,{},nullptr,true);
     check("removed-shortcut-inert",true,{key(200,SDLK_F8)},nullptr,true);
     check("stop-restart-play",true,{key(150,SDLK_RETURN),key(350,SDLK_RETURN)},"PLAY",true);
+    check("settings-live-preview",true,{key(100,SDLK_TAB)},"AUDIO SETTINGS",false,2);
+    assert(previewCopies>30&&previewPixels.size()>1); // Actual changing video, not a frozen image.
+    std::cout<<"PASS live Settings preview: "<<previewCopies<<" draws and "<<previewPixels.size()<<" source pixel values\n";
+    targetW=900;targetH=560;
+    check("settings-preview-minimum",true,{key(100,SDLK_TAB)},"AUDIO SETTINGS",false);
+    assert(previewCopies>0);targetW=1100;targetH=650;
     check("settings-resume",true,{key(100,SDLK_TAB),key(350,SDLK_TAB)},"AUDIO SETTINGS",true);
+    assert(previewCopies>0);
+    check("settings-preview-reopen",true,{key(100,SDLK_TAB),key(250,SDLK_TAB),key(400,SDLK_TAB)},"AUDIO SETTINGS",false);
+    assert(previewCopies>0);
+    check("idle-settings-no-preview",false,{click(100,150,350)},"AUDIO SETTINGS",false);
+    assert(previewCopies==0);
     check("preferences-while-playing",true,{key(100,SDLK_TAB),key(200,SDLK_ESCAPE),click(300,150,460),click(400,430,220),key(600,SDLK_ESCAPE),click(700,150,240)},"COLOR PREFERENCE",true);
     check("renderer-reset",true,{{250,SDL_RENDER_DEVICE_RESET}},nullptr,true);
     check("volume-muted",true,{key(150,SDLK_MINUS),key(250,SDLK_MINUS),key(350,SDLK_m)},nullptr,true);

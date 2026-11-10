@@ -1,4 +1,4 @@
-# XR1-L Player 1.5.12 — Windows local test build
+# XR1-L Player 1.5.13 — Windows local test build
 
 1080p60 live preview and HDMI stereo audio for EVGA XR1 Lite.
 

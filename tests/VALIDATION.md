@@ -321,3 +321,25 @@ No physical XR1 Lite or native Windows 11 hardware was available. The test pictu
 and Wine validate UI/control behavior, not real hardware throughput, latency or
 synchronization. All 1.5.12 files are local only; previous downloads and GitHub
 releases remain unchanged.
+
+## XR1-L Player 1.5.13 local Settings preview restoration
+
+Compared 1.5.11's Settings preview with 1.5.12 and restored its direct drawing of
+an existing video texture. The new 192x108 (16:9) preview occupies unused space
+below Video format, beside Test picture. It appears only while playback has a
+texture. Existing controls and their hit areas are unchanged. Newly displayed
+preview frames count as presented, as in 1.5.11. No additional capture path,
+frame queue or CPU video-copy stage was introduced; full-feed rendering,
+capture/audio engines, themes, artwork and motion code are unchanged.
+
+All six Linux CTest checks passed. Real-player tests verified moving preview
+pixels (74 draws / 3 sampled values on this run), minimum-window rendering,
+Settings reentry/resume and no preview before playback. The corresponding
+rebuilt Windows UI suite passed under Wine (79 draws / 2 sampled values),
+including the existing navigation, preference and volume-save/retry checks.
+Screenshots were visually checked on Linux and Windows. A test of the actual
+Linux AppImage showed 114 frames received/displayed while Settings stayed open;
+stereo PCM output continued at the expected gain. These are software-fixture
+checks, not real hardware performance measurements. No XR1 Lite or native
+Windows 11 hardware was available. Export ZIPs are checked for CRC, executable
+identity and Linux executable permissions. No GitHub files/releases changed.

@@ -3,7 +3,7 @@ name: Windows capture and audio tests
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, windows-beta]
     paths:
       - src/**
       - tests/windows_*.cpp

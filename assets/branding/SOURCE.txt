@@ -1,0 +1,5 @@
+Windows app badge composition using unchanged Lucide gamepad-2 geometry.
+Lucide 0.468.0 source: ../icons/gamepad-2.svg
+ISC license: ../icons/LICENSE
+Badge color/rounded background/rotation exported by tools/prepare-app-icon.py.
+No generated replacement controller artwork is used.

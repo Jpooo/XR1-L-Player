@@ -30,7 +30,7 @@ public:
     }
     std::string report()const{
         std::ostringstream s;s<<std::fixed<<std::setprecision(2);
-        s<<"XR1 Play 1.5.4 Windows FPS test\nSource: "<<(testPicture?"generated test picture (not a hardware test)":"native capture card")
+        s<<"XR1 Play 1.5.5 Windows FPS test\nSource: "<<(testPicture?"generated test picture (not a hardware test)":"native capture card")
          <<"\nTest status: "<<(elapsed()>=30?"completed":"stopped early")<<"\nDuration: "<<elapsed()<<" seconds\nCapture arrivals: "<<latest.received-baseline.received<<" / "<<receivedFps()<<" fps"
          <<"\nDecoded frames: "<<latest.decoded-baseline.decoded<<"\nFrames submitted for display: "<<latest.shown-baseline.shown<<" / "<<shownFps()<<" fps"
          <<"\nCapture arrivals more than 25 ms apart: "<<latest.late-baseline.late

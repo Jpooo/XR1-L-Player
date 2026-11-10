@@ -73,7 +73,7 @@ static void handleSignal(int) {interrupted=1;}
 static void help() {
     std::cout<<
 #ifdef _WIN32
-    "XR1 Play 1.5.4 - native 1080p60 HDMI viewer ("
+    "XR1 Play 1.5.5 - native 1080p60 HDMI viewer ("
 #else
     "XR1 Play 1.5.0 - native 1080p60 HDMI viewer ("
 #endif
@@ -213,9 +213,9 @@ static int app(const Options &o) {
         WindowsFpsTest fpsTest;bool fpsReportSaved=false;
         bool colorPreferences=o.colorPreference;int colorFocus=static_cast<int>(o.colorTheme);
         auto colorTheme=o.colorTheme;std::string colorSaveError;
-        auto chooseColor=[&](int index){colorTheme=static_cast<ui::ConsoleColor>(index);p.theme.choice=colorTheme;p.clearLabels();colorSaveError=saveColorPreference(colorTheme)?"":"Could not save this preference. Your color is applied for this session.";};
+        auto chooseColor=[&](int index){colorTheme=static_cast<ui::ConsoleColor>(index);p.theme.choice=colorTheme;p.setWindowIcon(window);p.clearLabels();colorSaveError=saveColorPreference(colorTheme)?"":"Could not save this preference. Your color is applied for this session.";};
         auto openColors=[&](){colorPreferences=true;colorFocus=static_cast<int>(colorTheme);controlsUntil=monotime()+3;};
-        p.theme.choice=colorTheme;
+        p.theme.choice=colorTheme;p.setWindowIcon(window);
         WindowsVideoUpload videoUploads;
         WindowsPlaybackScheduling playbackScheduling;
         WindowsFrameRate shownCadence,demoCadence;double arrivalFps=0;
@@ -448,7 +448,11 @@ static int app(const Options &o) {
                     double drift=reducedMotion?0:std::sin((now-began)*.3)*18;
                     p.glow({float(650+drift),-170,600,600},{155,240,11,35});
                     p.glow({float(-210-drift),400,520,520},{44,137,230,23});
+#ifdef _WIN32
+                    p.round({40,32,48,48},13,accent);p.icon(ui::Icon::Controller,44,36,40,p.theme.ink(),false,-10);
+#else
                     p.round({40,32,48,48},13,accent);p.text("XR",46,41,{15,27,6,255},p.heading);
+#endif
                     p.text("XR1 Play",102,32,color,p.heading);p.text("CAPTURE VIEWER",103,62,dim,p.tiny);
                     std::string status=playing?(demonstration?"TEST PICTURE":"LIVE PREVIEW"):videos.empty()?"CONNECT YOUR XR1":"READY TO PLAY";
                     p.round({688,42,184,34},17,{30,37,32,255});
@@ -513,7 +517,7 @@ static int app(const Options &o) {
                     if(playing){std::ostringstream stats;stats<<std::fixed<<std::setprecision(1)<<"Capture "<<measuredFps<<" fps   /   Display "<<displayFps<<" fps   /   Audio queued "<<audio.ring.queued()/96<<" ms   /   Skipped "<<shared.skipped<<"   /   Invalid "<<shared.corrupt;p.text(stats.str(),40,697,dim,p.tiny);}
                     else p.text("DIRECT CAPTURE    /    1080p60    /    STEREO SOUND",40,697,dim,p.tiny);
 #ifdef _WIN32
-                    p.text("XR1 PLAY 1.5.4",954,697,dim,p.tiny);
+                    p.text("XR1 PLAY 1.5.5",954,697,dim,p.tiny);
 #else
                     p.text("XR1 PLAY 1.5",969,697,dim,p.tiny);
 #endif

@@ -158,3 +158,23 @@ more restrained highlights and borders. No native window menu bar was added.
 
 The user wants these additions carried to Linux after the Windows build is
 finished. That port has not begun. No GitHub source/package upload was performed.
+
+## Windows 1.5.5 local branding placement (not published)
+
+The original controller mark replaces the XR initials inside the header badge.
+The same unchanged Lucide geometry is framed as a rounded Windows app badge,
+embedded in the EXE at nine sizes (16 through 256 px), and loaded as the native
+window/title-bar icon. Runtime window icons follow the selected accent color;
+the file icon uses Xbox green. The large controller's existing bob/tilt motion
+and reduced-motion behavior are unchanged. No rejected generated replacement
+artwork was incorporated.
+
+- Original controller SVG/BMP bytes verified unchanged against the prior commit.
+- Warning-free native Windows PE build including the resource object.
+- EXE resources verified: nine RT_ICON entries and an RT_GROUP_ICON entry.
+- All ICO sizes and themed BMP transparency verified.
+- Windows dashboard screenshots rendered under Wine for Xbox and PlayStation;
+  the original controller header mark is correctly placed and readable.
+- Portable ZIP integrity, embedded executable identity and all icon assets checked.
+- Linux main/UI preprocessor output and AppImage checksum remain unchanged.
+- No GitHub source/package upload was performed.

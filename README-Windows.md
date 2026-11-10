@@ -1,4 +1,4 @@
-XR1 Play 1.5.4 (local test build) — Windows x64 preview
+XR1 Play 1.5.5 (local test build) — Windows x64 preview
 
 Extract the entire ZIP, then open XR1-Play.exe. Keep the DLLs and assets folder
 beside the executable. No Python, browser or Linux compatibility layer is
@@ -79,3 +79,8 @@ Choose Xbox green, PlayStation blue, or Nintendo red, then click **Done**.
 The selection previews immediately and is saved automatically across launches.
 It changes the interface accent only. Esc closes the panel; Tab/arrow keys
 navigate the choices and Enter selects one. Playback continues while browsing.
+
+The original controller mark now appears in the header badge and the Windows
+app/title-bar icon. The title-bar icon follows the selected accent color; the
+EXE's embedded icon uses Xbox green. The large controller retains its existing
+motion and the Motion toggle. The original controller geometry is unchanged.

@@ -32,6 +32,11 @@ struct Painter {
 #ifdef _WIN32
     ui::MenuTheme theme;
     bool applyTheme=true;
+    bool setWindowIcon(SDL_Window *window){
+        auto path=assetPath+"/branding/xr1-play-"+ui::colorKey(theme.choice)+".bmp";
+        auto *surface=SDL_LoadBMP(path.c_str());if(!surface)return false;
+        SDL_SetWindowIcon(window,surface);SDL_FreeSurface(surface);return true;
+    }
     SDL_Color resolve(SDL_Color c)const{return applyTheme?theme.resolve(c):c;}
 #endif
     double frameTime=0,frameDelta=0;

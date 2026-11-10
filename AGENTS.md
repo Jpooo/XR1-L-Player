@@ -7,4 +7,6 @@
 - Do not automatically publish packages from push-triggered workflows.
 - Preserve the working Linux 1.5.0 AppImage and Linux runtime behavior unless
   the user explicitly asks for Linux changes. Windows fixes and FPS testing
-  must remain Windows-only.
+  remain Windows-only for now. The user wants the finished Windows additions
+  ported to Linux after the Windows build is finished; do not begin that port
+  during the current Windows UI iterations.

@@ -135,3 +135,26 @@ run with 180 received/displayed frames and no skipped/invalid frames. Screenshot
 inspection confirmed the Close button is visible without overlapping the FPS
 text; early-stop report output was verified. Linux preprocessed main code and
 the Linux AppImage checksum are unchanged. No GitHub files were uploaded.
+
+## Windows 1.5.4 local appearance update (not published)
+
+Added an in-app Color preference panel: Xbox green, PlayStation blue and
+Nintendo red. The choice previews immediately, saves across launches and does
+not change capture/audio/device settings. The existing dashboard layout,
+controller icon, player controls and capture paths remain. Windows buttons use
+more restrained highlights and borders. No native window menu bar was added.
+
+- Warning-free Windows PE build.
+- Windows preference regression executable passed under Wine: all three choices
+  reload correctly, existing device/format selections and unknown settings fields
+  survive color changes, and a normal device-settings save retains the color.
+- Rendered and inspected the dashboard and preference panel for all three themes.
+  Selected state, swatches, readable contrast and panel spacing were checked.
+- Packaged Windows playback smoke check under Wine: 240 received/displayed
+  generated frames over four seconds, no skipped/invalid frames. This does not
+  establish physical capture performance.
+- ZIP integrity, executable identity and bundled dependencies checked.
+- Linux main/UI preprocessor output and AppImage checksum remain unchanged.
+
+The user wants these additions carried to Linux after the Windows build is
+finished. That port has not begun. No GitHub source/package upload was performed.

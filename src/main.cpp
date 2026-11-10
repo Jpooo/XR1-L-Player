@@ -12,7 +12,8 @@
 #endif
 struct Options {
 #ifdef _WIN32
-    bool fpsTest=false;
+    bool fpsTest=false,colorPreference=false;
+    ui::ConsoleColor colorTheme=ui::ConsoleColor::Xbox;
 #endif
     bool demo=false,fullscreen=false,vsync=false,diagnose=false,autostart=false,reduceMotion=false;
     bool videoSet=false,audioSet=false,outputSet=false;
@@ -40,19 +41,39 @@ static void loadSettings(Options &o) {
         if(key=="audio")o.audio=value;
         if(key=="output")o.output=value;
         if(key=="format")o.format=value;
+#ifdef _WIN32
+        if(key=="theme")o.colorTheme=ui::parseColor(value);
+#endif
     }
 }
-static void saveSettings(const std::string &video,const std::string &audio,const std::string &output,const std::string &format) {
+static void saveSettings(const std::string &video,const std::string &audio,const std::string &output,const std::string &format
+#ifdef _WIN32
+,ui::ConsoleColor colorTheme
+#endif
+) {
     auto path=settingsPath();if(path.empty())return;
     std::error_code ec;std::filesystem::create_directories(path.parent_path(),ec);if(ec)return;
     std::ofstream out(path);out<<"video "<<std::quoted(video)<<"\naudio "<<std::quoted(audio)<<"\noutput "<<std::quoted(output)<<"\nformat "<<std::quoted(format)<<"\n";
+#ifdef _WIN32
+    out<<"theme "<<std::quoted(ui::colorKey(colorTheme))<<"\n";
+#endif
 }
+#ifdef _WIN32
+static bool saveColorPreference(ui::ConsoleColor choice){
+    auto path=settingsPath();if(path.empty())return false;
+    std::error_code ec;std::filesystem::create_directories(path.parent_path(),ec);if(ec)return false;
+    std::ifstream in(path);std::ostringstream contents;std::string line;
+    while(std::getline(in,line)){std::istringstream field(line);std::string key;field>>key;if(key!="theme")contents<<line<<"\n";}
+    in.close();contents<<"theme "<<std::quoted(ui::colorKey(choice))<<"\n";
+    std::ofstream out(path);out<<contents.str();out.flush();return bool(out);
+}
+#endif
 static volatile std::sig_atomic_t interrupted=0;
 static void handleSignal(int) {interrupted=1;}
 static void help() {
     std::cout<<
 #ifdef _WIN32
-    "XR1 Play 1.5.3 - native 1080p60 HDMI viewer ("
+    "XR1 Play 1.5.4 - native 1080p60 HDMI viewer ("
 #else
     "XR1 Play 1.5.0 - native 1080p60 HDMI viewer ("
 #endif
@@ -80,6 +101,7 @@ static void help() {
     "  --reduce-motion        Disable decorative menu animation\n"
 #ifdef _WIN32
     "  --fps-test             Start preview with a 30-second FPS test (F8)\n"
+    "  --color-preference     Open the in-app color preference panel\n"
 #endif
     "  --diagnose             Print devices and advertised 1080p frame rates\n"
     "  --seconds N            Exit after N seconds (testing)\n"
@@ -97,6 +119,7 @@ static Options parse(int argc,char **argv) {
         else if(a=="--demo") o.demo=true;
         else if(a=="--fullscreen") o.fullscreen=true;
 #ifdef _WIN32
+        else if(a=="--color-preference")o.colorPreference=true;
         else if(a=="--fps-test") {o.fpsTest=true;o.autostart=true;}
 #endif
         else if(a=="--vsync") o.vsync=true;
@@ -188,6 +211,11 @@ static int app(const Options &o) {
         uint64_t prevFrames=0,presented=0,prevPresented=0;
 #ifdef _WIN32
         WindowsFpsTest fpsTest;bool fpsReportSaved=false;
+        bool colorPreferences=o.colorPreference;int colorFocus=static_cast<int>(o.colorTheme);
+        auto colorTheme=o.colorTheme;std::string colorSaveError;
+        auto chooseColor=[&](int index){colorTheme=static_cast<ui::ConsoleColor>(index);p.theme.choice=colorTheme;p.clearLabels();colorSaveError=saveColorPreference(colorTheme)?"":"Could not save this preference. Your color is applied for this session.";};
+        auto openColors=[&](){colorPreferences=true;colorFocus=static_cast<int>(colorTheme);controlsUntil=monotime()+3;};
+        p.theme.choice=colorTheme;
         WindowsVideoUpload videoUploads;
         WindowsPlaybackScheduling playbackScheduling;
         WindowsFrameRate shownCadence,demoCadence;double arrivalFps=0;
@@ -257,7 +285,11 @@ static int app(const Options &o) {
 #ifdef _WIN32
                 shownCadence.reset();demoCadence.reset();arrivalFps=0;
 #endif
-                if(!demonstration)saveSettings(videos[static_cast<size_t>(vi)].path,inputs[static_cast<size_t>(ai)],oi<0?"":outputs[static_cast<size_t>(oi)],formats[static_cast<size_t>(fi)]);
+                if(!demonstration)saveSettings(videos[static_cast<size_t>(vi)].path,inputs[static_cast<size_t>(ai)],oi<0?"":outputs[static_cast<size_t>(oi)],formats[static_cast<size_t>(fi)]
+#ifdef _WIN32
+                    ,colorTheme
+#endif
+                );
                 std::cout<<(demonstration?"DEMO - synthetic 1080p60":shared.mode)<<"\nAudio: "<<audio.mode<<"\n";
             } catch(const std::exception &e) {stop();error=e.what();std::cerr<<error<<"\n";if(o.autostart) result=1;}
         };
@@ -278,6 +310,22 @@ static int app(const Options &o) {
                 if(event.type==SDL_QUIT) quit=true;
                 if(event.type==SDL_AUDIODEVICEREMOVED&&playing&&audio.ownsDevice(event.adevice.which)) {stop();error="A selected audio device was removed. Refresh devices with R and reconnect.";}
 #ifdef _WIN32
+                if(colorPreferences){
+                    if(event.type==SDL_MOUSEMOTION){mouseX=event.motion.x;mouseY=event.motion.y;}
+                    if(event.type==SDL_KEYDOWN&&!event.key.repeat){
+                        auto key=event.key.keysym.sym;
+                        if(key==SDLK_ESCAPE)colorPreferences=false;
+                        else if(key==SDLK_TAB)colorFocus=(colorFocus+((event.key.keysym.mod&KMOD_SHIFT)?3:1))%4;
+                        else if(key==SDLK_LEFT||key==SDLK_RIGHT)colorFocus=(std::min(colorFocus,2)+(key==SDLK_LEFT?2:1))%3;
+                        else if(key==SDLK_RETURN||key==SDLK_SPACE){if(colorFocus==3)colorPreferences=false;else chooseColor(colorFocus);}
+                    }
+                    if(event.type==SDL_MOUSEBUTTONDOWN&&event.button.button==SDL_BUTTON_LEFT){
+                        int x=event.button.x,y=event.button.y;
+                        if(!ui::Box{220,160,660,328}.contains(x,y)||ui::Box{696,424,148,40}.contains(x,y))colorPreferences=false;
+                        else for(int i=0;i<3;++i)if(ui::Box{248+i*204,264,188,124}.contains(x,y)){colorFocus=i;chooseColor(i);}
+                    }
+                    if(event.type!=SDL_RENDER_DEVICE_RESET&&event.type!=SDL_RENDER_TARGETS_RESET)continue;
+                }
                 if(event.type==SDL_KEYDOWN&&!event.key.repeat&&event.key.keysym.sym==SDLK_F8)toggleFpsTest();
                 if(event.type==SDL_RENDER_DEVICE_RESET||event.type==SDL_RENDER_TARGETS_RESET){videoUploads.reset();texture=nullptr;}
 #endif
@@ -308,6 +356,7 @@ static int app(const Options &o) {
                     bool controls=menu||monotime()<controlsUntil;
                     controlsUntil=monotime()+3;
 #ifdef _WIN32
+                    if(menu&&ui::Box{282,38,174,42}.contains(x,y)){openColors();continue;}
                     if(!menu&&fpsTest.visible&&ui::Box{744,68,66,34}.contains(x,y)){closeFpsTest();continue;}
                     if(menu?ui::Box{470,38,152,42}.contains(x,y):(!fpsTest.visible&&controls&&ui::Box{22,62,152,34}.contains(x,y))){toggleFpsTest();continue;}
 #endif
@@ -339,7 +388,12 @@ static int app(const Options &o) {
             }
             double now=monotime();bool newFrame=false;
             double uiInterval=menu?(reducedMotion?1.0/20:1.0/30):1.0/10;
+#ifdef _WIN32
+            accent=p.theme.accent();
+            cursor(colorPreferences||menu||now<controlsUntil||draggingVolume);
+#else
             cursor(menu||now<controlsUntil||draggingVolume);
+#endif
             if(playing&&demonstration&&now-lastDemo>=1.0/60) {Frame f;demoFrame(f,now-startTime);shared.publish(f);
 #ifdef _WIN32
                 demoCadence.record(monotime());
@@ -402,6 +456,7 @@ static int app(const Options &o) {
                     if(playing&&!reducedMotion)liveDot.a=static_cast<Uint8>(190+std::sin((now-began)*3)*50);
                     p.round({703,55,8,8},4,liveDot);p.text(status,721,51,playing||!videos.empty()?accent:dim,p.tiny);
 #ifdef _WIN32
+                    p.button({282,38,174,42},"Color preference",hover({282,38,174,42}),false,p.small);
                     p.button({470,38,152,42},fpsTest.visible&&(fpsTest.active||fpsTest.complete)?"Close FPS test":"FPS test (F8)",hover({470,38,152,42}));
 #endif
                     p.button(ui::fullscreen,(SDL_GetWindowFlags(window)&SDL_WINDOW_FULLSCREEN_DESKTOP)?"Exit fullscreen":"Fullscreen",hover(ui::fullscreen));
@@ -458,7 +513,7 @@ static int app(const Options &o) {
                     if(playing){std::ostringstream stats;stats<<std::fixed<<std::setprecision(1)<<"Capture "<<measuredFps<<" fps   /   Display "<<displayFps<<" fps   /   Audio queued "<<audio.ring.queued()/96<<" ms   /   Skipped "<<shared.skipped<<"   /   Invalid "<<shared.corrupt;p.text(stats.str(),40,697,dim,p.tiny);}
                     else p.text("DIRECT CAPTURE    /    1080p60    /    STEREO SOUND",40,697,dim,p.tiny);
 #ifdef _WIN32
-                    p.text("XR1 PLAY 1.5.3",954,697,dim,p.tiny);
+                    p.text("XR1 PLAY 1.5.4",954,697,dim,p.tiny);
 #else
                     p.text("XR1 PLAY 1.5",969,697,dim,p.tiny);
 #endif
@@ -494,6 +549,31 @@ static int app(const Options &o) {
                     p.round({left+fill-7,top-4,14,14},7,color);
                     p.text(std::to_string(static_cast<int>(std::lround(audio.volume*100)))+"%",menu?895:650,menu?562:664,dim);
                 }
+#ifdef _WIN32
+                if(colorPreferences){
+                    p.offsetY=0;p.rect(0,0,1100,ui::height,{5,7,11,194});
+                    p.card({220,160,660,328},{23,27,34,255},{57,64,75,255},18);
+                    p.text("Color preference",248,184,color,p.heading);
+                    p.text("Choose an accent color for menus and controls.",248,221,dim,p.small);
+                    p.applyTheme=false;
+                    const char *names[]={"Xbox","PlayStation","Nintendo"};const char *colors[]={"Green","Blue","Red"};
+                    for(int i=0;i<3;++i){
+                        ui::MenuTheme option;option.choice=static_cast<ui::ConsoleColor>(i);auto swatch=option.accent();
+                        ui::Box box{248+i*204,264,188,124};bool selected=option.choice==colorTheme;
+                        bool hot=box.contains(mouseX,mouseY)||colorFocus==i;
+                        p.card(box,selected?Painter::mix(ui::raised,swatch,.10f):ui::raised,(selected||hot)?swatch:ui::border,12);
+                        p.round({box.x+18,box.y+17,32,32},10,swatch);
+                        if(selected)p.icon(ui::Icon::Check,box.x+25,box.y+24,18,option.ink());
+                        p.text(names[i],box.x+18,box.y+66,color,p.normal);p.text(colors[i],box.x+18,box.y+94,dim,p.small);
+                        if(selected)p.text("SELECTED",box.x+72,box.y+27,swatch,p.tiny);
+                    }
+                    p.applyTheme=true;
+                    if(!colorSaveError.empty())p.fit(colorSaveError,248,400,596,{244,185,139,255},p.tiny);
+                    else p.text("Saved automatically",248,405,dim,p.tiny);
+                    p.text("Arrows: browse   Enter: select   Esc: close",248,443,dim,p.tiny);
+                    p.button({696,424,148,40},"Done",colorFocus==3||ui::Box{696,424,148,40}.contains(mouseX,mouseY),true,p.small);
+                }
+#endif
                 if(timedExit&&!o.screenshot.empty()) {
                     // Read the entire drawable, rather than the logical UI viewport.
                     SDL_RenderSetLogicalSize(renderer,0,0);

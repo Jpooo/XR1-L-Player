@@ -1,4 +1,4 @@
-XR1 Play 1.5.3 (local test build) — Windows x64 preview
+XR1 Play 1.5.4 (local test build) — Windows x64 preview
 
 Extract the entire ZIP, then open XR1-Play.exe. Keep the DLLs and assets folder
 beside the executable. No Python, browser or Linux compatibility layer is
@@ -73,3 +73,9 @@ third-party libraries/fonts/icons retain their own licenses.
 
 This software is based in part on the work of the FreeType Team. SDL2_ttf uses
 FreeType and HarfBuzz; the relevant notices are included with the application.
+
+Color preference: open **Color preference** inside the app's settings screen.
+Choose Xbox green, PlayStation blue, or Nintendo red, then click **Done**.
+The selection previews immediately and is saved automatically across launches.
+It changes the interface accent only. Esc closes the panel; Tab/arrow keys
+navigate the choices and Enter selects one. Playback continues while browsing.

@@ -1,5 +1,5 @@
-# XR1 Play downloads
+# XR1-L Play downloads
 
-Prebuilt release files live on this branch. Source code and build instructions are on [main](https://github.com/Jpooo/XR1-Play/tree/main).
+[XR1-L Play beta v1 — Linux and Windows](https://github.com/Jpooo/XR1-Play/releases/tag/beta-v1)
 
-See the [v1.5.0 Release](https://github.com/Jpooo/XR1-Play/releases/tag/v1.5.0) for downloads and compatibility notes.
+Source and setup: [main](https://github.com/Jpooo/XR1-Play/tree/main).

@@ -16,7 +16,7 @@ or duplicating frames to label it 60 fps.
 | Build | Intended platform | Verified here | Physical capture status |
 |---|---|---|---|
 | Linux x64 | Current Bazzite; other x64 desktops with glibc 2.38+ and standard Wayland/X11/audio libraries | Compiled; mock V4L2 and address/undefined-behavior sanitizer tests; GPU/software rendering; stereo callback and controls tests | The user reports this Linux build works perfectly with their XR1 Lite on Bazzite. Exact firmware/USB-controller details are not recorded; this verifies one reported setup, not every unit. |
-| Windows x64 preview | Windows 10/11 desktop with Media Foundation and normal UVC/UAC drivers | Cross-compiled native Windows PE executable; started under Wine; shared-codec tests and video/audio demo | No physical Windows/XR1 Lite test has been performed. |
+| Windows x64 preview | Windows 10/11 desktop with Media Foundation and normal UVC/UAC drivers | Cross-compiled native Windows PE executable; started under Wine; shared-codec tests and video/audio demo | The user tested 1.5.0 on Windows 11: capture/audio work, but video cadence fluctuates and sound can crackle. Windows 1.5.1 needs a fresh hardware test. |
 
 Wine is a test aid here, not the Windows capture backend. The Windows program
 uses native Media Foundation capture and SDL's native Windows audio support.

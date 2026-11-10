@@ -1,0 +1,9 @@
+.deps/
+build/
+dist/
+squashfs-root/
+build-cmake/
+__pycache__/
+.vs/
+/core
+/core.[0-9]*

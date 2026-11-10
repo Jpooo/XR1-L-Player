@@ -1,0 +1,33 @@
+name: Bug or hardware compatibility report
+description: Report capture, audio, UI or packaging behavior.
+body:
+  - type: input
+    id: release
+    attributes:
+      label: XR1 Play version or commit
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Operating system and version
+      placeholder: Bazzite Desktop / Windows 11 x64, etc.
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Card model, USB ID/speed and firmware if known
+      description: Unknown firmware is fine. Include the selected video format/rate if available.
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Steps, expected behavior and actual behavior
+      description: For capture issues, confirm Test picture is off and describe the actual HDMI video/audio result.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostic output and test results
+      description: Relevant --diagnose/startup output, audio input/output names, fps, invalid frames, and reconnect/fullscreen results help reproduce hardware issues.

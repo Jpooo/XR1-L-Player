@@ -1,0 +1,4 @@
+Lucide 0.468.0
+https://github.com/lucide-icons/lucide/tree/0.468.0/icons
+Monochrome raster exports from the included SVG sources. Original geometry unchanged.
+License: ISC (see LICENSE).

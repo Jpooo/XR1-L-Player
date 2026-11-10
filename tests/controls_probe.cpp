@@ -1,0 +1,47 @@
+// Inject real SDL input events into the app; check its actual video-texture mode.
+#include <SDL.h>
+#include <dlfcn.h>
+#include <cstdio>
+#include <cstdlib>
+struct Action {Uint32 at,type;int x,y;SDL_Keycode key=0;Uint8 clicks=1;};
+static const Action actions[]={
+    {200,SDL_MOUSEMOTION,450,606},
+    {300,SDL_MOUSEBUTTONDOWN,400,606},
+    {400,SDL_MOUSEMOTION,560,606},
+    {450,SDL_MOUSEBUTTONUP,560,606},
+    {600,SDL_MOUSEBUTTONDOWN,250,606},
+    {650,SDL_MOUSEBUTTONUP,250,606},
+    {800,SDL_MOUSEBUTTONDOWN,900,606},
+    {1000,SDL_KEYDOWN,0,0,SDLK_F11},
+    {1200,SDL_MOUSEBUTTONDOWN,500,300,0,2},
+    {1400,SDL_KEYDOWN,0,0,SDLK_ESCAPE},
+    {1600,SDL_KEYDOWN,0,0,SDLK_m},
+    {1800,SDL_MOUSEBUTTONDOWN,100,606},
+    {2000,SDL_MOUSEBUTTONDOWN,775,498},
+    {2100,SDL_MOUSEBUTTONUP,775,498},
+    {2300,SDL_MOUSEBUTTONDOWN,400,576},
+    {2500,SDL_MOUSEBUTTONDOWN,100,606},
+    {2800,SDL_MOUSEBUTTONDOWN,975,58},
+    {3000,SDL_MOUSEBUTTONDOWN,975,58},
+    {3200,SDL_MOUSEBUTTONDOWN,1000,498},
+    {3400,SDL_MOUSEBUTTONDOWN,1000,498}
+};
+extern "C" int SDL_PollEvent(SDL_Event *event) {
+    static auto real=reinterpret_cast<int(*)(SDL_Event*)>(dlsym(RTLD_NEXT,"SDL_PollEvent"));
+    static bool resized=false;
+    if(!resized&&std::getenv("XR1_TEST_SMALL")){if(auto *window=SDL_GetWindowFromID(1)){SDL_SetWindowSize(window,900,680);resized=true;}}
+    if(real(event))return 1;
+    static Uint32 began=SDL_GetTicks();static size_t next=0;
+    if(next>=sizeof(actions)/sizeof(actions[0])||SDL_GetTicks()-began<actions[next].at)return 0;
+    const auto &a=actions[next++];*event={};event->type=a.type;
+    if(a.type==SDL_KEYDOWN)event->key.keysym.sym=a.key;
+    else if(a.type==SDL_MOUSEMOTION){event->motion.x=a.x;event->motion.y=a.y;}
+    else {event->button.button=SDL_BUTTON_LEFT;event->button.clicks=a.clicks;event->button.x=a.x;event->button.y=a.y;}
+    return 1;
+}
+extern "C" int SDL_RenderCopy(SDL_Renderer *r,SDL_Texture *t,const SDL_Rect *src,const SDL_Rect *dst) {
+    static auto real=reinterpret_cast<int(*)(SDL_Renderer*,SDL_Texture*,const SDL_Rect*,const SDL_Rect*)>(dlsym(RTLD_NEXT,"SDL_RenderCopy"));
+    int w=0,h=0;SDL_QueryTexture(t,nullptr,nullptr,&w,&h);
+    if(w==1920&&h==1080){SDL_ScaleMode mode;SDL_GetTextureScaleMode(t,&mode);if(mode!=SDL_ScaleModeLinear){std::fprintf(stderr,"FAIL: video is not smoothly filtered\n");std::abort();}}
+    return real(r,t,src,dst);
+}

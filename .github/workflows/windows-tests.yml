@@ -7,6 +7,7 @@ on:
     paths:
       - src/**
       - tests/windows_*.cpp
+      - tests/preferences_test.cpp
       - CMakeLists.txt
       - .github/workflows/windows-tests.yml
 

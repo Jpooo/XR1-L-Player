@@ -1,15 +1,15 @@
-# XR1 Play 1.5.6 — Linux local test build
+# XR1-L Play beta v1 — Linux
 
-1080p60 live preview and stereo HDMI audio for EVGA XR1 Lite. This local build
-brings the Windows beta interface to Linux; it has not been published to GitHub.
+1080p60 live preview and stereo HDMI audio for EVGA XR1 Lite. This build
+brings the Windows beta interface to Linux.
 
 ## Launch
 
 Make the AppImage executable, then open it:
 
 ```sh
-chmod +x XR1-Play-1.5.6-Linux-Beta-x86_64.AppImage
-./XR1-Play-1.5.6-Linux-Beta-x86_64.AppImage
+chmod +x XR1-L-Play-beta-v1-Linux-x86_64.AppImage
+./XR1-L-Play-beta-v1-Linux-x86_64.AppImage
 ```
 
 Without FUSE, add `--appimage-extract-and-run`. Current Bazzite/x86_64 Linux
@@ -30,6 +30,3 @@ stopping playback; closing early saves a partial report. Reports are saved to
 `${XDG_CONFIG_HOME:-$HOME/.config}/xr1-play/fps-test.txt`; preferences use `settings`
 in the same folder. Linux counts valid/latest V4L2 capture frames. Driver-discarded
 or stale frames are reported as skipped; this is not a controller-latency test.
-
-The Linux V4L2 capture path and 20 ms audio queue cap are retained. Please test
-real capture and sound on your Bazzite system before approving a public release.

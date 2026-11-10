@@ -1,24 +1,19 @@
-# XR1-L Play Windows Beta v1
+# XR1-L Play beta v1
 
-Native **1080p60 preview with HDMI stereo audio** for EVGA XR1 Lite on Windows.
+Native **1080p60 live preview and HDMI stereo audio** for EVGA XR1 Lite on Linux and Windows.
 
-[Download Windows Beta v1](https://github.com/Jpooo/XR1-Play/releases/tag/windows-beta-v1)
+- [Linux AppImage](https://github.com/Jpooo/XR1-Play/releases/download/beta-v1/XR1-L-Play-beta-v1-Linux-x86_64.AppImage)
+- [Windows x64 portable ZIP](https://github.com/Jpooo/XR1-Play/releases/download/beta-v1/XR1-L-Play-beta-v1-Windows-x64.zip)
 
-![XR1 Play Windows Beta interface](docs/screenshot.png)
+![XR1 Play interface](docs/screenshot.png)
 
 ## Connect and play
 
-1. Extract the entire Windows ZIP, then open `XR1-Play.exe`. Keep its DLLs and assets folder together.
-2. Connect Xbox/console HDMI OUT to XR1 Lite HDMI IN, then connect the card to USB 3 with a USB 3 data cable.
-3. Set the console to **1080p, 60 Hz, SDR** and HDMI audio to **Stereo uncompressed**. Close other capture apps.
+1. Connect console HDMI OUT to XR1 Lite HDMI IN, then connect the card directly to USB 3 with a USB 3 data cable.
+2. Set the console to **1080p, 60 Hz, SDR** and HDMI audio to **Stereo uncompressed**. Close other capture apps.
+3. **Linux:** make the AppImage executable, then open it. **Windows:** extract the whole ZIP and open `XR1-Play.exe`; keep the DLLs and assets together.
 4. Choose the card's video source, its HDMI audio input and your speakers/headphones. Click **Start playing**.
 
-Windows Settings must allow desktop camera and microphone access. Windows N needs the Media Feature Pack.
-
-Use **Color preference** for Xbox green, PlayStation blue or Nintendo red. Your selection is saved.
-**F/F11** toggles fullscreen, **M** mutes and **+/-** changes volume. **Tab** opens settings.
-Click **FPS test** or press **F8** for a 30-second measurement; **Close** or F8 hides the test without stopping playback.
-
-Beta v1 packages application build **1.5.5**. See [Windows setup](README-Windows.md) for details.
-
-The working Linux AppImage is available in the separate [1.5.0 release](https://github.com/Jpooo/XR1-Play/releases/tag/v1.5.0).
+Use **Color preference** to choose saved Xbox green, PlayStation blue or Nintendo red.
+**F/F11** toggles fullscreen, **M** mutes, **+/-** changes volume and **Tab** opens settings.
+**FPS test / F8** measures 30 seconds; **Close** or F8 hides it while playback continues.

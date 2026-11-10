@@ -49,3 +49,9 @@
   is active; restore the original animated logo after stopping. Remove the
   Settings preview per the user's correction. Keep all other controls and
   capture/audio behavior unchanged. Both packages remain local.
+
+- Local 1.5.15: inset the main-menu preview and its border safely inside the
+  angled panel, keeping 16:9 without cropping. Add a separate Main menu button
+  to the playback toolbar; retain Settings, mute/volume, Stop and fullscreen.
+  Returning to the menu keeps video/audio running. Settings has no preview.
+  Keep both builds local and preserve previous downloads.

@@ -1,4 +1,4 @@
-# XR1-L Player 1.5.14 — Linux local test build
+# XR1-L Player 1.5.15 — Linux local test build
 
 1080p60 live preview and HDMI stereo audio for EVGA XR1 Lite.
 
@@ -9,7 +9,7 @@
 3. Connect console HDMI OUT → XR1 Lite HDMI IN; connect the card directly to USB 3.0 with a USB 3.0 data cable.
 4. Use 1080p60 SDR and HDMI Stereo uncompressed. Select video, HDMI audio and your speakers/headphones in Settings, then choose Play.
 
-Use **Settings** for video/audio devices, format and volume. **Preferences** saves Neon Green, Electric Blue, Crimson Red and Motion On/Off. Choose **Play** to start the feed.
+Use **Settings** for video/audio devices, format and volume. **Preferences** saves Neon Green, Electric Blue, Crimson Red and Motion On/Off. Choose **Play** to start the feed. Move the mouse during playback to reveal **Main menu**, Settings and audio controls.
 
 F/F11: fullscreen; Tab: settings / return to video; Enter: stop playback; M: mute; +/-: volume. In menus use the mouse, arrows and Enter; Esc goes back. Volume and mute are saved across launches.
 

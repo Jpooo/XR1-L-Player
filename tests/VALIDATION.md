@@ -367,3 +367,25 @@ video on the main menu. Software fixtures do not verify physical XR1 Lite or
 native Windows performance. Both packages stay local; prior downloads and GitHub
 releases are untouched. Export ZIPs are checked for CRC, executable identity and
 Linux executable permissions.
+
+## XR1-L Player 1.5.15 preview fit and playback Main menu button
+
+Inset the video to a centered 512x288 rectangle with clearance for its border
+inside all angled panel rails. The full 16:9 image is preserved. Added a distinct
+Main menu button to the playback toolbar, retaining Settings and all playback
+controls. Shared layout constants drive button drawing, hit areas and slider
+mapping. Returning through Main menu leaves capture/audio active; Play resumes
+the feed. Settings remains without a preview; stopping restores the original
+logo. Capture/audio, video presenter, logo assets and motion code are unchanged.
+
+Six Linux CTest checks passed. The rebuilt Windows UI suite passed under Wine,
+including the new Main menu click, menu-to-feed resume, retained Settings button,
+changing live-preview pixels, stop-to-logo behavior and a 1920x1080 layout check.
+Screenshots were checked at 1080p and the default window size for preview/panel
+clearance and toolbar labels. Packaged AppImage controls and appearance checks
+passed with the relocated slider/mute/Settings hit areas, including gain, stereo
+output, six fullscreen toggles, theme saving and motion. A packaged Main menu
+button check verifies continuing video and stereo PCM during the transition.
+The original minimum-window, saved volume/mute/retry and renderer-reset checks
+also passed. No physical capture-card/native Windows performance test was
+possible here. Both ZIPs remain local; GitHub and prior downloads are unchanged.

@@ -17,9 +17,13 @@ inline constexpr std::array<Box,3> navigation={Box{48,190,350,108},Box{48,322,35
 inline constexpr Box back{920,32,140,42},refresh{40,506,160,44},fullscreen{380,506,180,44};
 inline constexpr std::array<Box,3> devices={Box{60,218,445,66},Box{595,218,445,66},Box{595,304,445,66}};
 inline constexpr Box format{60,304,445,56},demo{60,386,210,44};
-inline constexpr SDL_Rect mainPreview{480,192,544,306};
+// Leave the video and its four-pixel border clear of the panel's angled rails.
+inline constexpr SDL_Rect mainPreview{500,202,512,288};
 inline constexpr Box mute{595,398,44,44},volumeHit{640,398,280,44};
 inline constexpr int volumeLeft=650,volumeWidth=260,volumeTop=418;
+inline constexpr Box playbackToolbar{28,644,1044,60},playbackMain{42,654,134,40},playbackSettings{188,654,112,40};
+inline constexpr Box playbackMute{312,654,86,40},playbackVolumeHit{408,650,216,44},playbackStop{710,654,92,40},playbackFullscreen{820,654,214,40};
+inline constexpr int playbackVolumeLeft=418,playbackVolumeWidth=196,playbackVolumeTop=670;
 inline constexpr Box primary{845,506,215,44},stop{660,506,160,44},motion{40,376,500,92},preferenceFullscreen{575,376,485,92};
 inline constexpr std::array<Box,3> themes={Box{40,178,320,154},Box{390,178,320,154},Box{740,178,320,154}};
 inline constexpr std::array<Box,12> settingControls={devices[0],format,demo,devices[1],devices[2],mute,volumeHit,refresh,fullscreen,primary,stop,back};

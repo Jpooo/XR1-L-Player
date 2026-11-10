@@ -36,7 +36,7 @@ static int measuredCopy(SDL_Renderer *renderer,SDL_Texture *texture,const SDL_Re
         ++previewCopies;lastMainWasVideo=true;
         // At this point only the actual video texture has been drawn here.
         // The moving test marker crosses this pixel while the main menu stays open.
-        if(targetW==1100&&targetH==650){SDL_Rect patch{592,282,1,1};Uint32 pixel=0;
+        if(targetW==1100&&targetH==650){SDL_Rect patch{preview.x+preview.w*5/24,preview.y+preview.h/3,1,1};Uint32 pixel=0;
             assert(SDL_RenderReadPixels(renderer,&patch,SDL_PIXELFORMAT_ARGB8888,&pixel,4)==0);previewPixels.insert(pixel);}
     }
     if(result==0&&destination&&destination->x==300&&destination->y==366&&destination->w==192&&destination->h==108)++settingsPreviewCopies;
@@ -108,11 +108,21 @@ int main(){
     check("feed-start-clean",true,{},nullptr,true);
     check("removed-shortcut-inert",true,{key(200,SDLK_F8)},nullptr,true);
     check("stop-restart-play",true,{key(150,SDLK_RETURN),key(350,SDLK_RETURN)},"PLAY",true);
+    check("playback-toolbar",true,{},"Main menu",true);assert(labels.count("Settings"));
+    check("main-button-live-preview",true,{click(100,100,606)},"PLAY",false,2);
+    assert(previewCopies>30&&previewPixels.size()>1&&logoCopies==0&&lastMainWasVideo);
+    check("main-button-resume",true,{click(100,100,606),click(450,150,240)},"PLAY",true);
+    assert(previewCopies>0);
+    check("toolbar-settings-retained",true,{click(100,240,606)},"AUDIO SETTINGS",false);
+    assert(previewCopies==0&&settingsPreviewCopies==0);
     check("main-live-preview",true,{key(100,SDLK_TAB),key(200,SDLK_ESCAPE)},"PLAY",false,2);
     assert(previewCopies>30&&previewPixels.size()>1&&logoCopies==0&&lastMainWasVideo);
     std::cout<<"PASS main menu live preview: "<<previewCopies<<" draws and "<<previewPixels.size()<<" source pixel values\n";
     targetW=900;targetH=560;
     check("main-preview-minimum",true,{key(100,SDLK_TAB),key(200,SDLK_ESCAPE)},"PLAY",false);
+    assert(previewCopies>0&&logoCopies==0);
+    targetW=1920;targetH=1080;
+    check("main-preview-1080p-fit",true,{click(100,100,606)},"PLAY",false);
     assert(previewCopies>0&&logoCopies==0);targetW=1100;targetH=650;
     check("main-preview-stop-restores-logo",true,{key(100,SDLK_TAB),key(200,SDLK_ESCAPE),key(600,SDLK_ESCAPE)},"PLAY",false);
     assert(previewCopies>0&&logoCopies>0&&!lastMainWasVideo);

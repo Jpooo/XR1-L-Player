@@ -94,9 +94,9 @@ static void handleSignal(int) {interrupted=1;}
 static void help() {
     std::cout<<
 #ifdef _WIN32
-    "XR1-L Player 1.5.14 - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.15 - native 1080p60 HDMI viewer ("
 #else
-    "XR1-L Player 1.5.14 Linux test build - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.15 Linux test build - native 1080p60 HDMI viewer ("
 #endif
 #ifdef _WIN32
     "Windows x86_64"
@@ -358,7 +358,7 @@ static int app(const Options &o) {
                 if(event.type==SDL_MOUSEMOTION) {
                     mouseX=event.motion.x;mouseY=event.motion.y;keyboardNavigation=false;
                     controlsUntil=monotime()+3;
-                    if(draggingVolume)changeVolume((event.motion.x-(menu?float(ui::volumeLeft):335.0f))/(menu?float(ui::volumeWidth):300.0f));
+                    if(draggingVolume)changeVolume((event.motion.x-(menu?float(ui::volumeLeft):float(ui::playbackVolumeLeft)))/(menu?float(ui::volumeWidth):float(ui::playbackVolumeWidth)));
                 }
                 if(event.type==SDL_MOUSEBUTTONUP&&event.button.button==SDL_BUTTON_LEFT&&draggingVolume) {
                     draggingVolume=false;SDL_CaptureMouse(SDL_FALSE);persistVolume();
@@ -393,17 +393,17 @@ static int app(const Options &o) {
                 if(event.type==SDL_MOUSEBUTTONDOWN&&event.button.button==SDL_BUTTON_LEFT){
                     int x=event.button.x,y=event.button.y;keyboardNavigation=false;
                     if(!menu&&y>=580)y-=ui::toolbarOffset;
-                    auto inside=[&](int left,int top,int width,int height){return ui::Box{left,top,width,height}.contains(x,y);};
                     bool controls=menu||monotime()<controlsUntil;controlsUntil=monotime()+3;
                     bool volumeVisible=menu?screen==ui::Screen::Settings:controls;
-                    if(volumeVisible&&(menu?ui::mute.contains(x,y):inside(220,654,90,40))){mute();continue;}
-                    if(volumeVisible&&(menu?ui::volumeHit.contains(x,y):inside(325,650,320,44))){
-                        draggingVolume=true;SDL_CaptureMouse(SDL_TRUE);changeVolume((x-(menu?float(ui::volumeLeft):335.0f))/(menu?float(ui::volumeWidth):300.0f));continue;
+                    if(volumeVisible&&(menu?ui::mute.contains(x,y):ui::playbackMute.contains(x,y))){mute();continue;}
+                    if(volumeVisible&&(menu?ui::volumeHit.contains(x,y):ui::playbackVolumeHit.contains(x,y))){
+                        draggingVolume=true;SDL_CaptureMouse(SDL_TRUE);changeVolume((x-(menu?float(ui::volumeLeft):float(ui::playbackVolumeLeft)))/(menu?float(ui::volumeWidth):float(ui::playbackVolumeWidth)));continue;
                     }
                     if(playing&&!menu&&controls){
-                        if(inside(64,654,140,40)){openScreen(ui::Screen::Settings);continue;}
-                        if(inside(710,654,92,40)){stop();continue;}
-                        if(inside(820,654,214,40)){fullscreen();continue;}
+                        if(ui::playbackMain.contains(x,y)){openScreen(ui::Screen::Main);continue;}
+                        if(ui::playbackSettings.contains(x,y)){openScreen(ui::Screen::Settings);continue;}
+                        if(ui::playbackStop.contains(x,y)){stop();continue;}
+                        if(ui::playbackFullscreen.contains(x,y)){fullscreen();continue;}
                     }
                     if(playing&&!menu&&event.button.clicks==2){fullscreen();continue;}
                     if(!menu)continue;
@@ -519,20 +519,21 @@ static int app(const Options &o) {
                 if((menu&&screen==ui::Screen::Settings)||(!menu&&(now<controlsUntil||draggingVolume))) {
                     p.offsetY=menu?0:ui::toolbarOffset;
                     if(!menu){
-                        p.round({50,644,1000,60},16,{17,23,15,242});
-                        p.button({64,654,140,40},"Settings",hover({64,654,140,40}));
-                        p.button({710,654,92,40},"Stop",hover({710,654,92,40}));
-                        p.button({820,654,214,40},(SDL_GetWindowFlags(window)&SDL_WINDOW_FULLSCREEN_DESKTOP)?"Exit fullscreen":"Fullscreen",hover({820,654,214,40}));
+                        p.round(ui::playbackToolbar,16,{17,23,15,242});
+                        p.button(ui::playbackMain,"Main menu",hover(ui::playbackMain));
+                        p.button(ui::playbackSettings,"Settings",hover(ui::playbackSettings));
+                        p.button(ui::playbackStop,"Stop",hover(ui::playbackStop));
+                        p.button(ui::playbackFullscreen,(SDL_GetWindowFlags(window)&SDL_WINDOW_FULLSCREEN_DESKTOP)?"Exit fullscreen":"Fullscreen",hover(ui::playbackFullscreen));
                     }
-                    int left=menu?ui::volumeLeft:335,top=menu?ui::volumeTop:670,width=menu?ui::volumeWidth:300;
+                    int left=menu?ui::volumeLeft:ui::playbackVolumeLeft,top=menu?ui::volumeTop:ui::playbackVolumeTop,width=menu?ui::volumeWidth:ui::playbackVolumeWidth;
                     if(menu){p.card(ui::mute,(hover(ui::mute)||(keyboardNavigation&&menuFocus==5))?SDL_Color{48,58,44,255}:ui::raised,(hover(ui::mute)||(keyboardNavigation&&menuFocus==5))?accent:ui::border,10);p.icon(ui::Icon::Speaker,606,409,22,audio.muted?dim:accent,audio.muted);p.text("VOLUME",650,382,dim,p.tiny);}
-                    else p.button({220,654,90,40},audio.muted?"Unmute":"Mute",hover({220,654,90,40}));
+                    else p.button(ui::playbackMute,audio.muted?"Unmute":"Mute",hover(ui::playbackMute));
                     if(menu&&keyboardNavigation&&menuFocus==6)p.card(ui::volumeHit,{20,28,31,255},accent,8);
                     p.round({left,top,width,6},3,{67,79,57,255});
                     int fill=static_cast<int>(std::lround(audio.volume*width));
                     if(fill>0)p.round({left,top,fill,6},3,accent);
                     p.round({left+fill-7,top-4,14,14},7,color);
-                    p.text(std::to_string(static_cast<int>(std::lround(audio.volume*100)))+"%",menu?930:650,menu?405:664,dim);
+                    p.text(std::to_string(static_cast<int>(std::lround(audio.volume*100)))+"%",menu?930:636,menu?405:664,dim);
                 }
                 if(timedExit&&!o.screenshot.empty()) {
                     // Read the entire drawable, rather than the logical UI viewport.

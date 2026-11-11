@@ -76,3 +76,14 @@
   workflow; GitHub's asset digests match the verified local release files.
   The exact user screenshot is in docs/screenshot.png. Native Windows CI passed
   in addition to the local checks. Future changes still require upload approval.
+
+- Local 1.5.17: connection status and automatic reconnect for both platforms.
+  Retry only the previously selected card, HDMI input and output; wait for
+  missing endpoints, reject ambiguous matches, back off failed reopen attempts,
+  and let Cancel/Esc or device/format changes stop recovery. Preserve fullscreen,
+  saved volume/mute and the menu the user is browsing. Keep capture/audio queues,
+  rendering, approved artwork and menu transitions unchanged. No new auto-start
+  preference. Keep both builds local, with the Linux AppImage in a ZIP.
+  Validation: 10 Linux CTest checks; packaged controls/audio/fullscreen/appearance;
+  Windows cross-build, Wine UI tests and seven simulated reconnect scenarios.
+  Physical XR1 Lite unplug/replug and native Windows hardware validation remain.

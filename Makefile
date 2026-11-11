@@ -5,7 +5,7 @@ CXXFLAGS ?= -O3 -DNDEBUG
 CXXFLAGS += -std=c++17 -Wall -Wextra -Wpedantic -pthread
 LDLIBS = -l:libSDL2-2.0.so.0 -l:libSDL2_ttf-2.0.so.0 -l:libjpeg.so.62
 LDFLAGS += -L$(DEPS)/lib/x86_64-linux-gnu
-UI_HEADERS = src/menu_motion.hpp src/ui.hpp src/menu_theme.hpp src/menu_ui.hpp src/frame_cadence.hpp
+UI_HEADERS = src/connection_recovery.hpp src/menu_motion.hpp src/ui.hpp src/menu_theme.hpp src/menu_ui.hpp src/frame_cadence.hpp
 VIDEO_HEADERS = src/video.hpp src/video_common.hpp src/video_linux.hpp src/video_windows.hpp
 all: build/xr1-l-player
 build/xr1-l-player: src/main.cpp src/core.hpp src/frame_cadence.hpp $(VIDEO_HEADERS) src/audio.hpp $(UI_HEADERS)

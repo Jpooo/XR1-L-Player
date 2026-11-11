@@ -1,4 +1,4 @@
-# XR1-L Player 1.5.25 — Linux
+# XR1-L Player 1.5.26 — Linux
 
 1080p60 live preview and HDMI stereo audio for EVGA XR1 Lite.
 
@@ -23,3 +23,5 @@ XR1 Lite requirements: Intel i5-6XXX or AMD Ryzen 3 1300X or better; NVIDIA GTX 
 Local test build; not uploaded to GitHub. Hardware unplug/replug testing is still needed.
 
 Windowed size and fullscreen state are restored on launch. `--windowed` overrides saved fullscreen. Automatic format selection tries only YUYV and NV12.
+
+Settings → Sharper fullscreen enables sharper fractional upscaling (for example, 1080p to 1440p). Turn it off to compare the previous smoothing. Native/integer sizes and the menu preview retain their existing rendering. Unsupported renderers fall back to normal scaling.

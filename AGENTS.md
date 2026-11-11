@@ -163,3 +163,19 @@
   and oversized-saved-window tests on Linux and Wine, plus the final packaged
   AppImage menu test. ZIP/binary/documentation hashes match. Native hardware
   and Windows display/driver testing remain with the user.
+
+- Local 1.5.26: user chose sharper fullscreen only for a 1080p Xbox feed on a
+  1440p PC display. Add cached GPU sharp-bilinear fractional upscale, preserving
+  native/integer/windowed/menu-preview paths, with a saved On/Off Settings
+  control and graceful renderer fallback. Validate YUYV/NV12, including SDL GL
+  NV12 render-target state invalidation. No added frame queue or CPU conversion.
+  Keep current color conversion unchanged: generated BT.709 probes exposed a
+  potential mismatch, but actual card matrix/range metadata is unverified.
+  Both packages remain local; no GitHub uploads.
+  Verified all 15 Linux CTest checks, software/OpenGL sharp-path readbacks for
+  YUYV/NV12, native/integer bypass, renderer/filter restoration, allocation
+  fallback/no retry loop, cache reuse and saved preference/live-toggle behavior.
+  Final Windows scaling/preference/full-UI and shipping launch checks passed
+  under Wine. An absent test display and full temporary test disk were corrected
+  before the final Windows rerun; downloads were reverified afterward. Actual
+  GPU/card responsiveness and picture quality still require user comparison.

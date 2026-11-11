@@ -266,3 +266,14 @@
   with prerelease=true, then delete the superseded 1.5.16 release (keep its git
   tag/history). Update main README download links. Do not run the obsolete
   publish-approved-release workflow: it targets the superseded 1.5.16 package.
+
+- Published with explicit renewed user authorization: XR1-L Player Beta V2 is
+  a non-draft pre-release at https://github.com/Jpooo/XR1-L-Player/releases/tag/beta-v2.
+  Tag beta-v2 points to tested application source 6f5cb515c05d2956219dbba380c30f580eda1c06.
+  Release docs refreshed; approved Linux/Windows executable bytes unchanged.
+  Direct uploads rejected the session credential, so the manual publisher used
+  verified packages from pinned staging commit 63be0481b4a8b85f4545c71b4b9c8f76ecbf4a5c.
+  Native Windows CI 43121917195 and publication workflow 43123351610 passed.
+  All four public assets were anonymously downloaded and SHA-256 verified.
+  Superseded v1.5.16 release deleted as requested; its git tag/history retained.
+  Future unrequested code/package uploads still need explicit user approval.

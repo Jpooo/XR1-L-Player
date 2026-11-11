@@ -1,5 +1,0 @@
-Inter by The Inter Project Authors. SIL Open Font License 1.1; see Inter-OFL.txt.
-Source: https://github.com/google/fonts/tree/main/ofl/inter
-Downloaded variable font SHA256: 29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031
-Static semibold instance exported with fontTools: weight 600, optical size 24.
-Used for menu headings, main navigation and app title. Existing body font retained.

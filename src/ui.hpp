@@ -88,14 +88,14 @@ struct Painter {
         if(std::abs(scale-fontScale)<0.005f)return;
         std::array<TTF_Font*,6> fonts{};constexpr int sizes[]={18,14,38,23,12,112};
         for(size_t i=0;i<fonts.size();++i){
-            const auto path=(i==2||i==3||i==5)?assetPath+"/fonts/Inter-SemiBold.ttf":fontPath;
+            const auto path=(i==2||i==3||i==5)?assetPath+"/fonts/Oxanium-SemiBold.ttf":fontPath;
             fonts[i]=TTF_OpenFont(path.c_str(),static_cast<int>(std::lround(sizes[i]*scale)));
             if(!fonts[i]){for(auto *f:fonts)if(f)TTF_CloseFont(f);throw std::runtime_error("Cannot open bundled font: "+std::string(TTF_GetError()));}
         }
         for(auto *font:fonts)TTF_SetFontHinting(font,TTF_HINTING_LIGHT);
         clearLabels();clearShapes();for(auto *font:{normal,small,title,heading,tiny,display})if(font)TTF_CloseFont(font);
         normal=fonts[0];small=fonts[1];title=fonts[2];heading=fonts[3];tiny=fonts[4];display=fonts[5];
-        fontScale=scale; // Headings use Inter's designed semibold face, without synthetic bold.
+        fontScale=scale; // Headings use Oxanium's designed semibold face, without synthetic bold.
     }
     void rect(int x,int y,int w,int h,SDL_Color c){
         c=resolve(c);

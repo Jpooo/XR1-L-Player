@@ -112,3 +112,12 @@
   The Windows UI timing fixture passed when rerun without concurrent rendering
   tests; its first run missed the software preview draw-count threshold under
   shared test load. Native hardware/display validation remains with the user.
+
+- Local 1.5.21: replace Inter headings with the restrained, squared Oxanium
+  Semibold face to match the neon panel theme. Main buttons, headings and title
+  change; body text, label sizes/positions and playback remain unchanged. Bundle
+  the font and SIL OFL license on both platforms. Keep packages local.
+  Checked native 1080p detail and physical-resolution headings through 4K,
+  packaged Linux controls/appearance, and Windows scaling, full UI and packaged
+  demo under Wine. Preview reviewed at the normal window size. Native Windows
+  and real display/capture testing remain with the user.

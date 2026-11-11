@@ -10,6 +10,7 @@
 #include "menu_theme.hpp"
 #include "menu_motion.hpp"
 #include "window_icon.hpp"
+#include "menu_typography.hpp"
 namespace ui {
 inline constexpr int height=650,toolbarOffset=-64;
 struct Box {int x,y,w,h;bool contains(int px,int py)const{return px>=x&&px<x+w&&py>=y&&py<y+h;}};
@@ -62,17 +63,18 @@ struct Painter {
     int offsetY=0;
     struct Label {SDL_Texture *texture;int w,h;};
     std::unordered_map<std::string,Label> labels;
+    ui::MenuLettering menuLetters;
     std::unordered_map<std::string,SDL_Texture*> shapes;
     void clearShapes(){for(auto &item:shapes)SDL_DestroyTexture(item.second);shapes.clear();}
     SDL_Texture *backdrop=nullptr;
     int backdropW=0,backdropH=0;
     uint64_t backdropColors=0;
-    explicit Painter(SDL_Renderer *renderer):r(renderer) {
+    explicit Painter(SDL_Renderer *renderer):r(renderer),menuLetters(renderer) {
         const char *root=std::getenv("XR1_ASSET_DIR");
         if(root&&*root)assetPath=root;else {char *base=SDL_GetBasePath();assetPath=std::string(base?base:"")+"assets";SDL_free(base);if(!std::filesystem::exists(std::filesystem::path(assetPath)/"DejaVuSans.ttf"))assetPath="assets";}
         fontPath=assetPath+"/DejaVuSans.ttf";prepare();
     }
-    void clearLabels(){for(auto &item:labels)SDL_DestroyTexture(item.second.texture);labels.clear();}
+    void clearLabels(){for(auto &item:labels)SDL_DestroyTexture(item.second.texture);labels.clear();menuLetters.clear();}
     void resetTextures(){
         clearLabels();clearShapes();
         for(auto &item:icons)SDL_DestroyTexture(item.second);
@@ -86,16 +88,16 @@ struct Painter {
         int w=0,h=0;SDL_GetRendererOutputSize(r,&w,&h);
         float scale=std::max(0.5f,std::min(w/1100.0f,h/float(ui::height)));
         if(std::abs(scale-fontScale)<0.005f)return;
-        std::array<TTF_Font*,6> fonts{};constexpr int sizes[]={18,14,38,23,12,112};
+        std::array<TTF_Font*,6> fonts{};constexpr int sizes[]={18,14,48,25,12,112};
         for(size_t i=0;i<fonts.size();++i){
-            const auto path=(i==2||i==3||i==5)?assetPath+"/fonts/Oxanium-SemiBold.ttf":fontPath;
+            const auto path=(i==2||i==3||i==5)?assetPath+"/fonts/XR1LDisplay-Bold.ttf":fontPath;
             fonts[i]=TTF_OpenFont(path.c_str(),static_cast<int>(std::lround(sizes[i]*scale)));
             if(!fonts[i]){for(auto *f:fonts)if(f)TTF_CloseFont(f);throw std::runtime_error("Cannot open bundled font: "+std::string(TTF_GetError()));}
         }
         for(auto *font:fonts)TTF_SetFontHinting(font,TTF_HINTING_LIGHT);
         clearLabels();clearShapes();for(auto *font:{normal,small,title,heading,tiny,display})if(font)TTF_CloseFont(font);
         normal=fonts[0];small=fonts[1];title=fonts[2];heading=fonts[3];tiny=fonts[4];display=fonts[5];
-        fontScale=scale; // Headings use Oxanium's designed semibold face, without synthetic bold.
+        fontScale=scale; // Headings use the approved designed bold face, without synthetic bold.
     }
     void rect(int x,int y,int w,int h,SDL_Color c){
         c=resolve(c);

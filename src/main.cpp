@@ -95,9 +95,9 @@ static void handleSignal(int) {interrupted=1;}
 static void help() {
     std::cout<<
 #ifdef _WIN32
-    "XR1-L Player 1.5.21 - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.22 - native 1080p60 HDMI viewer ("
 #else
-    "XR1-L Player 1.5.21 Linux test build - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.22 Linux test build - native 1080p60 HDMI viewer ("
 #endif
 #ifdef _WIN32
     "Windows x86_64"

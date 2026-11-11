@@ -121,3 +121,18 @@
   packaged Linux controls/appearance, and Windows scaling, full UI and packaged
   demo under Wine. Preview reviewed at the normal window size. Native Windows
   and real display/capture testing remain with the user.
+
+- Local 1.5.22: implement the approved Orbitron-derived bold menu typography,
+  centered by visible glyph bounds, with theme-colored Play, neutral secondary
+  labels, shadows, and a slow highlight/glow cycle. Cache physical-resolution
+  text textures; font/theme/renderer changes clear them. Motion Off is still.
+  Use an RFN-compliant internal font name while preserving approved outlines.
+  Preserve layout, artwork, capture/audio and video presentation. Both builds
+  remain local; preserve older downloads. Future feature ideas are discussion
+  only until the user requests a specific addition.
+  Verified: all 12 Linux CTest checks, packaged Linux controls/audio/appearance,
+  and Windows typography, scaling, complete UI and packaged demo under Wine.
+  Rendering checks include normal/fractional/4K sizes, three themes, glyph-center
+  clearance, warm-cache reuse, Motion Off and reset cleanup. Native Windows and
+  physical capture/display testing remain with the user. ZIP/embedded binary,
+  font and license hashes were verified.

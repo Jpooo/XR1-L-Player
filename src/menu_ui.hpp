@@ -61,13 +61,22 @@ inline void navigationButton(Painter &p,int index,const std::string &label,bool 
     p.line(b.x+1,b.y+23-lift,b.x+1,b.y+b.h-23-lift,opacity(a,primary?255:150),2.5f);
     p.line(b.x+b.w-36,b.y+6-lift,b.x+b.w-14,b.y+27-lift,opacity(a,Uint8(50+focus*100)),2);
     glyph(p,index,float(b.x+28),b.y+(b.h-32)/2.0f-lift,primary?a:white);
-    p.text(label,b.x+91,b.y+(primary?29:23)-lift,white,primary?p.title:p.heading);
+    auto *font=primary?p.title:p.heading;
+    auto *letters=&p.menuLetters.get(font,label,a,primary,p.fontScale);
+    // Long recovery actions stay inside the same icon/chevron clearance.
+    if(letters->ink.w/p.fontScale>220)letters=&p.menuLetters.get(p.heading,label,a,primary,p.fontScale);
+    float x=b.x+b.w/2.f-(letters->ink.x+letters->ink.w/2.f)/p.fontScale;
+    float y=b.y+b.h/2.f-(letters->ink.y+letters->ink.h/2.f)/p.fontScale-lift;
+    p.menuLetters.draw(*letters,x,y+p.offsetY,p.frameTime,p.motion);
     p.icon(Icon::Chevron,b.x+b.w-36,b.y+(b.h-20)/2.0f-lift,20,opacity(a,Uint8(80+focus*175)));
 }
 inline void menuHeader(Painter &p,Screen screen,bool backHovered,ConsoleColor theme){
     auto a=p.theme.accent();
     if(screen==Screen::Main){
-        p.text("XR1-L Player",42,32,white,p.heading);p.text("1.5.21",226,39,muted,p.small);
+        const auto &letters=p.menuLetters.get(p.heading,"XR1-L Player",a,false,p.fontScale);
+        float x=42-letters.ink.x/p.fontScale,y=51-(letters.ink.y+letters.ink.h/2.f)/p.fontScale;
+        p.menuLetters.draw(letters,x,y+p.offsetY,p.frameTime,false);
+        p.text("1.5.22",42+letters.ink.w/p.fontScale+12,43,muted,p.small);
         p.round({847,37,13,13},4,a);p.text(themeName(theme),874,33,white,p.normal);
         p.text("MAIN MENU",48,138,muted,p.tiny);
     }else{

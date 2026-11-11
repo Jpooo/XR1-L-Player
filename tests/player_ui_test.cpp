@@ -119,6 +119,10 @@ int main(){
     targetW=1600;targetH=900;check("large-window",false,{},"PLAY",false);
     targetW=1100;targetH=650;
     check("feed-start-clean",true,{},nullptr,true);
+    check("upscaling-hotkey-on",true,{key(200,SDLK_u)},nullptr,true);
+    Options upscaled;loadSettings(upscaled);assert(upscaled.fsr);
+    check("upscaling-hotkey-off",true,{key(200,SDLK_u)},"Upscaling: Off",true);
+    Options normalScaling;loadSettings(normalScaling);assert(!normalScaling.fsr);
     check("removed-shortcut-inert",true,{key(200,SDLK_F8)},nullptr,true);
     check("stop-restart-play",true,{key(150,SDLK_RETURN),key(350,SDLK_RETURN)},"PLAY",true);
     check("playback-toolbar",true,{},"Main menu",true);assert(labels.count("Settings"));

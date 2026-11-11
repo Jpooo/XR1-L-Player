@@ -103,9 +103,9 @@ static void handleSignal(int) {interrupted=1;}
 static void help() {
     std::cout<<
 #ifdef _WIN32
-    "XR1-L Player 1.5.28 - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.29 - native 1080p60 HDMI viewer ("
 #else
-    "XR1-L Player 1.5.28 Linux test build - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.29 Linux test build - native 1080p60 HDMI viewer ("
 #endif
 #ifdef _WIN32
     "Windows x86_64"
@@ -135,7 +135,7 @@ static void help() {
     "  --seconds N            Exit after N seconds (testing)\n"
     "  --screenshot FILE.bmp  Save a screenshot before exit with --seconds\n"
     "Move the mouse for volume/fullscreen controls; double-click video for fullscreen.\n"
-    "Keys: Enter start/stop, F/F11 fullscreen, Tab settings / return to video, M mute, +/- volume,\n"
+    "Keys: Enter start/stop, F/F11 fullscreen, Tab settings / return to video, U upscaling, M mute, +/- volume,\n"
     "      R refresh devices, Esc leave fullscreen / stop / quit.\n";
 }
 static Options parse(int argc,char **argv) {
@@ -241,7 +241,7 @@ static int app(const Options &o) {
         connection::Recovery recovery;std::optional<connection::Target> lastTarget;
         bool resumeMenu=false;ui::Screen resumeScreen=ui::Screen::Main;
         double lastVideoAt=0,lastDeviceRefresh=monotime();
-        bool reducedMotion=o.reduceMotion,fsr=o.fsr,upscalingDirty=false;double upscalingRetry=0;
+        bool reducedMotion=o.reduceMotion,fsr=o.fsr,upscalingDirty=false;double upscalingRetry=0,upscalingFeedbackUntil=0;
         bool validateVideo=o.videoSet,validateAudio=o.audioSet,validateOutput=o.outputSet;
         std::string error;
         double began=monotime(),startTime=began,lastStat=began,lastPaint=0;
@@ -372,12 +372,17 @@ static int app(const Options &o) {
         auto openScreen=[&](ui::Screen next){if(recovery.pending()){resumeMenu=true;resumeScreen=next;}screen=next;menu=true;menuFocus=0;keyboardNavigation=false;controlsUntil=monotime()+3;
             std::cout<<"Menu: "<<(screen==ui::Screen::Main?"main":screen==ui::Screen::Settings?"settings":"preferences")<<std::endl;};
         auto toggleMotion=[&](){reducedMotion=!reducedMotion;colorSaveError=saveMotionPreference(reducedMotion)?"":"Could not save motion preference. It is applied for this session.";std::cout<<"Menu motion: "<<(reducedMotion?"off":"on")<<std::endl;};
+        auto toggleUpscaling=[&](){
+            fsr=!fsr;upscaler.invalidate();upscalingDirty=true;upscalingRetry=0;
+            upscalingFeedbackUntil=monotime()+2.5;
+            std::cout<<"Upscaling: "<<(fsr?"FSR 1":"Off")<<std::endl;
+        };
         auto settingAction=[&](int index,int dir){
             if((index==0||index==1||index==3||index==4)&&recovery.pending()){recovery.cancel();lastDeviceRefresh=0;}
             if((index==0||index==1||index==3||index==4)&&playing){error="Stop playback to change capture devices or format.";return;}
             if(index==0&&!videos.empty()){vi=(vi+dir+static_cast<int>(videos.size()))%static_cast<int>(videos.size());validateVideo=false;}
             else if(index==1)fi=(fi+dir+static_cast<int>(formats.size()))%static_cast<int>(formats.size());
-            else if(index==2){fsr=!fsr;upscaler.reset();upscalingDirty=true;upscalingRetry=0;}
+            else if(index==2)toggleUpscaling();
             else if(index==3&&!inputs.empty()){ai=(ai+1+dir+static_cast<int>(inputs.size()+1))%static_cast<int>(inputs.size()+1)-1;validateAudio=false;}
             else if(index==4){oi=(oi+1+dir+static_cast<int>(outputs.size()+1))%static_cast<int>(outputs.size()+1)-1;validateOutput=false;}
             else if(index==5)mute();
@@ -431,6 +436,7 @@ static int app(const Options &o) {
                     auto key=event.key.keysym.sym;
                     if(key==SDLK_f||key==SDLK_F11)fullscreen();
                     if(key==SDLK_m)mute();
+                    if(key==SDLK_u&&playing)toggleUpscaling();
                     if(key==SDLK_PLUS||key==SDLK_EQUALS||key==SDLK_KP_PLUS)changeVolume(audio.volume.load()+.05f);
                     if(key==SDLK_MINUS||key==SDLK_KP_MINUS)changeVolume(audio.volume.load()-.05f);
                     if(key==SDLK_r&&!playing){refresh(true);recovery.retryNow(monotime());}
@@ -587,7 +593,7 @@ static int app(const Options &o) {
                         p.text(playing?"Stop playback to change devices.":"Choose Play from the main menu to apply changes.",60,450,dim,p.tiny);
                         p.button(ui::refresh,"Refresh devices",focus(ui::refresh,7),false,p.small);
                         if(playing||recovery.pending())p.button(ui::stop,recovery.pending()?"Cancel reconnect":"Stop playback",focus(ui::stop,8),false,p.small);
-                        p.text(playing?"Tab  Return to video     Esc  Main menu":"Arrows  Browse     Enter  Select     Esc  Main menu",40,605,dim,p.small);
+                        p.text(playing?"Tab  Return to video     U  Upscaling     Esc  Main menu":"Arrows  Browse     Enter  Select     Esc  Main menu",40,605,dim,p.small);
                     }else{
                         p.text("COLOR PREFERENCE",40,143,dim,p.small);
                         for(int i=0;i<3;++i)ui::themeCard(p,i,static_cast<int>(colorTheme)==i,focus(ui::themes[size_t(i)],i));
@@ -632,6 +638,16 @@ static int app(const Options &o) {
                     if(fill>0)p.round({left,top,fill,6},3,accent);
                     p.round({left+fill-7,top-4,14,14},7,color);
                     p.text(std::to_string(static_cast<int>(std::lround(audio.volume*100)))+"%",menu?930:636,menu?405:664,dim);
+                }
+                if(playing&&!menu&&now<upscalingFeedbackUntil){
+                    p.offsetY=0;
+                    std::string notice="Upscaling: Off";
+                    if(fsr){
+                        notice="FSR 1: "+upscaler.status();
+                        if(std::string(info.name)!="opengl")notice=o.fsr?"FSR unavailable on this renderer; normal scaling.":"FSR selected: enable in Settings and restart once, then U toggles live.";
+                    }
+                    p.card({22,20,850,36},{17,24,29,235},accent,10);
+                    p.fit(notice,36,30,822,color,p.small);
                 }
                 if(timedExit&&!o.screenshot.empty()) {
                     // Read the entire drawable, rather than the logical UI viewport.

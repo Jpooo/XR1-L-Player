@@ -73,6 +73,7 @@ public:
     FsrUpscaler()=default;FsrUpscaler(const FsrUpscaler&)=delete;FsrUpscaler &operator=(const FsrUpscaler&)=delete;
     ~FsrUpscaler(){reset();}
     void reset(){if(rgb)SDL_DestroyTexture(rgb);if(output)SDL_DestroyTexture(output);if(program&&DeleteProgram)DeleteProgram(program);rgb=output=nullptr;program=0;owner=nullptr;attempted=valid=allocationFailed=false;width=height=0;message="Applies to video above 1080p.";}
+    void invalidate(){valid=false;}
     const std::string &status()const{return message;}
     int render(SDL_Renderer *r,SDL_Texture *input,const SDL_Rect &dst,const std::string &assets,bool changed){
         if(dst.w<=1920||dst.h<=1080){message="Native size: normal scaling.";return SDL_RenderCopy(r,input,nullptr,&dst);}

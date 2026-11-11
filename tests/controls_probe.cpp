@@ -48,6 +48,7 @@ static const Action idleActions[]={
     {1300,SDL_KEYDOWN,0,0,SDLK_ESCAPE},{1450,SDL_MOUSEBUTTONDOWN,150,350},
     {1700,SDL_MOUSEBUTTONDOWN,140,408}
 };
+static const Action fsrActions[]={{400,SDL_KEYDOWN,0,0,SDLK_u},{1000,SDL_KEYDOWN,0,0,SDLK_u},{1500,SDL_KEYDOWN,0,0,SDLK_u},{2100,SDL_KEYDOWN,0,0,SDLK_u}};
 static const Action previewActions[]={{100,SDL_MOUSEBUTTONDOWN,100,606}};
 extern "C" int SDL_PollEvent(SDL_Event *event) {
     static auto real=reinterpret_cast<int(*)(SDL_Event*)>(dlsym(RTLD_NEXT,"SDL_PollEvent"));
@@ -60,6 +61,7 @@ extern "C" int SDL_PollEvent(SDL_Event *event) {
     const auto *script=appearance?appearanceActions:actions;
     size_t length=appearance?sizeof(appearanceActions)/sizeof(appearanceActions[0]):sizeof(actions)/sizeof(actions[0]);
     if(std::getenv("XR1_TEST_IDLE")){script=idleActions;length=sizeof(idleActions)/sizeof(idleActions[0]);}
+    if(std::getenv("XR1_TEST_FSR")){script=fsrActions;length=sizeof(fsrActions)/sizeof(fsrActions[0]);}
     if(std::getenv("XR1_TEST_PREVIEW")){script=previewActions;length=sizeof(previewActions)/sizeof(previewActions[0]);}
     if(next>=length||SDL_GetTicks()-began<script[next].at)return 0;
     const auto &a=script[next++];*event={};event->type=a.type;
@@ -77,6 +79,7 @@ extern "C" int SDL_RenderCopy(SDL_Renderer *r,SDL_Texture *t,const SDL_Rect *src
 
 extern "C" void SDL_CloseAudioDevice(SDL_AudioDeviceID device){
     static auto real=reinterpret_cast<void(*)(SDL_AudioDeviceID)>(dlsym(RTLD_NEXT,"SDL_CloseAudioDevice"));
+    if(std::getenv("XR1_TEST_FSR")&&device&&firstPollSeen&&SDL_GetTicks()-firstPollTick<2800){std::fprintf(stderr,"FAIL: FSR toggle stopped audio playback\n");std::abort();}
     if(std::getenv("XR1_TEST_APPEARANCE")&&device&&firstPollSeen&&SDL_GetTicks()-firstPollTick<3600){
         std::fprintf(stderr,"FAIL: appearance controls stopped audio playback early\n");std::abort();
     }

@@ -216,3 +216,17 @@
   app/shader/license bytes, permissions and manifest hashes match. Native card,
   physical Windows GPU performance and end-to-end latency remain unverified;
   the virtual-display GPU checks use Mesa software rendering.
+
+- Local 1.5.29: U toggles FSR during playback with a short status message and
+  saved preference. Keep the shader/target cache alive across A/B toggles, but
+  invalidate the cached picture so re-enabling uses the current frame. Reuse
+  the same action from Settings. No capture/audio restart. The existing Windows
+  renderer setup requires enabling FSR in Settings and restarting once before
+  live comparison; show that requirement when U is pressed on a non-GL renderer.
+  Keep packages local and previous downloads intact.
+  Verified all 14 Linux checks including hotkey On/Off and preference reload;
+  OpenGL YUYV/NV12 cache invalidation; four real UI hotkey toggles in one Linux
+  GPU fixture session without reopening capture/audio; shipping AppImage menu
+  persistence. Windows UI/hotkey, GL image/cache, startup and packaged launch
+  checks passed under Wine. ZIP CRC, embedded app/shader bytes, permissions and
+  SHA-256 manifests match. Physical card/native GPU testing remains with user.

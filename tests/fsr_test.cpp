@@ -32,7 +32,8 @@ int main(){
     else for(size_t i=0;i<bytes.size();i+=4){bytes[i+1]=frame?200:90;bytes[i+3]=frame?90:200;}
     assert(SDL_UpdateTexture(yuv,nullptr,bytes.data(),pitch)==0);
     SDL_RenderCopy(r,yuv,nullptr,&dst);SDL_RenderFlush(r);SDL_Rect probe{260,500,1,1};Uint32 baseline=0,scaled=0;SDL_RenderReadPixels(r,&probe,SDL_PIXELFORMAT_ARGB8888,&baseline,4);
-    assert(fsr.render(r,yuv,dst,assets,true)==0);SDL_RenderFlush(r);SDL_RenderReadPixels(r,&probe,SDL_PIXELFORMAT_ARGB8888,&scaled,4);
+    if(frame)fsr.invalidate();
+    assert(fsr.render(r,yuv,dst,assets,frame==0)==0);SDL_RenderFlush(r);SDL_RenderReadPixels(r,&probe,SDL_PIXELFORMAT_ARGB8888,&scaled,4);
     for(int shift:{0,8,16})assert(std::abs(int((baseline>>shift)&255)-int((scaled>>shift)&255))<4);
    }
    SDL_DestroyTexture(yuv);

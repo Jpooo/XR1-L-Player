@@ -87,11 +87,15 @@ struct Painter {
         float scale=std::max(0.5f,std::min(w/1100.0f,h/float(ui::height)));
         if(std::abs(scale-fontScale)<0.005f)return;
         std::array<TTF_Font*,6> fonts{};constexpr int sizes[]={18,14,38,23,12,112};
-        for(size_t i=0;i<fonts.size();++i){fonts[i]=TTF_OpenFont(fontPath.c_str(),static_cast<int>(std::lround(sizes[i]*scale)));if(!fonts[i]){for(auto *f:fonts)if(f)TTF_CloseFont(f);throw std::runtime_error("Cannot open bundled font: "+std::string(TTF_GetError()));}}
+        for(size_t i=0;i<fonts.size();++i){
+            const auto path=(i==2||i==3||i==5)?assetPath+"/fonts/Inter-SemiBold.ttf":fontPath;
+            fonts[i]=TTF_OpenFont(path.c_str(),static_cast<int>(std::lround(sizes[i]*scale)));
+            if(!fonts[i]){for(auto *f:fonts)if(f)TTF_CloseFont(f);throw std::runtime_error("Cannot open bundled font: "+std::string(TTF_GetError()));}
+        }
         for(auto *font:fonts)TTF_SetFontHinting(font,TTF_HINTING_LIGHT);
         clearLabels();clearShapes();for(auto *font:{normal,small,title,heading,tiny,display})if(font)TTF_CloseFont(font);
         normal=fonts[0];small=fonts[1];title=fonts[2];heading=fonts[3];tiny=fonts[4];display=fonts[5];
-        TTF_SetFontStyle(title,TTF_STYLE_BOLD);TTF_SetFontStyle(heading,TTF_STYLE_BOLD);TTF_SetFontStyle(display,TTF_STYLE_BOLD);fontScale=scale;
+        fontScale=scale; // Headings use Inter's designed semibold face, without synthetic bold.
     }
     void rect(int x,int y,int w,int h,SDL_Color c){
         c=resolve(c);

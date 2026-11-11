@@ -26,6 +26,7 @@ shutil.copytree(root/'assets',folder/'assets')
 (folder/'licenses').mkdir()
 shutil.copy2(root/'LICENSE',folder/'licenses/XR1-L-Player.txt')
 shutil.copy2(root/'assets/DejaVuSans.LICENSE',folder/'licenses/DejaVuSans.txt')
+shutil.copy2(root/'assets/fonts/Inter-OFL.txt',folder/'licenses/Inter-OFL.txt')
 shutil.copy2(root/'assets/icons/LICENSE',folder/'licenses/Lucide.txt')
 for label,path in {'SDL2':root/'.deps/win-sdk/SDL2-2.32.4/LICENSE.txt','SDL2_ttf':root/'.deps/win-sdk/SDL2_ttf-2.24.0/LICENSE.txt','GCC-runtime':root/'.deps/toolchain/usr/share/doc/gcc-mingw-w64-base/copyright','MinGW-runtime':root/'.deps/toolchain/usr/share/doc/mingw-w64-common/copyright'}.items():
     if path.is_file():shutil.copy2(path,folder/'licenses'/f'{label}.txt')
@@ -36,7 +37,7 @@ shutil.copy2(root/'COMPATIBILITY.md',folder/'COMPATIBILITY.md')
 shutil.copy2('/usr/share/doc/libfreetype6/copyright',folder/'licenses/FreeType-notice.txt')
 shutil.copy2('/usr/share/doc/libharfbuzz0b/copyright',folder/'licenses/HarfBuzz-notice.txt')
 (folder/'dependencies.txt').write_text('Native Windows 10/11 x64; Media Foundation video and SDL WASAPI audio.\nBundled DLLs:\n'+'\n'.join(sorted(copied))+'\nHardware compatibility is not universally verified. See COMPATIBILITY.md.\n')
-archive=root/'dist/XR1-L-Player-1.5.19-Windows-x64.zip';archive.parent.mkdir(exist_ok=True)
+archive=root/'dist/XR1-L-Player-1.5.20-Windows-x64.zip';archive.parent.mkdir(exist_ok=True)
 with zipfile.ZipFile(archive,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=9) as z:
     for path in folder.rglob('*'):
         if path.is_file():z.write(path,Path('XR1-L-Player')/path.relative_to(folder))

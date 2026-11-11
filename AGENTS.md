@@ -102,3 +102,13 @@
   packaged controls/appearance, Windows icon resources and UI under Wine, and a
   fullscreen 4K virtual-display screenshot. Native Windows mixed-monitor DPI
   transitions and real Linux compositor/launcher behavior remain to be tested.
+
+- Local 1.5.20: use the properly licensed Inter Semibold face for main navigation,
+  headings and the app title, without simulated bold. Preserve body text, existing
+  sizes/layout, icons, theme choices and all playback behavior. Bundle the static
+  font and SIL OFL license in both packages. Keep builds local.
+  Checked physical-resolution text through 4K, all 11 Linux CTest checks,
+  packaged controls/appearance, Windows scaling and packaged demo under Wine.
+  The Windows UI timing fixture passed when rerun without concurrent rendering
+  tests; its first run missed the software preview draw-count threshold under
+  shared test load. Native hardware/display validation remains with the user.

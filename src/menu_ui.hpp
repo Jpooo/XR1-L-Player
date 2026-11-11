@@ -67,7 +67,7 @@ inline void navigationButton(Painter &p,int index,const std::string &label,bool 
 inline void menuHeader(Painter &p,Screen screen,bool backHovered,ConsoleColor theme){
     auto a=p.theme.accent();
     if(screen==Screen::Main){
-        p.text("XR1-L Player",42,32,white,p.heading);p.text("1.5.19",226,39,muted,p.small);
+        p.text("XR1-L Player",42,32,white,p.heading);p.text("1.5.20",226,39,muted,p.small);
         p.round({847,37,13,13},4,a);p.text(themeName(theme),874,33,white,p.normal);
         p.text("MAIN MENU",48,138,muted,p.tiny);
     }else{

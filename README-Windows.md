@@ -1,4 +1,4 @@
-# XR1-L Player 1.5.27 — Windows
+# XR1-L Player 1.5.28 — Windows
 
 1080p60 live preview and HDMI stereo audio for EVGA XR1 Lite.
 
@@ -22,3 +22,5 @@ Settings use %APPDATA%\XR1-L Player\. Previous XR1 Play settings are imported wh
 Local test build; not uploaded to GitHub. Hardware unplug/replug testing is still needed.
 
 Windowed size and fullscreen state are restored on launch. `--windowed` overrides saved fullscreen. Automatic format selection tries only YUYV and NV12.
+
+Optional upscaling: Settings → Upscaling → FSR 1 EASU. Default Off; sharpening is disabled. Windows requires an app restart after enabling it to select the OpenGL renderer. It applies to the full video feed when displayed larger than 1080p. The main-menu preview is unchanged. Unsupported GPUs/renderers use normal scaling. FSR processes each frame independently; it does not increase capture frame rate or restore lost source detail. GPU cost and responsiveness need comparison on your hardware.

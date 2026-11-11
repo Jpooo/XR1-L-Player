@@ -199,3 +199,20 @@
   No interpolation, refresh-rate changes or GitHub upload authorized by this
   cleanup. Explain that 120 Hz presentation of a 60 fps feed repeats frames;
   a PC refresh rate evenly divisible by 60 can improve presentation cadence.
+
+- Local 1.5.28: optional AMD FSR 1 FP32 EASU spatial upscaling, default Off,
+  without RCAS sharpening, frame generation or extra frame queues. Apply only
+  to the full feed above 1080p; keep capture/audio/menu preview unchanged. Save
+  the preference atomically. Enabled startup selects OpenGL 4.2 compatibility
+  on both platforms; Off preserves the prior renderer selection. Windows needs
+  an app restart after enabling FSR. Unsupported hardware falls back to normal
+  scaling with a Settings status message. Bundle upstream MIT sources/license.
+  New Windows ZIP and Linux AppImage ZIP stay local; no GitHub upload.
+  Verified all 14 Linux CTest checks, updated shipping AppImage controls and
+  preference persistence, GL EASU image orientation/color/state/cache/native
+  bypass with YUYV and NV12, and a 4K fixture render. Windows full UI, shipping
+  launch/help, actual EASU shader image checks and enabled startup passed under
+  Wine. Unsupported renderer startup falls back successfully. ZIP CRC, embedded
+  app/shader/license bytes, permissions and manifest hashes match. Native card,
+  physical Windows GPU performance and end-to-end latency remain unverified;
+  the virtual-display GPU checks use Mesa software rendering.

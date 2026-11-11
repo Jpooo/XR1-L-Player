@@ -20,6 +20,7 @@ int main(){
         std::ofstream out(path);
         out<<"video \"Capture Card #1\"\naudio \"USB HDMI Audio\"\noutput \"Desktop speakers\"\nformat \"nv12\"\ncustom \"keep this field\"\ntheme \"xbox\"\n";
     }
+    assert(!Options{}.fsr);
     Options legacy;loadSettings(legacy);assert(legacy.video=="Capture Card #1");
     assert(saveColorPreference(ui::ConsoleColor::PlayStation));
     assert(std::filesystem::exists(path));path=settingsPath();
@@ -27,7 +28,8 @@ int main(){
     assert(blue.video=="Capture Card #1"&&blue.audio=="USB HDMI Audio"&&blue.output=="Desktop speakers"&&blue.format=="nv12");
     assert(blue.colorTheme==ui::ConsoleColor::PlayStation);
     {std::ifstream in(path);std::string data((std::istreambuf_iterator<char>(in)),{});assert(data.find("custom \"keep this field\"")!=std::string::npos);}
-    assert(saveMotionPreference(true));Options motion;loadSettings(motion);assert(motion.reduceMotion);
+    assert(updateSettings({{"upscaling","fsr1"}}));Options fsr;loadSettings(fsr);assert(fsr.fsr);
+    assert(saveMotionPreference(true));Options motion;loadSettings(motion);assert(motion.reduceMotion&&motion.fsr);
     assert(saveVolumePreference(.42f,true));
     Options volume;loadSettings(volume);assert(std::abs(volume.volume-.42f)<.0001f&&volume.muted);
     assert(saveSettings(blue.video,blue.audio,blue.output,blue.format,blue.colorTheme,volume.volume,volume.muted));

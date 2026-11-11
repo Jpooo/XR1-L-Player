@@ -11,11 +11,12 @@
 #include "menu_ui.hpp"
 #include "frame_cadence.hpp"
 #include "connection_recovery.hpp"
+#include "fsr_upscaler.hpp"
 #ifdef _WIN32
 #include "windows_presenter.hpp"
 #endif
 struct Options {
-    bool colorPreference=false,muted=false;
+    bool colorPreference=false,muted=false,fsr=false;
     float volume=0.7f;
     int windowWidth=1100,windowHeight=650;
     ui::ConsoleColor colorTheme=ui::ConsoleColor::Xbox;
@@ -49,6 +50,7 @@ static void loadSettings(Options &o) {
         if(key=="audio")o.audio=value;
         if(key=="output")o.output=value;
         if(key=="format")o.format=(value=="yuyv"||value=="nv12")?value:"auto";
+        if(key=="upscaling")o.fsr=value=="fsr1";
         if(key=="fullscreen")o.fullscreen=value=="true";
         if(key=="window_width"||key=="window_height")try{
             size_t used=0;int size=std::stoi(value,&used);int minimum=key=="window_width"?900:560;
@@ -101,9 +103,9 @@ static void handleSignal(int) {interrupted=1;}
 static void help() {
     std::cout<<
 #ifdef _WIN32
-    "XR1-L Player 1.5.27 - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.28 - native 1080p60 HDMI viewer ("
 #else
-    "XR1-L Player 1.5.27 Linux test build - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.28 Linux test build - native 1080p60 HDMI viewer ("
 #endif
 #ifdef _WIN32
     "Windows x86_64"
@@ -116,6 +118,7 @@ static void help() {
     "  --audio NAME           Exact capture-device name from --diagnose\n"
     "  --output NAME          Exact playback-device name (default: system default)\n"
     "  --format auto|yuyv|nv12\n"
+    "  --upscaling off|fsr1   Optional spatial upscale; no sharpening (default off)\n"
 #ifdef _WIN32
     "  --audio-buffer MS      Audio queue cap, 5..80 ms (default 32; reserve ~13 ms)\n"
 #else
@@ -152,6 +155,7 @@ static Options parse(int argc,char **argv) {
         else if(a=="--audio") {o.audio=value();o.audioSet=true;}
         else if(a=="--output") {o.output=value();o.outputSet=true;}
         else if(a=="--format") o.format=value();
+        else if(a=="--upscaling"){auto choice=value();if(choice!="off"&&choice!="fsr1")throw std::runtime_error("Upscaling must be off or fsr1.");o.fsr=choice=="fsr1";}
         else if(a=="--seconds") o.seconds=std::stoi(value());
         else if(a=="--audio-buffer") o.latency=std::stoi(value());
         else if(a=="--capture-buffers") o.buffers=std::stoi(value());
@@ -201,15 +205,18 @@ static int app(const Options &o) {
         if(width<initialWidth||height<initialHeight){SDL_SetWindowSize(window,width,height);SDL_SetWindowPosition(window,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED);}
     }
     int windowedWidth=0,windowedHeight=0;SDL_GetWindowSize(window,&windowedWidth,&windowedHeight);
-#ifdef _WIN32
-    // SDL2's default D3D9 path can fall back to CPU YUV conversion. Prefer
-    // D3D11's NV12/I420 shaders, retaining other accelerated backends as fallback.
     SDL_Renderer *renderer=nullptr;
-    for(int i=0;i<SDL_GetNumRenderDrivers();++i){SDL_RendererInfo candidate{};if(SDL_GetRenderDriverInfo(i,&candidate)==0&&std::string(candidate.name)=="direct3d11"){renderer=SDL_CreateRenderer(window,i,SDL_RENDERER_ACCELERATED|(o.vsync?SDL_RENDERER_PRESENTVSYNC:0));break;}}
-    if(!renderer)renderer=SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED|(o.vsync?SDL_RENDERER_PRESENTVSYNC:0));
-#else
-    SDL_Renderer *renderer=SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED|(o.vsync?SDL_RENDERER_PRESENTVSYNC:0));
+    if(o.fsr){
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION,4);SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION,2);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+        for(int i=0;i<SDL_GetNumRenderDrivers();++i){SDL_RendererInfo driver{};if(SDL_GetRenderDriverInfo(i,&driver)==0&&std::string(driver.name)=="opengl"){renderer=SDL_CreateRenderer(window,i,SDL_RENDERER_ACCELERATED|(o.vsync?SDL_RENDERER_PRESENTVSYNC:0));break;}}
+        if(!renderer){SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION,2);SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION,1);SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,0);}
+    }
+#ifdef _WIN32
+    // Preserve the existing D3D11 path when the optional upscaler is off.
+    if(!renderer)for(int i=0;i<SDL_GetNumRenderDrivers();++i){SDL_RendererInfo candidate{};if(SDL_GetRenderDriverInfo(i,&candidate)==0&&std::string(candidate.name)=="direct3d11"){renderer=SDL_CreateRenderer(window,i,SDL_RENDERER_ACCELERATED|(o.vsync?SDL_RENDERER_PRESENTVSYNC:0));break;}}
 #endif
+    if(!renderer)renderer=SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED|(o.vsync?SDL_RENDERER_PRESENTVSYNC:0));
     if(!renderer) renderer=SDL_CreateRenderer(window,-1,SDL_RENDERER_SOFTWARE);
     if(!renderer) throw std::runtime_error(SDL_GetError());
     int syncResult=SDL_RenderSetVSync(renderer,o.vsync?1:0);
@@ -219,6 +226,7 @@ static int app(const Options &o) {
     SDL_RendererInfo info{};SDL_GetRendererInfo(renderer,&info);std::cout<<"Renderer: "<<info.name<<" / video driver: "<<SDL_GetCurrentVideoDriver()<<" / vsync requested: "<<o.vsync<<" / renderer accepted: "<<(syncResult==0?"yes":"no")<<"\n";
     int result=0;
     {
+        FsrUpscaler upscaler;
         Painter p(renderer);SharedVideo shared;Capture capture(shared);Audio audio(o.latency);
         audio.volume=o.volume;audio.muted=o.muted;
         // Native capture wakes this thread directly. SDL still handles window
@@ -233,7 +241,7 @@ static int app(const Options &o) {
         connection::Recovery recovery;std::optional<connection::Target> lastTarget;
         bool resumeMenu=false;ui::Screen resumeScreen=ui::Screen::Main;
         double lastVideoAt=0,lastDeviceRefresh=monotime();
-        bool reducedMotion=o.reduceMotion;
+        bool reducedMotion=o.reduceMotion,fsr=o.fsr,upscalingDirty=false;double upscalingRetry=0;
         bool validateVideo=o.videoSet,validateAudio=o.audioSet,validateOutput=o.outputSet;
         std::string error;
         double began=monotime(),startTime=began,lastStat=began,lastPaint=0;
@@ -365,17 +373,18 @@ static int app(const Options &o) {
             std::cout<<"Menu: "<<(screen==ui::Screen::Main?"main":screen==ui::Screen::Settings?"settings":"preferences")<<std::endl;};
         auto toggleMotion=[&](){reducedMotion=!reducedMotion;colorSaveError=saveMotionPreference(reducedMotion)?"":"Could not save motion preference. It is applied for this session.";std::cout<<"Menu motion: "<<(reducedMotion?"off":"on")<<std::endl;};
         auto settingAction=[&](int index,int dir){
-            if(index<=3&&recovery.pending()){recovery.cancel();lastDeviceRefresh=0;}
-            if(index<=3&&playing){error="Stop playback to change capture devices or format.";return;}
+            if((index==0||index==1||index==3||index==4)&&recovery.pending()){recovery.cancel();lastDeviceRefresh=0;}
+            if((index==0||index==1||index==3||index==4)&&playing){error="Stop playback to change capture devices or format.";return;}
             if(index==0&&!videos.empty()){vi=(vi+dir+static_cast<int>(videos.size()))%static_cast<int>(videos.size());validateVideo=false;}
             else if(index==1)fi=(fi+dir+static_cast<int>(formats.size()))%static_cast<int>(formats.size());
-            else if(index==2&&!inputs.empty()){ai=(ai+1+dir+static_cast<int>(inputs.size()+1))%static_cast<int>(inputs.size()+1)-1;validateAudio=false;}
-            else if(index==3){oi=(oi+1+dir+static_cast<int>(outputs.size()+1))%static_cast<int>(outputs.size()+1)-1;validateOutput=false;}
-            else if(index==4)mute();
-            else if(index==5)changeVolume(audio.volume.load()+dir*.05f);
-            else if(index==6&&!playing){refresh(true);recovery.retryNow(monotime());}
-            else if(index==7&&(playing||recovery.pending()))stop();
-            else if(index==8)openScreen(ui::Screen::Main);
+            else if(index==2){fsr=!fsr;upscaler.reset();upscalingDirty=true;upscalingRetry=0;}
+            else if(index==3&&!inputs.empty()){ai=(ai+1+dir+static_cast<int>(inputs.size()+1))%static_cast<int>(inputs.size()+1)-1;validateAudio=false;}
+            else if(index==4){oi=(oi+1+dir+static_cast<int>(outputs.size()+1))%static_cast<int>(outputs.size()+1)-1;validateOutput=false;}
+            else if(index==5)mute();
+            else if(index==6)changeVolume(audio.volume.load()+dir*.05f);
+            else if(index==7&&!playing){refresh(true);recovery.retryNow(monotime());}
+            else if(index==8&&(playing||recovery.pending()))stop();
+            else if(index==9)openScreen(ui::Screen::Main);
         };
         auto menuAction=[&](int index,int dir){
             if(screen==ui::Screen::Main){
@@ -407,7 +416,7 @@ static int app(const Options &o) {
 #else
                     if(texture)SDL_DestroyTexture(texture);
 #endif
-                    texture=nullptr;p.resetTextures();
+                    texture=nullptr;p.resetTextures();upscaler.reset();
                 }
                 if(event.type==SDL_MOUSEMOTION) {
                     mouseX=event.motion.x;mouseY=event.motion.y;keyboardNavigation=false;
@@ -432,15 +441,15 @@ static int app(const Options &o) {
                         else if(playing)stop();else quit=true;
                     }else if(key==SDLK_TAB&&playing){if(menu)menu=false;else openScreen(ui::Screen::Settings);controlsUntil=monotime()+3;}
                     else if(menu){
-                        int count=screen==ui::Screen::Main?3:screen==ui::Screen::Settings?9:6;
+                        int count=screen==ui::Screen::Main?3:screen==ui::Screen::Settings?10:6;
                         if(key==SDLK_UP||key==SDLK_DOWN||key==SDLK_TAB){
                             int dir=key==SDLK_UP||(key==SDLK_TAB&&(event.key.keysym.mod&KMOD_SHIFT))?-1:1;
                             menuFocus=(menuFocus+count+dir)%count;
-                            if(screen==ui::Screen::Settings&&!playing&&!recovery.pending()&&menuFocus==7)menuFocus=(menuFocus+count+dir)%count;
+                            if(screen==ui::Screen::Settings&&!playing&&!recovery.pending()&&menuFocus==8)menuFocus=(menuFocus+count+dir)%count;
                             keyboardNavigation=true;
                         }else if(key==SDLK_LEFT||key==SDLK_RIGHT){
                             keyboardNavigation=true;int dir=key==SDLK_LEFT?-1:1;
-                            if(screen==ui::Screen::Settings&&menuFocus<=5)settingAction(menuFocus,dir);
+                            if(screen==ui::Screen::Settings&&menuFocus<=6)settingAction(menuFocus,dir);
                             else if(screen==ui::Screen::Preferences&&menuFocus<3)menuFocus=(menuFocus+3+dir)%3;
                         }else if(key==SDLK_RETURN||key==SDLK_SPACE)menuAction(menuFocus,1);
                     }else if(key==SDLK_RETURN)stop();
@@ -463,13 +472,18 @@ static int app(const Options &o) {
                     if(playing&&!menu&&event.button.clicks==2){fullscreen();continue;}
                     if(!menu)continue;
                     if(screen==ui::Screen::Main){for(int i=0;i<3;++i)if(ui::navigation[size_t(i)].contains(x,y)){menuFocus=i;menuAction(i,1);break;}}
-                    else if(screen==ui::Screen::Settings){for(int i=0;i<9;++i){auto box=ui::settingControls[size_t(i)];if(box.contains(x,y)){menuFocus=i;menuAction(i,x>=box.x+box.w-90&&x<box.x+box.w-44?-1:1);break;}}}
+                    else if(screen==ui::Screen::Settings){for(int i=0;i<10;++i){auto box=ui::settingControls[size_t(i)];if(box.contains(x,y)){menuFocus=i;menuAction(i,x>=box.x+box.w-90&&x<box.x+box.w-44?-1:1);break;}}}
                     else {for(int i=0;i<6;++i)if(ui::preferenceControls[size_t(i)].contains(x,y)){menuFocus=i;menuAction(i,1);break;}}
                 }
             }
             double now=monotime();bool newFrame=false;
             if(volumeDirty&&!draggingVolume&&now>=volumeSaveAfter)persistVolume();
             if(windowDirty&&now>=windowSaveAfter)persistWindow();
+            if(upscalingDirty&&now>=upscalingRetry){
+                const std::string warning="Upscaling preference could not be saved. Check folder permissions and free space.";
+                if(updateSettings({{"upscaling",fsr?"fsr1":"off"}})){upscalingDirty=false;if(error==warning)error.clear();}
+                else {error=warning;upscalingRetry=now+2;}
+            }
             if(!quit&&!interrupted&&recovery.due(now)){
                 try{
                     auto freshVideos=videoDevices();auto freshInputs=audioDevices(true),freshOutputs=audioDevices(false);
@@ -532,7 +546,7 @@ static int app(const Options &o) {
                     SDL_RenderSetLogicalSize(renderer,0,0);
                     int vw=w,vh=static_cast<int>(w*9.0/16);if(vh>h) {vh=h;vw=static_cast<int>(h*16.0/9);}
                     SDL_Rect dst{(w-vw)/2,(h-vh)/2,vw,vh};
-                    int drawn=SDL_RenderCopy(renderer,texture,nullptr,&dst);
+                    int drawn=fsr?upscaler.render(renderer,texture,dst,p.assetPath,newFrame):SDL_RenderCopy(renderer,texture,nullptr,&dst);
                     if(drawn<0){
                         std::cerr<<"Video presentation failed: "<<SDL_GetError()<<"\n";
                         SDL_SetRenderTarget(renderer,nullptr);SDL_RenderSetViewport(renderer,nullptr);SDL_RenderSetClipRect(renderer,nullptr);
@@ -545,7 +559,7 @@ static int app(const Options &o) {
                 if(menu){
                     ui::menuBackground(p);
                     auto focus=[&](ui::Box box,int index){return hover(box)||(keyboardNavigation&&menuFocus==index);};
-                    ui::menuHeader(p,screen,hover(ui::back)||(keyboardNavigation&&menuFocus==(screen==ui::Screen::Settings?8:5)),colorTheme);
+                    ui::menuHeader(p,screen,hover(ui::back)||(keyboardNavigation&&menuFocus==(screen==ui::Screen::Settings?9:5)),colorTheme);
                     if(screen==ui::Screen::Main){
                         for(int i=0;i<3;++i)ui::navigationButton(p,i,i==0?(recovery.pending()?"CANCEL":"PLAY"):i==1?"SETTINGS":"PREFERENCES",focus(ui::navigation[size_t(i)],i));
                         if(ui::logoPanel(p,now-began,reducedMotion,playing?texture:nullptr)&&newFrame)++presented;
@@ -563,14 +577,16 @@ static int app(const Options &o) {
                             if(!playing){p.icon(ui::Icon::Chevron,box.x+box.w-76,box.y+23,18,dim,true);p.icon(ui::Icon::Chevron,box.x+box.w-32,box.y+23,18,accent);}
                         };
                         deviceRow(0,"CAPTURE DEVICE",videos.empty()?"Connect your XR1 Lite":videos[size_t(vi)].name,0,ui::Icon::Video);
-                        deviceRow(1,"HDMI AUDIO INPUT",ai<0?"Choose capture card audio":inputs[size_t(ai)],2,ui::Icon::Speaker);
-                        deviceRow(2,"PLAYBACK OUTPUT",oi<0?"System default output":outputs[size_t(oi)],3,ui::Icon::Speaker);
+                        deviceRow(1,"HDMI AUDIO INPUT",ai<0?"Choose capture card audio":inputs[size_t(ai)],3,ui::Icon::Speaker);
+                        deviceRow(2,"PLAYBACK OUTPUT",oi<0?"System default output":outputs[size_t(oi)],4,ui::Icon::Speaker);
                         p.card(ui::format,ui::raised,focus(ui::format,1)?accent:ui::border,10);
                         p.text("VIDEO FORMAT",76,314,dim,p.tiny);p.text(fi==0?"Automatic":formats[size_t(fi)],76,333,color,p.small);
                         if(!playing){p.icon(ui::Icon::Chevron,429,324,18,dim,true);p.icon(ui::Icon::Chevron,473,324,18,accent);}
+                        p.button(ui::upscaling,fsr?"Upscaling: FSR 1 EASU":"Upscaling: Off",focus(ui::upscaling,2),false,p.small);
+                        if(fsr)p.fit(std::string(info.name)=="opengl"?upscaler.status():(o.fsr?"FSR unavailable here; using normal scaling.":"Restart app to apply FSR 1."),60,433,445,dim,p.tiny);
                         p.text(playing?"Stop playback to change devices.":"Choose Play from the main menu to apply changes.",60,450,dim,p.tiny);
-                        p.button(ui::refresh,"Refresh devices",focus(ui::refresh,6),false,p.small);
-                        if(playing||recovery.pending())p.button(ui::stop,recovery.pending()?"Cancel reconnect":"Stop playback",focus(ui::stop,7),false,p.small);
+                        p.button(ui::refresh,"Refresh devices",focus(ui::refresh,7),false,p.small);
+                        if(playing||recovery.pending())p.button(ui::stop,recovery.pending()?"Cancel reconnect":"Stop playback",focus(ui::stop,8),false,p.small);
                         p.text(playing?"Tab  Return to video     Esc  Main menu":"Arrows  Browse     Enter  Select     Esc  Main menu",40,605,dim,p.small);
                     }else{
                         p.text("COLOR PREFERENCE",40,143,dim,p.small);
@@ -608,9 +624,9 @@ static int app(const Options &o) {
                         p.button(ui::playbackFullscreen,(SDL_GetWindowFlags(window)&SDL_WINDOW_FULLSCREEN_DESKTOP)?"Exit fullscreen":"Fullscreen",hover(ui::playbackFullscreen));
                     }
                     int left=menu?ui::volumeLeft:ui::playbackVolumeLeft,top=menu?ui::volumeTop:ui::playbackVolumeTop,width=menu?ui::volumeWidth:ui::playbackVolumeWidth;
-                    if(menu){p.card(ui::mute,(hover(ui::mute)||(keyboardNavigation&&menuFocus==4))?SDL_Color{48,58,44,255}:ui::raised,(hover(ui::mute)||(keyboardNavigation&&menuFocus==4))?accent:ui::border,10);p.icon(ui::Icon::Speaker,606,409,22,audio.muted?dim:accent,audio.muted);p.text("VOLUME",650,382,dim,p.tiny);}
+                    if(menu){p.card(ui::mute,(hover(ui::mute)||(keyboardNavigation&&menuFocus==5))?SDL_Color{48,58,44,255}:ui::raised,(hover(ui::mute)||(keyboardNavigation&&menuFocus==5))?accent:ui::border,10);p.icon(ui::Icon::Speaker,606,409,22,audio.muted?dim:accent,audio.muted);p.text("VOLUME",650,382,dim,p.tiny);}
                     else p.button(ui::playbackMute,audio.muted?"Unmute":"Mute",hover(ui::playbackMute));
-                    if(menu&&keyboardNavigation&&menuFocus==5)p.card(ui::volumeHit,{20,28,31,255},accent,8);
+                    if(menu&&keyboardNavigation&&menuFocus==6)p.card(ui::volumeHit,{20,28,31,255},accent,8);
                     p.round({left,top,width,6},3,{67,79,57,255});
                     int fill=static_cast<int>(std::lround(audio.volume*width));
                     if(fill>0)p.round({left,top,fill,6},3,accent);
@@ -646,6 +662,7 @@ static int app(const Options &o) {
         }
         std::cout<<std::fixed<<std::setprecision(2)<<"Frames received: "<<shared.captured<<" / displayed: "<<presented<<" / stale skipped: "<<shared.skipped<<" / invalid: "<<shared.corrupt<<"\nLast measured receive fps: "<<measuredFps<<" / display fps: "<<displayFps<<" / last CPU upload wait: "<<uploadAge<<" ms (not end-to-end latency)\nAudio overflow samples: "<<audio.ring.dropped<<" / underflow samples: "<<audio.ring.starved<<"\n";
         std::cout<<"Ready-to-upload mean/max: "<<(uploadSamples?uploadTotal/uploadSamples:0)<<" / "<<uploadMax<<" ms; present-call mean/max: "<<(presentSamples?presentTotal/presentSamples:0)<<" / "<<presentMax<<" ms. These exclude card/monitor latency.\n";
+        if(upscalingDirty)updateSettings({{"upscaling",fsr?"fsr1":"off"}});
         rememberSize();persistWindow();
         stop();
 #ifndef _WIN32

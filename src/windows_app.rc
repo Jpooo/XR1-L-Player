@@ -4,8 +4,8 @@
 1 24 "xr1-l-player.manifest"
 
 1 VERSIONINFO
-FILEVERSION 1,5,27,0
-PRODUCTVERSION 1,5,27,0
+FILEVERSION 1,5,28,0
+PRODUCTVERSION 1,5,28,0
 FILEOS 0x40004L
 FILETYPE 0x1L
 BEGIN
@@ -17,8 +17,8 @@ BEGIN
       VALUE "ProductName", "XR1-L Player\0"
       VALUE "InternalName", "XR1-L-Player\0"
       VALUE "OriginalFilename", "XR1-L-Player.exe\0"
-      VALUE "FileVersion", "1.5.27\0"
-      VALUE "ProductVersion", "1.5.27\0"
+      VALUE "FileVersion", "1.5.28\0"
+      VALUE "ProductVersion", "1.5.28\0"
     END
   END
   BLOCK "VarFileInfo"

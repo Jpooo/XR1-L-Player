@@ -18,7 +18,7 @@ BEGIN
       VALUE "InternalName", "XR1-L-Player\0"
       VALUE "OriginalFilename", "XR1-L-Player.exe\0"
       VALUE "FileVersion", "1.5.30\0"
-      VALUE "ProductVersion", "1.5.30\0"
+      VALUE "ProductVersion", "Beta V2\0"
     END
   END
   BLOCK "VarFileInfo"

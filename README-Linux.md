@@ -1,4 +1,4 @@
-# XR1-L Player 1.5.30 — Linux
+# XR1-L Player Beta V2 — Linux
 
 1080p60 live preview and HDMI stereo audio for EVGA XR1 Lite.
 

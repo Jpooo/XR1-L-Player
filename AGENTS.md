@@ -245,3 +245,16 @@
   Wine. Shipping AppImage menus/default-Off persistence, ZIP CRC, embedded app,
   shader/license bytes, permissions and hashes match. Native GPU/card quality
   and end-to-end latency still need the user's hardware comparison.
+
+- Beta V2 branding: retain the tested 1.5.30 behavior, app name, settings,
+  dependencies and icons; show exactly v2 in the main-menu version label.
+  Use Beta V2 in help/product branding and local package names; retain the
+  internal 1.5.30 build identifier. User cancelled GitHub upload before any
+  remote writes; build local Linux AppImage ZIP and Windows ZIP only. Do not
+  push source/tags, dispatch publication workflows or create a release until
+  the user gives new explicit upload approval. Preserve prior downloads.
+  Verified the approved source is unchanged apart from menu/help/product
+  version text; visually checked v2 in the packaged main menu. Linux packaged
+  controls/persistence and Windows launch/help under Wine passed. ZIP CRC,
+  embedded executables/shader/license bytes, permissions and hashes match.
+  Nothing pushed, no remote branch/tag/release created or changed.

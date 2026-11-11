@@ -1,4 +1,4 @@
-# XR1-L Player 1.5.30 — Windows
+# XR1-L Player Beta V2 — Windows
 
 1080p60 live preview and HDMI stereo audio for EVGA XR1 Lite.
 

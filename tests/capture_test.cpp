@@ -51,7 +51,7 @@ int main() {
     JpegDecoder decoder;Frame frame;auto jpeg=makeJpeg();assert(decoder.decode(jpeg.data(),jpeg.size(),frame));assert(frame.data.size()==1920*1080*3&&std::abs(frame.data[0]-128)<3);
     auto small=makeJpeg(640,480);assert(!decoder.decode(small.data(),small.size(),frame));uint8_t junk[]={0,1,2,3};assert(!decoder.decode(junk,4,frame));assert(decoder.decode(jpeg.data(),jpeg.size(),frame));
     char path[]="/tmp/xr1-fixture-XXXXXX";int fd=mkstemp(path);assert(fd>=0);
-    for(uint32_t fmt:{V4L2_PIX_FMT_YUYV,V4L2_PIX_FMT_NV12,V4L2_PIX_FMT_UYVY,V4L2_PIX_FMT_YUV420,V4L2_PIX_FMT_YVU420,V4L2_PIX_FMT_MJPEG,V4L2_PIX_FMT_JPEG}) {
+    for(uint32_t fmt:{V4L2_PIX_FMT_YUYV,V4L2_PIX_FMT_NV12}) {
         mockFormat=fmt;bool planar=fmt==V4L2_PIX_FMT_NV12||fmt==V4L2_PIX_FMT_YUV420||fmt==V4L2_PIX_FMT_YVU420;mockStride=planar?1984:3904;
         mockBytes=jpegFormat(fmt)?jpeg.size():mockStride*(planar?1620:1080);
         mockMap=(mockBytes+4095)/4096*4096;assert(ftruncate(fd,static_cast<off_t>(mockMap*3))==0);
@@ -66,8 +66,9 @@ int main() {
         std::cout<<"PASS capture "<<fourcc(fmt)<<": two-buffer capture, driver minimum, explicit three buffers, latest frame, stride, reconnect, rejects 30 fps\n";
     }
     // Drivers may support only a subset of the optional frame-rate ioctls.
-    mockFormat=V4L2_PIX_FMT_MJPEG;mockBytes=jpeg.size();mockMap=(mockBytes+4095)/4096*4096;
-    assert(ftruncate(fd,static_cast<off_t>(mockMap*3))==0);for(int i=0;i<3;++i)assert(pwrite(fd,jpeg.data(),jpeg.size(),static_cast<off_t>(i*mockMap))==static_cast<ssize_t>(jpeg.size()));
+    mockFormat=V4L2_PIX_FMT_YUYV;mockStride=3840;mockBytes=3840*1080;mockMap=(mockBytes+4095)/4096*4096;
+    assert(ftruncate(fd,static_cast<off_t>(mockMap*3))==0);std::vector<uint8_t> rawInput(mockBytes,128);
+    for(int i=0;i<3;++i)assert(pwrite(fd,rawInput.data(),rawInput.size(),static_cast<off_t>(i*mockMap))==static_cast<ssize_t>(rawInput.size()));
     SharedVideo compatibility;Capture card(compatibility);
     noGetRate=true;card.start(path,"auto");waitFor(compatibility);card.stop();
     noSetRate=true;advertised=1;card.start(path,"auto");waitFor(compatibility);card.stop();
@@ -79,7 +80,7 @@ int main() {
     advertised=1;card.start(path,"auto");waitFor(compatibility);card.stop(); // Fixed 60 fps remains valid evidence.
     emptyGetRate=false;noSetRate=false;mockFps=60;advertised=0;
     rejectTwo=true;card.start(path,"auto");waitFor(compatibility);card.stop();assert(mockActualBuffers==3);rejectTwo=false;
-    multiFormat=true;failRawStream=true;card.start(path,"auto");waitFor(compatibility);card.stop();assert(compatibility.mode.find("MJPG")!=std::string::npos);multiFormat=false;failRawStream=false;
+    multiFormat=true;failRawStream=true;refused=false;try{card.start(path,"auto");}catch(const std::runtime_error &){refused=true;}assert(refused);multiFormat=false;failRawStream=false;
     card.start(path,"auto");waitFor(compatibility);disconnected=true;for(int i=0;i<100;++i){{std::lock_guard<std::mutex> lock(compatibility.mutex);if(!compatibility.error.empty())break;}std::this_thread::sleep_for(std::chrono::milliseconds(5));}card.stop();assert(!compatibility.error.empty());disconnected=false;
     auto padded=makeJpeg(1920,1088);assert(decoder.decode(padded.data(),padded.size(),frame));assert(frame.data.size()==1920*1080*3);
     for(auto raw:{RawFormat::YUYV,RawFormat::UYVY,RawFormat::NV12,RawFormat::I420,RawFormat::YV12}){

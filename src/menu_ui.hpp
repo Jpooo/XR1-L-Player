@@ -76,7 +76,7 @@ inline void menuHeader(Painter &p,Screen screen,bool backHovered,ConsoleColor th
         const auto &letters=p.menuLetters.get(p.heading,"XR1-L Player",a,false,p.fontScale);
         float x=42-letters.ink.x/p.fontScale,y=51-(letters.ink.y+letters.ink.h/2.f)/p.fontScale;
         p.menuLetters.draw(letters,x,y+p.offsetY);
-        p.text("1.5.24",42+letters.ink.w/p.fontScale+12,43,muted,p.small);
+        p.text("1.5.25",42+letters.ink.w/p.fontScale+12,43,muted,p.small);
         p.round({847,37,13,13},4,a);p.text(themeName(theme),874,33,white,p.normal);
         p.text("MAIN MENU",48,138,muted,p.tiny);
     }else{

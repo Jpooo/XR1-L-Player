@@ -40,6 +40,12 @@ int main(){
     assert(saveVolumePreference(1,true));Options full;loadSettings(full);assert(full.volume==1&&full.muted);
     {std::ifstream in(path);std::string data((std::istreambuf_iterator<char>(in)),{});assert(data.find("custom \"keep this field\"")!=std::string::npos);}
     for(const char *bad:{"nan","inf","-0.5","1.5","0.5junk","invalid"}){assert(updateSettings({{"volume",bad}}));Options invalid;loadSettings(invalid);assert(invalid.volume==.7f);}
+    assert(updateSettings({{"window_width","1600"},{"window_height","900"},{"fullscreen","true"},{"format","mjpeg"}}));
+    Options window;loadSettings(window);assert(window.windowWidth==1600&&window.windowHeight==900&&window.fullscreen&&window.format=="auto");
+    assert(saveVolumePreference(.5f,false));Options retainedWindow;loadSettings(retainedWindow);assert(retainedWindow.windowWidth==1600&&retainedWindow.fullscreen);
+    for(const char *bad:{"-1","0","999999","1100junk","invalid"}){assert(updateSettings({{"window_width",bad},{"window_height",bad}}));Options invalid;loadSettings(invalid);assert(invalid.windowWidth==1100&&invalid.windowHeight==650);}
+    for(const char *bad:{"uyvy","i420","yv12","mjpeg"}){char arg0[]="app",arg1[]="--format";char *argv[]={arg0,arg1,const_cast<char*>(bad)};bool rejected=false;try{parse(3,argv);}catch(const std::runtime_error&){rejected=true;}assert(rejected);}
+    char arg0[]="app",arg1[]="--windowed";char *argv[]={arg0,arg1};assert(!parse(2,argv).fullscreen);
     auto temporary=path;
 #ifdef _WIN32
     temporary+=".tmp."+std::to_string(GetCurrentProcessId());

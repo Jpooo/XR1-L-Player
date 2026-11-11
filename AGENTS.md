@@ -151,3 +151,15 @@
   Both production binaries lack tester/tone/fixture strings, packages exclude
   test executables, and embedded binary/font/license hashes match. Native Windows
   and real XR1 Lite hardware validation remain with the user.
+
+- Local 1.5.25: offer YUYV/NV12 only (Automatic negotiates only those two).
+  Migrate retired/invalid saved formats to Automatic and reject explicit retired
+  CLI formats. Remember normal window size and fullscreen across relaunch, with
+  bounded sizes, display clamping, atomic merged preferences and --windowed
+  override. Review associated settings/startup behavior. Both packages local.
+  Verified 13 Linux CTest checks and restricted native capture negotiation,
+  controls/audio/appearance fixtures, preferences and Windows UI under Wine.
+  Final startup clamping was additionally checked by resize/relaunch/fullscreen
+  and oversized-saved-window tests on Linux and Wine, plus the final packaged
+  AppImage menu test. ZIP/binary/documentation hashes match. Native hardware
+  and Windows display/driver testing remain with the user.

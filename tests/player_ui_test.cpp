@@ -6,6 +6,7 @@
 #include <set>
 #include <string>
 static int injectedPoll(SDL_Event *);
+static int fixtureBounds(int,SDL_Rect *bounds){*bounds={0,0,16384,16384};return 0;}
 static SDL_Window *measuredWindow(const char *,int,int,int,int,Uint32);
 static SDL_Surface *measuredText(TTF_Font *,const char *,SDL_Color);
 static int measuredCopy(SDL_Renderer *,SDL_Texture *,const SDL_Rect *,const SDL_Rect *);
@@ -17,9 +18,11 @@ static int measuredCopyEx(SDL_Renderer *,SDL_Texture *,const SDL_Rect *,const SD
 #define SDL_RenderGeometry measuredGeometry
 #define SDL_RenderCopy measuredCopy
 #define SDL_RenderCopyExF measuredCopyEx
+#define SDL_GetDisplayUsableBounds fixtureBounds
 #define main player_application_main
 #include "../src/main.cpp"
 #undef main
+#undef SDL_GetDisplayUsableBounds
 #undef Capture
 #undef videoDevices
 #undef SDL_GetNumAudioDevices

@@ -42,7 +42,7 @@ inline std::string mfFormatName(const GUID &g){if(g==MFVideoFormat_YUY2)return "
 inline std::vector<DWORD> videoStreams(IMFMediaSource *source){Com<IMFPresentationDescriptor> pd;DWORD count=0;if(SUCCEEDED(source->CreatePresentationDescriptor(pd.put()))&&SUCCEEDED(pd->GetStreamDescriptorCount(&count))&&count<=64){std::vector<DWORD> streams;for(DWORD i=0;i<count;++i){BOOL selected;Com<IMFStreamDescriptor> sd;Com<IMFMediaTypeHandler> handler;GUID major{};if(SUCCEEDED(pd->GetStreamDescriptorByIndex(i,&selected,sd.put()))&&SUCCEEDED(sd->GetMediaTypeHandler(handler.put()))&&SUCCEEDED(handler->GetMajorType(&major))&&major==MFMediaType_Video)streams.push_back(i);}if(!streams.empty())return streams;}return {MF_SOURCE_READER_FIRST_VIDEO_STREAM};}
 struct WinMode {Com<IMFMediaType> type;DWORD stream;GUID subtype;std::string name;UINT32 fpsN=0,fpsD=0;LONG stride=0;int rank=99;};
 inline std::vector<WinMode> windowsModes(IMFSourceReader *reader,IMFMediaSource *source,const std::string &requested){
-    std::vector<WinMode> result;const std::vector<std::string> order={"nv12","i420","yv12","yuyv","uyvy","mjpeg"};
+    std::vector<WinMode> result;const std::vector<std::string> order={"nv12","yuyv"};
     for(auto stream:videoStreams(source))for(DWORD index=0;index<2048;++index){
         Com<IMFMediaType> type;HRESULT hr=reader->GetNativeMediaType(stream,index,type.put());if(FAILED(hr))break;
         UINT32 w=0,h=0,n=0,d=0,interlace=MFVideoInterlace_Progressive;GUID subtype{};

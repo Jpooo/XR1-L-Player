@@ -1,4 +1,4 @@
-# XR1-L Player 1.5.24 — Linux
+# XR1-L Player 1.5.25 — Linux
 
 1080p60 live preview and HDMI stereo audio for EVGA XR1 Lite.
 
@@ -21,3 +21,5 @@ Settings use `${XDG_CONFIG_HOME:-$HOME/.config}/xr1-l-player/`. Previous XR1 Pla
 XR1 Lite requirements: Intel i5-6XXX or AMD Ryzen 3 1300X or better; NVIDIA GTX 1060 or AMD Radeon RX 560 XT or above; 8 GB RAM minimum (16 GB recommended). USB 3.0 is required.
 
 Local test build; not uploaded to GitHub. Hardware unplug/replug testing is still needed.
+
+Windowed size and fullscreen state are restored on launch. `--windowed` overrides saved fullscreen. Automatic format selection tries only YUYV and NV12.

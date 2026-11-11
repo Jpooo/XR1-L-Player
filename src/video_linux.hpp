@@ -115,7 +115,7 @@ public:
         std::vector<uint32_t> choices;
         fd=open(path.c_str(),O_RDWR|O_NONBLOCK|O_CLOEXEC);
         if(fd<0)throw std::runtime_error("Cannot open "+path+": "+strerror(errno)+". Close other capture apps and check device permissions.");
-        for(auto candidate:{V4L2_PIX_FMT_YUYV,V4L2_PIX_FMT_NV12,V4L2_PIX_FMT_UYVY,V4L2_PIX_FMT_YUV420,V4L2_PIX_FMT_YVU420,V4L2_PIX_FMT_MJPEG,V4L2_PIX_FMT_JPEG}){
+        for(auto candidate:{V4L2_PIX_FMT_YUYV,V4L2_PIX_FMT_NV12}){
             if(!requestFormat(requested,candidate))continue;
             for(unsigned i=0;i<128;++i){v4l2_fmtdesc d{};d.index=i;d.type=V4L2_BUF_TYPE_VIDEO_CAPTURE;if(vio(fd,VIDIOC_ENUM_FMT,&d)<0)break;if(d.pixelformat==candidate)choices.push_back(candidate);}
         }

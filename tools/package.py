@@ -73,7 +73,7 @@ shutil.copytree(root/'assets/branding/hicolor',app/'usr/share/icons/hicolor')
 for path in [app,*app.rglob('*')]:
     path.chmod(0o755 if path.is_dir() or path.name=='AppRun' or path==app/'usr/bin/xr1-l-player' else 0o644)
 dist=root/'dist';dist.mkdir(exist_ok=True)
-archive=dist/'XR1-L-Player-1.5.24-Linux-x86_64.tar.gz'
+archive=dist/'XR1-L-Player-1.5.25-Linux-x86_64.tar.gz'
 with tarfile.open(archive,'w:gz') as tar:tar.add(app,arcname='XR1-L-Player')
 archive.chmod(0o644)
 print(f'Bundled {len(libs)} libraries; portable tar.gz created.')

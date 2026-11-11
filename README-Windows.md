@@ -1,4 +1,4 @@
-# XR1-L Player 1.5.24 — Windows
+# XR1-L Player 1.5.25 — Windows
 
 1080p60 live preview and HDMI stereo audio for EVGA XR1 Lite.
 
@@ -20,3 +20,5 @@ F/F11: fullscreen; Tab: settings / return to video; Enter: stop playback; M: mut
 Settings use %APPDATA%\XR1-L Player\. Previous XR1 Play settings are imported when no new settings exist.
 
 Local test build; not uploaded to GitHub. Hardware unplug/replug testing is still needed.
+
+Windowed size and fullscreen state are restored on launch. `--windowed` overrides saved fullscreen. Automatic format selection tries only YUYV and NV12.

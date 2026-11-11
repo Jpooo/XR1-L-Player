@@ -17,6 +17,7 @@
 struct Options {
     bool colorPreference=false,muted=false;
     float volume=0.7f;
+    int windowWidth=1100,windowHeight=650;
     ui::ConsoleColor colorTheme=ui::ConsoleColor::Xbox;
     bool fullscreen=false,vsync=false,diagnose=false,autostart=false,reduceMotion=false;
     bool videoSet=false,audioSet=false,outputSet=false;
@@ -47,7 +48,12 @@ static void loadSettings(Options &o) {
         if(key=="video")o.video=value;
         if(key=="audio")o.audio=value;
         if(key=="output")o.output=value;
-        if(key=="format")o.format=value;
+        if(key=="format")o.format=(value=="yuyv"||value=="nv12")?value:"auto";
+        if(key=="fullscreen")o.fullscreen=value=="true";
+        if(key=="window_width"||key=="window_height")try{
+            size_t used=0;int size=std::stoi(value,&used);int minimum=key=="window_width"?900:560;
+            if(used==value.size()&&size>=minimum&&size<=16384){if(key=="window_width")o.windowWidth=size;else o.windowHeight=size;}
+        }catch(const std::exception &){}
         if(key=="theme")o.colorTheme=ui::parseColor(value);
         if(key=="volume")try{size_t used=0;float gain=std::stof(value,&used);if(used==value.size()&&std::isfinite(gain)&&gain>=0&&gain<=1)o.volume=gain;}catch(const std::exception &){}
         if(key=="motion")o.reduceMotion=value=="off";
@@ -95,9 +101,9 @@ static void handleSignal(int) {interrupted=1;}
 static void help() {
     std::cout<<
 #ifdef _WIN32
-    "XR1-L Player 1.5.24 - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.25 - native 1080p60 HDMI viewer ("
 #else
-    "XR1-L Player 1.5.24 Linux test build - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.25 Linux test build - native 1080p60 HDMI viewer ("
 #endif
 #ifdef _WIN32
     "Windows x86_64"
@@ -109,7 +115,7 @@ static void help() {
     "  --video ID_OR_NAME     Select a video device from --diagnose\n"
     "  --audio NAME           Exact capture-device name from --diagnose\n"
     "  --output NAME          Exact playback-device name (default: system default)\n"
-    "  --format auto|yuyv|nv12|uyvy|i420|yv12|mjpeg\n"
+    "  --format auto|yuyv|nv12\n"
 #ifdef _WIN32
     "  --audio-buffer MS      Audio queue cap, 5..80 ms (default 32; reserve ~13 ms)\n"
 #else
@@ -118,6 +124,7 @@ static void help() {
     "  --capture-buffers N    Requested V4L2 buffers, 2..8 (default 2)\n"
     "  --start                Start the selected devices immediately\n"
     "  --fullscreen           Open fullscreen\n"
+    "  --windowed             Override saved fullscreen state\n"
     "  --vsync                Enable vsync (default off; may reduce tearing)\n"
     "  --reduce-motion        Disable decorative menu animation\n"
     "  --color-preference     Open the in-app color preference panel\n"
@@ -135,6 +142,7 @@ static Options parse(int argc,char **argv) {
         auto value=[&]() {if(i+1>=argc) throw std::runtime_error("Missing value for "+a);return std::string(argv[++i]);};
         if(a=="--help"||a=="-h") {help();std::exit(0);}
         else if(a=="--fullscreen") o.fullscreen=true;
+        else if(a=="--windowed")o.fullscreen=false;
         else if(a=="--color-preference")o.colorPreference=true;
         else if(a=="--vsync") o.vsync=true;
         else if(a=="--reduce-motion")o.reduceMotion=true;
@@ -152,7 +160,7 @@ static Options parse(int argc,char **argv) {
     }
     if(o.latency<5||o.latency>80||o.seconds<0) throw std::runtime_error("Audio buffer must be 5..80 ms; seconds must be nonnegative.");
     if(o.buffers<2||o.buffers>8)throw std::runtime_error("Capture buffers must be 2..8.");
-    if(o.format!="auto"&&o.format!="yuyv"&&o.format!="nv12"&&o.format!="uyvy"&&o.format!="i420"&&o.format!="yv12"&&o.format!="mjpeg") throw std::runtime_error("Invalid pixel format.");
+    if(o.format!="auto"&&o.format!="yuyv"&&o.format!="nv12") throw std::runtime_error("Invalid pixel format.");
     return o;
 }
 static std::vector<std::string> audioDevices(bool capture) {
@@ -182,9 +190,17 @@ static int app(const Options &o) {
     SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR,"1");
     if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_TIMER)<0) throw std::runtime_error(SDL_GetError());
     if(TTF_Init()<0) throw std::runtime_error(TTF_GetError());
-    SDL_Window *window=SDL_CreateWindow("XR1-L Player",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,1100,ui::height,SDL_WINDOW_RESIZABLE|SDL_WINDOW_ALLOW_HIGHDPI);
+    SDL_Rect usable{};int initialWidth=o.windowWidth,initialHeight=o.windowHeight;
+    if(SDL_GetDisplayUsableBounds(0,&usable)==0){initialWidth=std::min(initialWidth,std::max(900,usable.w));initialHeight=std::min(initialHeight,std::max(560,usable.h));}
+    SDL_Window *window=SDL_CreateWindow("XR1-L Player",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,initialWidth,initialHeight,SDL_WINDOW_RESIZABLE|SDL_WINDOW_ALLOW_HIGHDPI);
     if(!window) throw std::runtime_error(SDL_GetError());
     SDL_SetWindowMinimumSize(window,900,560);
+    if(SDL_GetDisplayUsableBounds(SDL_GetWindowDisplayIndex(window),&usable)==0){
+        int top=0,left=0,bottom=0,right=0;SDL_GetWindowBordersSize(window,&top,&left,&bottom,&right);
+        int width=std::min(initialWidth,std::max(900,usable.w-left-right)),height=std::min(initialHeight,std::max(560,usable.h-top-bottom));
+        if(width<initialWidth||height<initialHeight){SDL_SetWindowSize(window,width,height);SDL_SetWindowPosition(window,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED);}
+    }
+    int windowedWidth=0,windowedHeight=0;SDL_GetWindowSize(window,&windowedWidth,&windowedHeight);
 #ifdef _WIN32
     // SDL2's default D3D9 path can fall back to CPU YUV conversion. Prefer
     // D3D11's NV12/I420 shaders, retaining other accelerated backends as fallback.
@@ -210,8 +226,9 @@ static int app(const Options &o) {
         Frame uploadFrame;
         SDL_Event pendingEvent{};bool havePendingEvent=false;
         std::vector<VideoDevice> videos;std::vector<std::string> inputs,outputs;
-        const std::vector<std::string> formats={"auto","yuyv","nv12","uyvy","i420","yv12","mjpeg"};
+        const std::vector<std::string> formats={"auto","yuyv","nv12"};
         int vi=0,ai=-1,oi=-1,fi=static_cast<int>(std::find(formats.begin(),formats.end(),o.format)-formats.begin());
+        if(fi>=int(formats.size()))fi=0;
         bool playing=false,menu=true,quit=false;
         connection::Recovery recovery;std::optional<connection::Target> lastTarget;
         bool resumeMenu=false;ui::Screen resumeScreen=ui::Screen::Main;
@@ -247,10 +264,25 @@ static int app(const Options &o) {
         Uint32 texturePixel=0;
 #endif
         auto cursor=[&](bool visible) {int state=visible?SDL_ENABLE:SDL_DISABLE;if(state!=cursorState){SDL_ShowCursor(state);cursorState=state;}};
+        bool windowDirty=true;double windowSaveAfter=monotime()+.5,resizeAfter=0;
+        const std::string windowSaveError="Window settings could not be saved. Check folder permissions and free space.";
+        auto persistWindow=[&](){
+            bool active=(SDL_GetWindowFlags(window)&SDL_WINDOW_FULLSCREEN_DESKTOP)!=0;
+            if(updateSettings({{"window_width",std::to_string(windowedWidth)},{"window_height",std::to_string(windowedHeight)},{"fullscreen",active?"true":"false"}})){
+                windowDirty=false;if(error==windowSaveError)error.clear();
+            }else {windowDirty=true;windowSaveAfter=monotime()+2;error=windowSaveError;}
+        };
+        auto rememberSize=[&](){
+            if(!(SDL_GetWindowFlags(window)&(SDL_WINDOW_FULLSCREEN_DESKTOP|SDL_WINDOW_MAXIMIZED|SDL_WINDOW_MINIMIZED))){
+                int w=0,h=0;SDL_GetWindowSize(window,&w,&h);
+                if(w>=900&&h>=560){windowedWidth=w;windowedHeight=h;}
+            }
+        };
         auto fullscreen=[&]() {
             bool active=(SDL_GetWindowFlags(window)&SDL_WINDOW_FULLSCREEN_DESKTOP)!=0;
+            if(!active)rememberSize();
             if(SDL_SetWindowFullscreen(window,active?0:SDL_WINDOW_FULLSCREEN_DESKTOP)<0)error="Cannot toggle fullscreen: "+std::string(SDL_GetError());
-            else std::cout<<"Fullscreen: "<<(active?"off":"on")<<std::endl;
+            else {if(active)SDL_SetWindowSize(window,windowedWidth,windowedHeight);windowDirty=true;windowSaveAfter=monotime()+.5;resizeAfter=monotime()+.2;std::cout<<"Fullscreen: "<<(active?"off":"on")<<std::endl;}
             controlsUntil=monotime()+3;
         };
         bool volumeDirty=false;double volumeSaveAfter=0;
@@ -365,6 +397,7 @@ static int app(const Options &o) {
             while(havePendingEvent||SDL_PollEvent(&event)) {
                 if(havePendingEvent){event=pendingEvent;havePendingEvent=false;}
                 if(event.type==SDL_QUIT) quit=true;
+                if(event.type==SDL_WINDOWEVENT&&(event.window.event==SDL_WINDOWEVENT_SIZE_CHANGED||event.window.event==SDL_WINDOWEVENT_RESIZED)&&monotime()>=resizeAfter){rememberSize();windowDirty=true;windowSaveAfter=monotime()+.5;}
                 if(event.type==SDL_DISPLAYEVENT||(event.type==SDL_WINDOWEVENT&&event.window.event==SDL_WINDOWEVENT_DISPLAY_CHANGED))refreshMenuRate();
                 if(event.type==SDL_WINDOWEVENT&&(event.window.event==SDL_WINDOWEVENT_DISPLAY_CHANGED||event.window.event==SDL_WINDOWEVENT_SIZE_CHANGED))p.setWindowIcon(window);
                 if(event.type==SDL_AUDIODEVICEREMOVED&&playing&&audio.ownsDevice(event.adevice.which))recover("A selected audio device was disconnected.",event.adevice.iscapture?connection::Match::InputMissing:connection::Match::OutputMissing);
@@ -438,6 +471,7 @@ static int app(const Options &o) {
             }
             double now=monotime();bool newFrame=false;
             if(volumeDirty&&!draggingVolume&&now>=volumeSaveAfter)persistVolume();
+            if(windowDirty&&now>=windowSaveAfter)persistWindow();
             if(!quit&&!interrupted&&recovery.due(now)){
                 try{
                     auto freshVideos=videoDevices();auto freshInputs=audioDevices(true),freshOutputs=audioDevices(false);
@@ -609,6 +643,7 @@ static int app(const Options &o) {
         }
         std::cout<<std::fixed<<std::setprecision(2)<<"Frames received: "<<shared.captured<<" / displayed: "<<presented<<" / stale skipped: "<<shared.skipped<<" / invalid: "<<shared.corrupt<<"\nLast measured receive fps: "<<measuredFps<<" / display fps: "<<displayFps<<" / last CPU upload wait: "<<uploadAge<<" ms (not end-to-end latency)\nAudio overflow samples: "<<audio.ring.dropped<<" / underflow samples: "<<audio.ring.starved<<"\n";
         std::cout<<"Ready-to-upload mean/max: "<<(uploadSamples?uploadTotal/uploadSamples:0)<<" / "<<uploadMax<<" ms; present-call mean/max: "<<(presentSamples?presentTotal/presentSamples:0)<<" / "<<presentMax<<" ms. These exclude card/monitor latency.\n";
+        rememberSize();persistWindow();
         stop();
 #ifndef _WIN32
         if(texture) SDL_DestroyTexture(texture);

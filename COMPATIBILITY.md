@@ -27,8 +27,8 @@ Building the source locally may support additional Linux systems.
 ## Capture coverage
 
 - 1920x1080 progressive at 60 or 60000/1001 fps.
-- YUYV/YUY2, NV12, UYVY, I420/YU12, YV12, and MJPEG/JPEG where exposed by
-  the OS. Advertised formats are inspected; no driver is forced to invent one.
+- YUYV/YUY2 and NV12. Automatic selection tries only these two formats.
+  Advertised formats are inspected; no driver is forced to invent one.
 - Linux retries other eligible formats when configuration/stream startup fails,
   and increases the buffer request if the driver rejects a smaller count.
 - Linux accepts confirmed S_PARM/G_PARM rates or a single, advertised fixed

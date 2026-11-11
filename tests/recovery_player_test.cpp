@@ -104,7 +104,7 @@ int main(){
             int x=int((image->w-1100*scale)/2+100*scale),y=int((image->h-650*scale)/2+300*scale);Uint32 pixel=0;std::memcpy(&pixel,static_cast<Uint8*>(image->pixels)+y*image->pitch+x*4,4);
             Uint8 r,g,b;SDL_GetRGB(pixel,image->format,&r,&g,&b);assert(b<80);SDL_FreeSurface(image); // Menu stays open after reconnect.
         }
-        if(scenario==6)assert(labels.count("uyvy"));
+        if(scenario==6)assert(labels.count("Automatic"));
         assert(labels.count("Reconnecting")&&labels.count("CANCEL"));
         if(scenario==0){assert(labels.count(connection::waiting(connection::Match::InputMissing)));assert(labels.count(connection::waiting(connection::Match::OutputMissing)));}
         std::cout<<"PASS simulated player reconnect scenario "<<scenario<<"\n";

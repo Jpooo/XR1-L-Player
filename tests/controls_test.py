@@ -26,4 +26,4 @@ with tempfile.TemporaryDirectory(prefix='xr1-controls-') as work:
     # The end of the run is 50% volume, verified at the real playback callback.
     peak=max(abs(s) for s in samples[-24000:])
     assert 890<=peak<=900,peak
-    print('PASS volume/audio, fullscreen, settings, Resume, motion toggle, packaged icons and linear video filtering')
+    print('PASS volume/audio, fullscreen, settings, Tab return to video, motion toggle, packaged icons and linear video filtering')

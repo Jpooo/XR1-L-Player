@@ -25,6 +25,5 @@ with tempfile.TemporaryDirectory(prefix='xr1-packaged-') as folder:
     settings = (Path(folder) / 'xr1-l-player/settings').read_text()
     assert 'theme "playstation"' in settings and 'motion "off"' in settings
     assert 'volume "0.750000"' in settings and 'muted "false"' in settings
-    assert 'sharp_fullscreen "false"' in settings
     assert image.is_file()
-    print('PASS shipping menus, saved volume/theme/motion, fullscreen, scaling preference and removed --demo')
+    print('PASS shipping menus, saved volume/theme/motion, fullscreen and removed --demo')

@@ -179,3 +179,15 @@
   under Wine. An absent test display and full temporary test disk were corrected
   before the final Windows rerun; downloads were reverified afterward. Actual
   GPU/card responsiveness and picture quality still require user comparison.
+
+- Local 1.5.27: remove the rejected sharper-fullscreen rendering, preference and
+  setting from both builds; restore the previous linear video presentation.
+  Remove Play/Resume/Retry and Fullscreen buttons only from Settings. Keep main
+  menu Play, Preferences fullscreen, playback toolbar and keyboard shortcuts.
+  Preserve all other 1.5.25 improvements and approved menus/artwork. Both builds
+  stay local; export the Linux AppImage in a ZIP and preserve older downloads.
+  Verified all 13 Linux CTest checks, fixture controls/audio/appearance, shipping
+  AppImage menus/settings, Windows full UI and shipping launch/help under Wine.
+  Read-only UI review caught and fixed remapped mute/volume focus highlights.
+  ZIP CRC, embedded executable/AppImage bytes, permissions and hashes match.
+  Real card/display and native Windows validation remain with the user.

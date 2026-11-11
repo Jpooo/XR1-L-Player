@@ -1,4 +1,4 @@
-# XR1-L Player 1.5.26 — Linux
+# XR1-L Player 1.5.27 — Linux
 
 1080p60 live preview and HDMI stereo audio for EVGA XR1 Lite.
 
@@ -7,7 +7,7 @@
 1. Extract the ZIP and copy the AppImage from your USB drive to your Linux home folder.
 2. In Properties → Permissions, allow the AppImage to run as a program, then open it.
 3. Connect console HDMI OUT → XR1 Lite HDMI IN; connect the card directly to USB 3.0 with a USB 3.0 data cable.
-4. Use 1080p60 SDR and HDMI Stereo uncompressed. Select video, HDMI audio and your speakers/headphones in Settings, then choose Play.
+4. Use 1080p60 SDR and HDMI Stereo uncompressed. Select video, HDMI audio and your speakers/headphones in Settings, then choose Play from the main menu.
 
 Use **Settings** for video/audio devices, format and volume. **Preferences** saves Neon Green, Electric Blue, Crimson Red and Motion On/Off. Choose **Play** to start the feed. Move the mouse during playback to reveal **Main menu**, Settings and audio controls.
 
@@ -23,5 +23,3 @@ XR1 Lite requirements: Intel i5-6XXX or AMD Ryzen 3 1300X or better; NVIDIA GTX 
 Local test build; not uploaded to GitHub. Hardware unplug/replug testing is still needed.
 
 Windowed size and fullscreen state are restored on launch. `--windowed` overrides saved fullscreen. Automatic format selection tries only YUYV and NV12.
-
-Settings → Sharper fullscreen enables sharper fractional upscaling (for example, 1080p to 1440p). Turn it off to compare the previous smoothing. Native/integer sizes and the menu preview retain their existing rendering. Unsupported renderers fall back to normal scaling.

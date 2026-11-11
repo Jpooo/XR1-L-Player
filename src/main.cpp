@@ -95,9 +95,9 @@ static void handleSignal(int) {interrupted=1;}
 static void help() {
     std::cout<<
 #ifdef _WIN32
-    "XR1-L Player 1.5.17 - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.18 - native 1080p60 HDMI viewer ("
 #else
-    "XR1-L Player 1.5.17 Linux test build - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.18 Linux test build - native 1080p60 HDMI viewer ("
 #endif
 #ifdef _WIN32
     "Windows x86_64"
@@ -566,8 +566,9 @@ static int app(const Options &o) {
                         p.text("Arrows  Browse     Enter  Select     Esc  Main menu",40,605,dim,p.small);
                     }
                     std::string status=recovery.pending()?"Reconnecting":playing?(demonstration?"Test picture":lastVideoAt&&now-lastVideoAt<1.5?"Live video":"Waiting for video"):videos.empty()?"Connect XR1 Lite":ai<0?"Select HDMI audio":"Card connected";
-                    auto statusColor=recovery.pending()?SDL_Color{244,185,139,255}:playing&&lastVideoAt&&now-lastVideoAt<1.5?accent:dim;
-                    p.card({408,34,376,36},{17,24,29,255},ui::border,12);p.round({422,48,8,8},4,statusColor);p.text(status,444,43,statusColor,p.small);
+                    const bool connected=!recovery.pending()&&!videos.empty();
+                    const SDL_Color connectionColor=connected?SDL_Color{76,220,110,255}:SDL_Color{240,72,72,255};
+                    p.card({408,34,376,36},{17,24,29,255},ui::border,12);p.round({422,48,8,8},4,connectionColor);p.text(status,444,43,accent,p.small);
                     if(recovery.pending()&&error.empty()){p.card({40,102,1020,34},{30,28,23,255},{96,76,45,255},8);p.fit(recovery.detail.empty()?std::string(connection::waiting(recovery.state)):recovery.detail+" Retrying automatically.",52,111,992,{244,185,139,255},p.small);}
                     p.text("F11  Fullscreen",933,605,dim,p.small);
                     if(!error.empty()){p.card({40,102,1020,34},{43,28,23,255},{128,79,49,255},8);p.fit(error,52,111,992,{244,185,139,255},p.small);}

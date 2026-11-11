@@ -87,3 +87,7 @@
   Validation: 10 Linux CTest checks; packaged controls/audio/fullscreen/appearance;
   Windows cross-build, Wine UI tests and seven simulated reconnect scenarios.
   Physical XR1 Lite unplug/replug and native Windows hardware validation remain.
+
+- Local 1.5.18: status text follows the selected theme; the separate connection
+  dot stays green when connected and red when disconnected/reconnecting, across
+  all themes and both platforms. Keep packages local and preserve prior builds.

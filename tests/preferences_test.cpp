@@ -20,7 +20,7 @@ int main(){
         std::ofstream out(path);
         out<<"video \"Capture Card #1\"\naudio \"USB HDMI Audio\"\noutput \"Desktop speakers\"\nformat \"nv12\"\ncustom \"keep this field\"\ntheme \"xbox\"\n";
     }
-    assert(!Options{}.fsr);
+    assert(!Options{}.fsr&&Options{}.sharpening==0);
     Options legacy;loadSettings(legacy);assert(legacy.video=="Capture Card #1");
     assert(saveColorPreference(ui::ConsoleColor::PlayStation));
     assert(std::filesystem::exists(path));path=settingsPath();
@@ -29,7 +29,8 @@ int main(){
     assert(blue.colorTheme==ui::ConsoleColor::PlayStation);
     {std::ifstream in(path);std::string data((std::istreambuf_iterator<char>(in)),{});assert(data.find("custom \"keep this field\"")!=std::string::npos);}
     assert(updateSettings({{"upscaling","fsr1"}}));Options fsr;loadSettings(fsr);assert(fsr.fsr);
-    assert(saveMotionPreference(true));Options motion;loadSettings(motion);assert(motion.reduceMotion&&motion.fsr);
+    assert(updateSettings({{"sharpening","high"}}));Options sharpened;loadSettings(sharpened);assert(sharpened.fsr&&sharpened.sharpening==3);
+    assert(saveMotionPreference(true));Options motion;loadSettings(motion);assert(motion.reduceMotion&&motion.fsr&&motion.sharpening==3);
     assert(saveVolumePreference(.42f,true));
     Options volume;loadSettings(volume);assert(std::abs(volume.volume-.42f)<.0001f&&volume.muted);
     assert(saveSettings(blue.video,blue.audio,blue.output,blue.format,blue.colorTheme,volume.volume,volume.muted));
@@ -41,6 +42,7 @@ int main(){
     assert(saveVolumePreference(0,false));Options zero;loadSettings(zero);assert(zero.volume==0&&!zero.muted);
     assert(saveVolumePreference(1,true));Options full;loadSettings(full);assert(full.volume==1&&full.muted);
     {std::ifstream in(path);std::string data((std::istreambuf_iterator<char>(in)),{});assert(data.find("custom \"keep this field\"")!=std::string::npos);}
+    for(const char *bad:{"4","-1","nan","invalid"}){assert(updateSettings({{"sharpening",bad}}));Options invalid;loadSettings(invalid);assert(invalid.sharpening==0);}
     for(const char *bad:{"nan","inf","-0.5","1.5","0.5junk","invalid"}){assert(updateSettings({{"volume",bad}}));Options invalid;loadSettings(invalid);assert(invalid.volume==.7f);}
     assert(updateSettings({{"window_width","1600"},{"window_height","900"},{"fullscreen","true"},{"format","mjpeg"}}));
     Options window;loadSettings(window);assert(window.windowWidth==1600&&window.windowHeight==900&&window.fullscreen&&window.format=="auto");

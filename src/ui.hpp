@@ -18,7 +18,7 @@ enum class Screen {Main,Settings,Preferences};
 inline constexpr std::array<Box,3> navigation={Box{48,190,350,108},Box{48,322,350,80},Box{48,426,350,80}};
 inline constexpr Box back{920,32,140,42},refresh{40,506,160,44};
 inline constexpr std::array<Box,3> devices={Box{60,218,445,66},Box{595,218,445,66},Box{595,304,445,66}};
-inline constexpr Box format{60,304,445,56},upscaling{60,386,445,44};
+inline constexpr Box format{60,304,445,56},upscaling{60,372,445,36},sharpening{60,414,445,36};
 // The video is clipped to this panel contour; uniform UV scaling preserves aspect.
 inline constexpr SDL_Rect mainPreview{452,174,606,344};
 inline constexpr std::array<SDL_FPoint,14> mainPanelContour={SDL_FPoint{452,244},SDL_FPoint{462,209},SDL_FPoint{486,185},SDL_FPoint{637,185},SDL_FPoint{654,174},SDL_FPoint{1026,174},SDL_FPoint{1058,206},SDL_FPoint{1058,466},SDL_FPoint{1032,506},SDL_FPoint{866,506},SDL_FPoint{850,518},SDL_FPoint{817,515},SDL_FPoint{475,515},SDL_FPoint{452,473}};
@@ -30,7 +30,7 @@ inline constexpr Box playbackMute{312,654,86,40},playbackVolumeHit{408,650,216,4
 inline constexpr int playbackVolumeLeft=418,playbackVolumeWidth=196,playbackVolumeTop=670;
 inline constexpr Box stop{660,506,160,44},motion{40,376,500,92},preferenceFullscreen{575,376,485,92};
 inline constexpr std::array<Box,3> themes={Box{40,178,320,154},Box{390,178,320,154},Box{740,178,320,154}};
-inline constexpr std::array<Box,10> settingControls={devices[0],format,upscaling,devices[1],devices[2],mute,volumeHit,refresh,stop,back};
+inline constexpr std::array<Box,11> settingControls={devices[0],format,upscaling,sharpening,devices[1],devices[2],mute,volumeHit,refresh,stop,back};
 inline constexpr std::array<Box,6> preferenceControls={themes[0],themes[1],themes[2],motion,preferenceFullscreen,back};
 inline constexpr float logoX=480,logoY=75,logoSize=540;
 inline constexpr SDL_Color white{243,246,248,255},muted{155,163,172,255},green{155,240,11,255};

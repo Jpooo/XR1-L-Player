@@ -34,7 +34,7 @@ static int measuredCopyEx(SDL_Renderer *,SDL_Texture *,const SDL_Rect *,const SD
 #undef SDL_CreateWindow
 #undef TTF_RenderUTF8_Blended
 #include <cassert>
-struct Input {Uint32 at,type;SDL_Keycode key=0;int x=0,y=0;};
+struct Input {Uint32 at,type;SDL_Keycode key=0;int x=0,y=0;SDL_Keymod mod=KMOD_NONE;};
 static std::vector<Input> script;
 static std::set<std::string> labels;
 static Uint32 pollBegan=0;static size_t nextInput=0;static bool firstPoll=true;
@@ -65,7 +65,7 @@ static int injectedPoll(SDL_Event *event){
     if(SDL_PollEvent(event))return 1;
     if(nextInput==script.size()||SDL_GetTicks()-pollBegan<script[nextInput].at)return 0;
     const auto &input=script[nextInput++];*event={};event->type=input.type;
-    if(input.type==SDL_KEYDOWN)event->key.keysym.sym=input.key;
+    if(input.type==SDL_KEYDOWN){event->key.keysym.sym=input.key;event->key.keysym.mod=input.mod;}
     if(input.type==SDL_MOUSEBUTTONDOWN||input.type==SDL_MOUSEBUTTONUP){event->button.button=SDL_BUTTON_LEFT;event->button.x=input.x;event->button.y=input.y;}
     if(input.type==SDL_USEREVENT){Options saved;loadSettings(saved);assert(std::abs(saved.volume-.65f)<.0001f&&!saved.muted);}
     return 1;
@@ -123,6 +123,10 @@ int main(){
     Options upscaled;loadSettings(upscaled);assert(upscaled.fsr);
     check("upscaling-hotkey-off",true,{key(200,SDLK_u)},"Upscaling: Off",true);
     Options normalScaling;loadSettings(normalScaling);assert(!normalScaling.fsr);
+    check("sharpening-hotkey-low",true,{{200,SDL_KEYDOWN,SDLK_u,0,0,KMOD_SHIFT}},nullptr,true);
+    Options sharpLow;loadSettings(sharpLow);assert(!sharpLow.fsr&&sharpLow.sharpening==1);
+    check("sharpening-hotkey-wrap-off",true,{{150,SDL_KEYDOWN,SDLK_u,0,0,KMOD_SHIFT},{300,SDL_KEYDOWN,SDLK_u,0,0,KMOD_SHIFT},{450,SDL_KEYDOWN,SDLK_u,0,0,KMOD_SHIFT}},"Sharpening: Off",true);
+    Options sharpOff;loadSettings(sharpOff);assert(!sharpOff.fsr&&sharpOff.sharpening==0);
     check("removed-shortcut-inert",true,{key(200,SDLK_F8)},nullptr,true);
     check("stop-restart-play",true,{key(150,SDLK_RETURN),key(350,SDLK_RETURN)},"PLAY",true);
     check("playback-toolbar",true,{},"Main menu",true);assert(labels.count("Settings"));

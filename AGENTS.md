@@ -230,3 +230,18 @@
   persistence. Windows UI/hotkey, GL image/cache, startup and packaged launch
   checks passed under Wine. ZIP CRC, embedded app/shader bytes, permissions and
   SHA-256 manifests match. Physical card/native GPU testing remains with user.
+
+- Local 1.5.30: optional AMD RCAS sharpening after FSR EASU. Default Off,
+  with Off/Low/Medium/High in Settings and Shift+U cycling live. U still toggles
+  FSR. Save both choices atomically. Sharpening only runs with active FSR above
+  1080p; no extra RCAS pass when disabled, no temporal history/frame generation
+  or changes to capture/audio. Reuse cached shaders/targets, refresh after live
+  changes and fall back to EASU if RCAS is unavailable. Keep both builds local.
+  Verified all 14 Linux checks, Shift+U cycling/persistence, actual GL RCAS
+  Low/Medium/High differences, flat-color preservation, exact Off restoration,
+  YUYV/NV12 state/cache behavior and recovery from an injected conversion
+  failure. Four live sharpening changes kept one capture/audio session alive.
+  Windows full UI, GL EASU/RCAS image checks and packaged launch passed under
+  Wine. Shipping AppImage menus/default-Off persistence, ZIP CRC, embedded app,
+  shader/license bytes, permissions and hashes match. Native GPU/card quality
+  and end-to-end latency still need the user's hardware comparison.

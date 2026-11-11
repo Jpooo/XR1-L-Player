@@ -26,5 +26,6 @@ with tempfile.TemporaryDirectory(prefix='xr1-packaged-') as folder:
     assert 'theme "playstation"' in settings and 'motion "off"' in settings
     assert 'volume "0.750000"' in settings and 'muted "false"' in settings
     assert 'upscaling "fsr1"' in settings
+    assert 'sharpening "off"' in settings
     assert image.is_file()
     print('PASS shipping menus, saved volume/theme/motion, fullscreen and removed --demo')

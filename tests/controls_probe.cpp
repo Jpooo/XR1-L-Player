@@ -3,7 +3,7 @@
 #include <dlfcn.h>
 #include <cstdio>
 #include <cstdlib>
-struct Action {Uint32 at,type;int x,y;SDL_Keycode key=0;Uint8 clicks=1;};
+struct Action {Uint32 at,type;int x,y;SDL_Keycode key=0;Uint8 clicks=1;SDL_Keymod mod=KMOD_NONE;};
 static Uint32 firstPollTick=0;
 static bool firstPollSeen=false;
 static const Action actions[]={
@@ -46,8 +46,9 @@ static const Action idleActions[]={
     {750,SDL_MOUSEBUTTONDOWN,980,50},{900,SDL_MOUSEBUTTONDOWN,150,460},
     {1000,SDL_MOUSEBUTTONDOWN,430,220},{1150,SDL_MOUSEBUTTONDOWN,100,410},
     {1300,SDL_KEYDOWN,0,0,SDLK_ESCAPE},{1450,SDL_MOUSEBUTTONDOWN,150,350},
-    {1700,SDL_MOUSEBUTTONDOWN,140,408}
+    {1700,SDL_MOUSEBUTTONDOWN,140,390}
 };
+static const Action sharpActions[]={{400,SDL_KEYDOWN,0,0,SDLK_u,1,KMOD_SHIFT},{1000,SDL_KEYDOWN,0,0,SDLK_u,1,KMOD_SHIFT},{1600,SDL_KEYDOWN,0,0,SDLK_u,1,KMOD_SHIFT},{2200,SDL_KEYDOWN,0,0,SDLK_u,1,KMOD_SHIFT}};
 static const Action fsrActions[]={{400,SDL_KEYDOWN,0,0,SDLK_u},{1000,SDL_KEYDOWN,0,0,SDLK_u},{1500,SDL_KEYDOWN,0,0,SDLK_u},{2100,SDL_KEYDOWN,0,0,SDLK_u}};
 static const Action previewActions[]={{100,SDL_MOUSEBUTTONDOWN,100,606}};
 extern "C" int SDL_PollEvent(SDL_Event *event) {
@@ -62,10 +63,11 @@ extern "C" int SDL_PollEvent(SDL_Event *event) {
     size_t length=appearance?sizeof(appearanceActions)/sizeof(appearanceActions[0]):sizeof(actions)/sizeof(actions[0]);
     if(std::getenv("XR1_TEST_IDLE")){script=idleActions;length=sizeof(idleActions)/sizeof(idleActions[0]);}
     if(std::getenv("XR1_TEST_FSR")){script=fsrActions;length=sizeof(fsrActions)/sizeof(fsrActions[0]);}
+    if(std::getenv("XR1_TEST_SHARP")){script=sharpActions;length=sizeof(sharpActions)/sizeof(sharpActions[0]);}
     if(std::getenv("XR1_TEST_PREVIEW")){script=previewActions;length=sizeof(previewActions)/sizeof(previewActions[0]);}
     if(next>=length||SDL_GetTicks()-began<script[next].at)return 0;
     const auto &a=script[next++];*event={};event->type=a.type;
-    if(a.type==SDL_KEYDOWN)event->key.keysym.sym=a.key;
+    if(a.type==SDL_KEYDOWN){event->key.keysym.sym=a.key;event->key.keysym.mod=a.mod;}
     else if(a.type==SDL_MOUSEMOTION){event->motion.x=a.x;event->motion.y=a.y;}
     else {event->button.button=SDL_BUTTON_LEFT;event->button.clicks=a.clicks;event->button.x=a.x;event->button.y=a.y;}
     return 1;

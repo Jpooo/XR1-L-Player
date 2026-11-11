@@ -95,9 +95,9 @@ static void handleSignal(int) {interrupted=1;}
 static void help() {
     std::cout<<
 #ifdef _WIN32
-    "XR1-L Player 1.5.18 - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.19 - native 1080p60 HDMI viewer ("
 #else
-    "XR1-L Player 1.5.18 Linux test build - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.19 Linux test build - native 1080p60 HDMI viewer ("
 #endif
 #ifdef _WIN32
     "Windows x86_64"
@@ -178,10 +178,17 @@ static void demoFrame(Frame &f,double t) {
 }
 static int app(const Options &o) {
     SDL_SetMainReady();
+#ifdef _WIN32
+    // Let SDL resize in display-scaled points while rendering into physical
+    // pixels; never let Windows bitmap-scale the finished menu.
+    SDL_SetHint(SDL_HINT_WINDOWS_DPI_AWARENESS,"permonitorv2");
+    SDL_SetHint(SDL_HINT_WINDOWS_DPI_SCALING,"1");
+#endif
     // PipeWire/PulseAudio manage device sharing and resampling on Bazzite.
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY,"1");
     SDL_SetHint(SDL_HINT_APP_NAME,"XR1-L Player");
     SDL_setenv("SDL_VIDEO_X11_WMCLASS","xr1-l-player",0);
+    SDL_setenv("SDL_VIDEO_WAYLAND_WMCLASS","xr1-l-player",0);
     // X11 compositors can honor this for fullscreen windows. Wayland compositors
     // control their own presentation policy; this is not a bypass guarantee.
     SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR,"1");
@@ -378,6 +385,7 @@ static int app(const Options &o) {
                 if(havePendingEvent){event=pendingEvent;havePendingEvent=false;}
                 if(event.type==SDL_QUIT) quit=true;
                 if(event.type==SDL_DISPLAYEVENT||(event.type==SDL_WINDOWEVENT&&event.window.event==SDL_WINDOWEVENT_DISPLAY_CHANGED))refreshMenuRate();
+                if(event.type==SDL_WINDOWEVENT&&(event.window.event==SDL_WINDOWEVENT_DISPLAY_CHANGED||event.window.event==SDL_WINDOWEVENT_SIZE_CHANGED))p.setWindowIcon(window);
                 if(event.type==SDL_AUDIODEVICEREMOVED&&playing&&audio.ownsDevice(event.adevice.which))recover("A selected audio device was disconnected.",event.adevice.iscapture?connection::Match::InputMissing:connection::Match::OutputMissing);
                 if(event.type==SDL_AUDIODEVICEADDED||event.type==SDL_AUDIODEVICEREMOVED)lastDeviceRefresh=0;
                 if(event.type==SDL_WINDOWEVENT&&event.window.event==SDL_WINDOWEVENT_FOCUS_LOST&&draggingVolume){draggingVolume=false;SDL_CaptureMouse(SDL_FALSE);persistVolume();}

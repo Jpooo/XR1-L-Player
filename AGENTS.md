@@ -91,3 +91,14 @@
 - Local 1.5.18: status text follows the selected theme; the separate connection
   dot stays green when connected and red when disconnected/reconnecting, across
   all themes and both platforms. Keep packages local and preserve prior builds.
+
+- Local 1.5.19: consistent approved XR1 Lite icons and sharper menus at display
+  scales/resolutions through 4K. Use multi-size themed Windows icon resources,
+  per-monitor DPI awareness, Wayland desktop identity and Linux hicolor exports.
+  Rasterize rounded menu masks at drawable density. Keep the approved artwork,
+  layout, capture/audio and video scaling unchanged; no video upscaler. Keep both
+  builds local and preserve previous downloads.
+  Verified: all 11 Linux checks, twelve drawable-size checks through 3840x2160,
+  packaged controls/appearance, Windows icon resources and UI under Wine, and a
+  fullscreen 4K virtual-display screenshot. Native Windows mixed-monitor DPI
+  transitions and real Linux compositor/launcher behavior remain to be tested.

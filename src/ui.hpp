@@ -9,6 +9,7 @@
 #include <filesystem>
 #include "menu_theme.hpp"
 #include "menu_motion.hpp"
+#include "window_icon.hpp"
 namespace ui {
 inline constexpr int height=650,toolbarOffset=-64;
 struct Box {int x,y,w,h;bool contains(int px,int py)const{return px>=x&&px<x+w&&py>=y&&py<y+h;}};
@@ -45,7 +46,9 @@ struct Painter {
     bool motion=true;
     ui::MenuTheme theme;
     bool applyTheme=true;
+    ui::NativeWindowIcons nativeIcons;
     bool setWindowIcon(SDL_Window *window){
+        if(nativeIcons.set(window,theme.choice))return true;
         auto path=assetPath+"/branding/xr1-play-"+ui::colorKey(theme.choice)+".bmp";
         auto *surface=SDL_LoadBMP(path.c_str());if(!surface)return false;
         SDL_SetWindowIcon(window,surface);SDL_FreeSurface(surface);return true;
@@ -86,7 +89,7 @@ struct Painter {
         std::array<TTF_Font*,6> fonts{};constexpr int sizes[]={18,14,38,23,12,112};
         for(size_t i=0;i<fonts.size();++i){fonts[i]=TTF_OpenFont(fontPath.c_str(),static_cast<int>(std::lround(sizes[i]*scale)));if(!fonts[i]){for(auto *f:fonts)if(f)TTF_CloseFont(f);throw std::runtime_error("Cannot open bundled font: "+std::string(TTF_GetError()));}}
         for(auto *font:fonts)TTF_SetFontHinting(font,TTF_HINTING_LIGHT);
-        clearLabels();for(auto *font:{normal,small,title,heading,tiny,display})if(font)TTF_CloseFont(font);
+        clearLabels();clearShapes();for(auto *font:{normal,small,title,heading,tiny,display})if(font)TTF_CloseFont(font);
         normal=fonts[0];small=fonts[1];title=fonts[2];heading=fonts[3];tiny=fonts[4];display=fonts[5];
         TTF_SetFontStyle(title,TTF_STYLE_BOLD);TTF_SetFontStyle(heading,TTF_STYLE_BOLD);TTF_SetFontStyle(display,TTF_STYLE_BOLD);fontScale=scale;
     }
@@ -113,24 +116,26 @@ struct Painter {
         b.y+=offsetY;
         if(b.w<=0||b.h<=0)return;
         radius=std::min(radius,std::min(b.w,b.h)/2.0f);
-        std::string key=std::to_string(b.w)+":"+std::to_string(b.h)+":"+std::to_string(radius);
+        const int pixelW=std::max(1,int(std::lround(b.w*fontScale))),pixelH=std::max(1,int(std::lround(b.h*fontScale)));
+        const float pixelRadius=radius*fontScale;
+        std::string key=std::to_string(pixelW)+":"+std::to_string(pixelH)+":"+std::to_string(pixelRadius);
         auto found=shapes.find(key);
         if(found==shapes.end()){
-            auto *texture=SDL_CreateTexture(r,SDL_PIXELFORMAT_RGBA32,SDL_TEXTUREACCESS_STATIC,b.w,b.h);if(!texture)return;
+            auto *texture=SDL_CreateTexture(r,SDL_PIXELFORMAT_RGBA32,SDL_TEXTUREACCESS_STATIC,pixelW,pixelH);if(!texture)return;
             auto *format=SDL_AllocFormat(SDL_PIXELFORMAT_RGBA32);if(!format){SDL_DestroyTexture(texture);return;}
-            Uint32 solid=SDL_MapRGBA(format,255,255,255,255);std::vector<Uint32> pixels(static_cast<size_t>(b.w)*b.h,solid);
-            // Cache one antialiased mask per shape/color. One texture draw avoids
+            Uint32 solid=SDL_MapRGBA(format,255,255,255,255);std::vector<Uint32> pixels(static_cast<size_t>(pixelW)*pixelH,solid);
+            // Cache one mask at the drawable pixel density. One texture draw avoids
             // seams where separately rounded primitives meet at fractional DPI.
-            int band=static_cast<int>(std::ceil(radius+1));
-            for(int y=0;y<b.h;++y){if(y>=band&&y<b.h-band)continue;
-                for(int x=0;x<b.w;++x){if(x>=band&&x<b.w-band)continue;
-                    float dx=std::max(std::abs(x+.5f-b.w/2.0f)-(b.w/2.0f-radius),0.0f);
-                    float dy=std::max(std::abs(y+.5f-b.h/2.0f)-(b.h/2.0f-radius),0.0f);
-                    float coverage=std::clamp(.5f-(std::hypot(dx,dy)-radius),0.0f,1.0f);
-                    pixels[static_cast<size_t>(y)*b.w+x]=SDL_MapRGBA(format,255,255,255,static_cast<Uint8>(std::lround(255*coverage)));
+            int band=static_cast<int>(std::ceil(pixelRadius+1));
+            for(int y=0;y<pixelH;++y){if(y>=band&&y<pixelH-band)continue;
+                for(int x=0;x<pixelW;++x){if(x>=band&&x<pixelW-band)continue;
+                    float dx=std::max(std::abs(x+.5f-pixelW/2.0f)-(pixelW/2.0f-pixelRadius),0.0f);
+                    float dy=std::max(std::abs(y+.5f-pixelH/2.0f)-(pixelH/2.0f-pixelRadius),0.0f);
+                    float coverage=std::clamp(.5f-(std::hypot(dx,dy)-pixelRadius),0.0f,1.0f);
+                    pixels[static_cast<size_t>(y)*pixelW+x]=SDL_MapRGBA(format,255,255,255,static_cast<Uint8>(std::lround(255*coverage)));
                 }
             }
-            SDL_UpdateTexture(texture,nullptr,pixels.data(),b.w*4);SDL_FreeFormat(format);SDL_SetTextureBlendMode(texture,SDL_BLENDMODE_BLEND);SDL_SetTextureScaleMode(texture,SDL_ScaleModeLinear);
+            SDL_UpdateTexture(texture,nullptr,pixels.data(),pixelW*4);SDL_FreeFormat(format);SDL_SetTextureBlendMode(texture,SDL_BLENDMODE_BLEND);SDL_SetTextureScaleMode(texture,SDL_ScaleModeLinear);
             if(shapes.size()>=96)clearShapes();
             found=shapes.emplace(std::move(key),texture).first;
         }

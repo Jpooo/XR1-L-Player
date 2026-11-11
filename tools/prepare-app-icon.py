@@ -22,7 +22,8 @@ def bmp(path, image):
     dib = struct.pack('<IiiHHIIiiII', 108, image.width, -image.height, 1, 32, 3, len(raw), 2835, 2835, 0, 0)
     dib += struct.pack('<IIIII', 0xff0000, 0xff00, 0xff, 0xff000000, 0x73524742) + bytes(48)
     path.write_bytes(b'BM' + struct.pack('<IHHI', 122+len(raw), 0, 0, 122) + dib + raw)
-bmp(root / 'assets/icons/xr1-lite.bmp', mask.resize((1024,1024), Image.Resampling.LANCZOS))
+# Keep the approved master at its native resolution for the large 4K menu panel.
+bmp(root / 'assets/icons/xr1-lite.bmp', mask)
 for key, accent, ink in [('xbox','#9bf00b','#0e1805'), ('playstation','#4f8ff7','#091222'), ('nintendo','#f4434e','#1d0a0e')]:
     badge = Image.new('RGBA', (512,512))
     ImageDraw.Draw(badge).rounded_rectangle((4,4,507,507), radius=120, fill=accent)
@@ -33,8 +34,13 @@ for key, accent, ink in [('xbox','#9bf00b','#0e1805'), ('playstation','#4f8ff7',
     data = io.BytesIO(); badge.save(data, format='PNG')
     encoded = base64.b64encode(data.getvalue()).decode('ascii')
     (out / f'xr1-play-{key}.svg').write_text(f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="512" height="512" viewBox="0 0 512 512"><image width="512" height="512" xlink:href="data:image/png;base64,{encoded}"/></svg>\n')
-    bmp(out / f'xr1-play-{key}.bmp', badge.resize((256,256), Image.Resampling.LANCZOS))
+    bmp(out / f'xr1-play-{key}.bmp', badge.resize((512,512), Image.Resampling.LANCZOS))
+    badge.save(out / f'xr1-play-{key}.ico', sizes=[(n,n) for n in (16,20,24,32,40,48,64,128,256)])
     if key == 'xbox':
-        badge.save(out / 'xr1-play.ico', sizes=[(n,n) for n in (16,20,24,32,40,48,64,128,256)])
+        (out / 'xr1-play.ico').write_bytes((out / 'xr1-play-xbox.ico').read_bytes())
+        for n in (16,24,32,48,64,128,256,512):
+            target=out/'hicolor'/f'{n}x{n}'/'apps'/'xr1-l-player.png'
+            target.parent.mkdir(parents=True,exist_ok=True)
+            badge.resize((n,n),Image.Resampling.LANCZOS).save(target)
 (out / 'SOURCE.txt').write_text('XR1 Lite device artwork generated from the user-provided hardware reference and approved in chat.\nMaster: xr1-lite-master.png. Format/size exports: tools/prepare-app-icon.py.\nThe same artwork supplies the menu, header, window and package icons.\nSolid theme-color backgrounds; no PLAY watermark or diagonal decoration.\nOther interface symbols retain their Lucide ISC license in ../icons/LICENSE.\n')
 print('Exported XR1 Lite runtime mask, three themed badges and nine-size Windows ICO.')

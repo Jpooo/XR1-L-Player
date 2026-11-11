@@ -19,7 +19,7 @@ Connection status shows detected devices, live video and waiting/reconnecting st
 F/F11: fullscreen; Tab: settings / return to video; Enter: stop playback; M: mute; +/-: volume. In menus use the mouse, arrows and Enter; Esc goes back. Volume and mute are saved across launches.
 Settings use %APPDATA%\XR1-L Player\. Previous XR1 Play settings are imported when no new settings exist.
 
-Local test build; not uploaded to GitHub. Hardware unplug/replug testing is still needed.
+Beta V2 pre-release. Hardware compatibility and GPU performance still need testing across different systems.
 
 Windowed size and fullscreen state are restored on launch. `--windowed` overrides saved fullscreen. Automatic format selection tries only YUYV and NV12.
 

@@ -1,11 +1,13 @@
 # XR1-L Player
 
+**Beta V2 pre-release** · [Release notes](https://github.com/Jpooo/XR1-L-Player/releases/tag/beta-v2)
+
 Native **1080p60 live preview and HDMI stereo audio** for EVGA XR1 Lite on Linux and Windows.
 
-- [Linux ZIP](https://github.com/Jpooo/XR1-L-Player/releases/download/v1.5.16/XR1-L-Player-1.5.16-Linux-x86_64.zip) · [AppImage](https://github.com/Jpooo/XR1-L-Player/releases/download/v1.5.16/XR1-L-Player-1.5.16-Linux-x86_64.AppImage)
-- [Windows x64 ZIP](https://github.com/Jpooo/XR1-L-Player/releases/download/v1.5.16/XR1-L-Player-1.5.16-Windows-x64.zip)
+- [Linux ZIP](https://github.com/Jpooo/XR1-L-Player/releases/download/beta-v2/XR1-L-Player-Beta-V2-Linux-x86_64.zip) · [AppImage](https://github.com/Jpooo/XR1-L-Player/releases/download/beta-v2/XR1-L-Player-Beta-V2-Linux-x86_64.AppImage)
+- [Windows x64 ZIP](https://github.com/Jpooo/XR1-L-Player/releases/download/beta-v2/XR1-L-Player-Beta-V2-Windows-x64.zip)
 
-![XR1-L Player 1.5.16 interface](docs/screenshot.png)
+![XR1-L Player interface](docs/screenshot.png)
 
 ## XR1 Lite system requirements
 
@@ -27,4 +29,5 @@ These requirements also apply when using XR1-L Player.
 4. Open **Settings**, choose the card's video source, HDMI audio input and your speakers/headphones, then return and choose **Play**.
 
 Use **Preferences** to save Neon Green, Electric Blue or Crimson Red and Motion On/Off.
+**U** toggles optional FSR upscaling; **Shift+U** cycles optional sharpening (both default Off). FSR applies above 1080p; on Windows, enable it in Settings and restart first.
 **F/F11** toggles fullscreen, **M** mutes, **+/-** changes volume and **Tab** opens settings / returns to video. Move the mouse during playback to reveal **Main menu** and playback controls. Use the mouse or arrows and Enter in menus; **Esc** goes back.

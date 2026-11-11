@@ -258,3 +258,11 @@
   controls/persistence and Windows launch/help under Wine passed. ZIP CRC,
   embedded executables/shader/license bytes, permissions and hashes match.
   Nothing pushed, no remote branch/tag/release created or changed.
+
+- Renewed publication authorization: user explicitly requested uploading the
+  approved Beta V2 builds as a GitHub pre-release and removing the old release.
+  Keep tested executable bytes intact. Refresh release documentation, upload
+  both ZIPs, the AppImage and checksums, verify remote assets, publish non-draft
+  with prerelease=true, then delete the superseded 1.5.16 release (keep its git
+  tag/history). Update main README download links. Do not run the obsolete
+  publish-approved-release workflow: it targets the superseded 1.5.16 package.

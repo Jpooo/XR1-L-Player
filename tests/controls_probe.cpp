@@ -39,6 +39,15 @@ static const Action appearanceActions[]={
     {2600,SDL_KEYDOWN,0,0,SDLK_TAB},{2800,SDL_KEYDOWN,0,0,SDLK_ESCAPE},
     {3000,SDL_MOUSEBUTTONDOWN,150,460}
 };
+static const Action idleActions[]={
+    {100,SDL_MOUSEBUTTONDOWN,150,350},
+    {200,SDL_KEYDOWN,0,0,SDLK_m},{300,SDL_KEYDOWN,0,0,SDLK_PLUS},
+    {400,SDL_KEYDOWN,0,0,SDLK_F11},{600,SDL_KEYDOWN,0,0,SDLK_F11},
+    {750,SDL_MOUSEBUTTONDOWN,980,50},{900,SDL_MOUSEBUTTONDOWN,150,460},
+    {1000,SDL_MOUSEBUTTONDOWN,430,220},{1150,SDL_MOUSEBUTTONDOWN,100,410},
+    {1300,SDL_KEYDOWN,0,0,SDLK_ESCAPE},{1450,SDL_MOUSEBUTTONDOWN,150,350},
+    {1700,SDL_MOUSEBUTTONDOWN,140,408}
+};
 static const Action previewActions[]={{100,SDL_MOUSEBUTTONDOWN,100,606}};
 extern "C" int SDL_PollEvent(SDL_Event *event) {
     static auto real=reinterpret_cast<int(*)(SDL_Event*)>(dlsym(RTLD_NEXT,"SDL_PollEvent"));
@@ -50,6 +59,7 @@ extern "C" int SDL_PollEvent(SDL_Event *event) {
     bool appearance=std::getenv("XR1_TEST_APPEARANCE")!=nullptr;
     const auto *script=appearance?appearanceActions:actions;
     size_t length=appearance?sizeof(appearanceActions)/sizeof(appearanceActions[0]):sizeof(actions)/sizeof(actions[0]);
+    if(std::getenv("XR1_TEST_IDLE")){script=idleActions;length=sizeof(idleActions)/sizeof(idleActions[0]);}
     if(std::getenv("XR1_TEST_PREVIEW")){script=previewActions;length=sizeof(previewActions)/sizeof(previewActions[0]);}
     if(next>=length||SDL_GetTicks()-began<script[next].at)return 0;
     const auto &a=script[next++];*event={};event->type=a.type;

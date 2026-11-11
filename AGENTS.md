@@ -136,3 +136,18 @@
   clearance, warm-cache reuse, Motion Off and reset cleanup. Native Windows and
   physical capture/display testing remain with the user. ZIP/embedded binary,
   font and license hashes were verified.
+
+- Local 1.5.24: discard the 1.5.23 local packages and restore the user-selected
+  screenshot typography: original Chakra Petch Semibold 44/27, centered white
+  letter faces and static soft shadows/glow. Remove the built-in test picture,
+  its generated tone, settings action and CLI switch from both production apps.
+  Hardware substitutes live only in test executables and are never packaged.
+  Preserve native capture/audio behavior, artwork and other controls. Keep the
+  new Windows ZIP and Linux AppImage ZIP local; no GitHub updates.
+  Verified: all 12 Linux CTest checks; test-only capture/input controls and audio;
+  shipping AppImage menus, tester-option rejection and settings persistence;
+  native audio bridge under dummy audio on Linux and Wine; Windows typography,
+  seven reconnect scenarios, full UI and shipping idle/help checks under Wine.
+  Both production binaries lack tester/tone/fixture strings, packages exclude
+  test executables, and embedded binary/font/license hashes match. Native Windows
+  and real XR1 Lite hardware validation remain with the user.

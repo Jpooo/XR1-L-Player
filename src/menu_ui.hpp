@@ -67,7 +67,7 @@ inline void navigationButton(Painter &p,int index,const std::string &label,bool 
     if(letters->ink.w/p.fontScale>220)letters=&p.menuLetters.get(p.heading,label,a,primary,p.fontScale);
     float x=b.x+b.w/2.f-(letters->ink.x+letters->ink.w/2.f)/p.fontScale;
     float y=b.y+b.h/2.f-(letters->ink.y+letters->ink.h/2.f)/p.fontScale-lift;
-    p.menuLetters.draw(*letters,x,y+p.offsetY,p.frameTime,p.motion);
+    p.menuLetters.draw(*letters,x,y+p.offsetY);
     p.icon(Icon::Chevron,b.x+b.w-36,b.y+(b.h-20)/2.0f-lift,20,opacity(a,Uint8(80+focus*175)));
 }
 inline void menuHeader(Painter &p,Screen screen,bool backHovered,ConsoleColor theme){
@@ -75,8 +75,8 @@ inline void menuHeader(Painter &p,Screen screen,bool backHovered,ConsoleColor th
     if(screen==Screen::Main){
         const auto &letters=p.menuLetters.get(p.heading,"XR1-L Player",a,false,p.fontScale);
         float x=42-letters.ink.x/p.fontScale,y=51-(letters.ink.y+letters.ink.h/2.f)/p.fontScale;
-        p.menuLetters.draw(letters,x,y+p.offsetY,p.frameTime,false);
-        p.text("1.5.22",42+letters.ink.w/p.fontScale+12,43,muted,p.small);
+        p.menuLetters.draw(letters,x,y+p.offsetY);
+        p.text("1.5.24",42+letters.ink.w/p.fontScale+12,43,muted,p.small);
         p.round({847,37,13,13},4,a);p.text(themeName(theme),874,33,white,p.normal);
         p.text("MAIN MENU",48,138,muted,p.tiny);
     }else{

@@ -18,7 +18,7 @@ struct Options {
     bool colorPreference=false,muted=false;
     float volume=0.7f;
     ui::ConsoleColor colorTheme=ui::ConsoleColor::Xbox;
-    bool demo=false,fullscreen=false,vsync=false,diagnose=false,autostart=false,reduceMotion=false;
+    bool fullscreen=false,vsync=false,diagnose=false,autostart=false,reduceMotion=false;
     bool videoSet=false,audioSet=false,outputSet=false;
 #ifdef _WIN32
     int seconds=0,latency=32,buffers=2;
@@ -95,9 +95,9 @@ static void handleSignal(int) {interrupted=1;}
 static void help() {
     std::cout<<
 #ifdef _WIN32
-    "XR1-L Player 1.5.22 - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.24 - native 1080p60 HDMI viewer ("
 #else
-    "XR1-L Player 1.5.22 Linux test build - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.5.24 Linux test build - native 1080p60 HDMI viewer ("
 #endif
 #ifdef _WIN32
     "Windows x86_64"
@@ -106,7 +106,6 @@ static void help() {
 #endif
     ")\n"
     "Usage: xr1-l-player [options]\n"
-    "  --demo                 Animated 1080p60 test picture + 440 Hz stereo tone\n"
     "  --video ID_OR_NAME     Select a video device from --diagnose\n"
     "  --audio NAME           Exact capture-device name from --diagnose\n"
     "  --output NAME          Exact playback-device name (default: system default)\n"
@@ -135,7 +134,6 @@ static Options parse(int argc,char **argv) {
         std::string a=argv[i];
         auto value=[&]() {if(i+1>=argc) throw std::runtime_error("Missing value for "+a);return std::string(argv[++i]);};
         if(a=="--help"||a=="-h") {help();std::exit(0);}
-        else if(a=="--demo") o.demo=true;
         else if(a=="--fullscreen") o.fullscreen=true;
         else if(a=="--color-preference")o.colorPreference=true;
         else if(a=="--vsync") o.vsync=true;
@@ -165,16 +163,6 @@ static std::vector<std::string> audioDevices(bool capture) {
 static void diagnoseAudio() {
     std::cout<<"Audio driver: "<<(SDL_GetCurrentAudioDriver()?SDL_GetCurrentAudioDriver():"unavailable")<<"\n";
     for(bool input:{true,false}) {std::cout<<(input?"Audio inputs:\n":"Audio outputs:\n");for(auto &s:audioDevices(input))std::cout<<"  "<<s<<"\n";}
-}
-static void demoFrame(Frame &f,double t) {
-    f.pixel=SDL_PIXELFORMAT_RGB24;f.pitch=5760;f.data.resize(5760*1080);
-    const uint8_t colors[8][3]={{220,230,235},{220,200,55},{60,200,195},{65,185,95},{190,70,190},{205,65,65},{65,100,210},{18,24,35}};
-    for(int y=0;y<1080;++y) for(int x=0;x<1920;++x) {
-        auto *p=&f.data[static_cast<size_t>(y*1920+x)*3];int bar=x/240;
-        bool marker=std::abs(x-static_cast<int>(std::fmod(t*480,1920)))<12;
-        for(int k=0;k<3;++k) p[k]=marker?255:static_cast<uint8_t>(colors[bar][k]*(y>820?0.3:1.0));
-    }
-    f.received=monotime();
 }
 static int app(const Options &o) {
     SDL_SetMainReady();
@@ -224,14 +212,14 @@ static int app(const Options &o) {
         std::vector<VideoDevice> videos;std::vector<std::string> inputs,outputs;
         const std::vector<std::string> formats={"auto","yuyv","nv12","uyvy","i420","yv12","mjpeg"};
         int vi=0,ai=-1,oi=-1,fi=static_cast<int>(std::find(formats.begin(),formats.end(),o.format)-formats.begin());
-        bool playing=false,menu=true,quit=false,demonstration=o.demo;
+        bool playing=false,menu=true,quit=false;
         connection::Recovery recovery;std::optional<connection::Target> lastTarget;
         bool resumeMenu=false;ui::Screen resumeScreen=ui::Screen::Main;
         double lastVideoAt=0,lastDeviceRefresh=monotime();
         bool reducedMotion=o.reduceMotion;
         bool validateVideo=o.videoSet,validateAudio=o.audioSet,validateOutput=o.outputSet;
         std::string error;
-        double began=monotime(),startTime=began,lastStat=began,lastDemo=0,lastPaint=0;
+        double began=monotime(),startTime=began,lastStat=began,lastPaint=0;
         double controlsUntil=began+3;
         bool draggingVolume=false;
         int mouseX=-1,mouseY=-1;
@@ -250,7 +238,7 @@ static int app(const Options &o) {
         WindowsVideoUpload videoUploads;
         WindowsPlaybackScheduling playbackScheduling;
 #endif
-        FrameRate shownCadence,demoCadence;double arrivalFps=0;
+        FrameRate shownCadence;double arrivalFps=0;
         double measuredFps=0,displayFps=0,uploadAge=0;
         double uploadTotal=0,uploadMax=0,presentTotal=0,presentMax=0;
         uint64_t uploadSamples=0,presentSamples=0;
@@ -317,31 +305,25 @@ static int app(const Options &o) {
 #ifdef _WIN32
                 playbackScheduling.start();
 #endif
-                if(demonstration) {
-                    std::lock_guard<std::mutex> lock(shared.mutex);
-                    shared.error.clear();shared.dirty=false;shared.captured=0;shared.skipped=0;shared.corrupt=0;
-                }
-                if(!demonstration) {
-                    if(videos.empty()) throw std::runtime_error("No capture card found. Connect the XR1 Lite to USB 3, close other capture apps, then press R.");
-                    if(validateVideo&&!sameVideoPath(videos[static_cast<size_t>(vi)].path,o.video)&&videos[static_cast<size_t>(vi)].name!=o.video)throw std::runtime_error("The requested video device was not found. Refresh or choose a connected capture device.");
-                    if(validateAudio&&(ai<0||inputs[static_cast<size_t>(ai)]!=o.audio))throw std::runtime_error("The requested audio input was not found. Choose the XR1 Lite recording/input device.");
-                    if(validateOutput&&(oi<0||outputs[static_cast<size_t>(oi)]!=o.output))throw std::runtime_error("The requested audio output was not found. Choose speakers or headphones.");
-                    if(ai<0) throw std::runtime_error("Choose the XR1 Lite audio input; it may be named USB Digital Audio. Enable the card's input/recording profile in Sound settings and allow desktop apps to use audio input.");
-                    lastTarget=connection::Target{videos[size_t(vi)],inputs[size_t(ai)],oi<0?"":outputs[size_t(oi)],formats[size_t(fi)]};
-                    capture.start(videos[static_cast<size_t>(vi)].path,formats[static_cast<size_t>(fi)],static_cast<unsigned>(o.buffers));
-                }
-                audio.start(demonstration?nullptr:inputs[static_cast<size_t>(ai)].c_str(),oi<0?nullptr:outputs[static_cast<size_t>(oi)].c_str(),demonstration);
-                playing=true;menu=false;startTime=monotime();lastVideoAt=0;lastStat=startTime;lastDemo=startTime-1.0/60;prevFrames=shared.captured;presented=prevPresented=0;controlsUntil=startTime+3;cursor(true);
+                if(videos.empty()) throw std::runtime_error("No capture card found. Connect the XR1 Lite to USB 3, close other capture apps, then press R.");
+                if(validateVideo&&!sameVideoPath(videos[static_cast<size_t>(vi)].path,o.video)&&videos[static_cast<size_t>(vi)].name!=o.video)throw std::runtime_error("The requested video device was not found. Refresh or choose a connected capture device.");
+                if(validateAudio&&(ai<0||inputs[static_cast<size_t>(ai)]!=o.audio))throw std::runtime_error("The requested audio input was not found. Choose the XR1 Lite recording/input device.");
+                if(validateOutput&&(oi<0||outputs[static_cast<size_t>(oi)]!=o.output))throw std::runtime_error("The requested audio output was not found. Choose speakers or headphones.");
+                if(ai<0) throw std::runtime_error("Choose the XR1 Lite audio input; it may be named USB Digital Audio. Enable the card's input/recording profile in Sound settings and allow desktop apps to use audio input.");
+                lastTarget=connection::Target{videos[size_t(vi)],inputs[size_t(ai)],oi<0?"":outputs[size_t(oi)],formats[size_t(fi)]};
+                capture.start(videos[static_cast<size_t>(vi)].path,formats[static_cast<size_t>(fi)],static_cast<unsigned>(o.buffers));
+                audio.start(inputs[static_cast<size_t>(ai)].c_str(),oi<0?nullptr:outputs[static_cast<size_t>(oi)].c_str());
+                playing=true;menu=false;startTime=monotime();lastVideoAt=0;lastStat=startTime;prevFrames=shared.captured;presented=prevPresented=0;controlsUntil=startTime+3;cursor(true);
                 measuredFps=displayFps=uploadAge=0;uploadTotal=uploadMax=presentTotal=presentMax=0;uploadSamples=presentSamples=0;
-                shownCadence.reset();demoCadence.reset();arrivalFps=0;
-                if(!demonstration&&!saveSettings(videos[static_cast<size_t>(vi)].path,inputs[static_cast<size_t>(ai)],oi<0?"":outputs[static_cast<size_t>(oi)],formats[static_cast<size_t>(fi)]
+                shownCadence.reset();arrivalFps=0;
+                if(!saveSettings(videos[static_cast<size_t>(vi)].path,inputs[static_cast<size_t>(ai)],oi<0?"":outputs[static_cast<size_t>(oi)],formats[static_cast<size_t>(fi)]
                     ,colorTheme,audio.volume.load(),audio.muted.load()
                 ))error="Settings could not be saved. Check the settings folder permissions and free space.";
-                std::cout<<(demonstration?"DEMO - synthetic 1080p60":shared.mode)<<"\nAudio: "<<audio.mode<<"\n";
+                std::cout<<shared.mode<<"\nAudio: "<<audio.mode<<"\n";
             } catch(const std::exception &e) {stop(!automatic);error=connection::helpfulError(e.what());std::cerr<<e.what()<<"\n";if(o.autostart&&!automatic) result=1;}
         };
         auto recover=[&](const std::string &reason,connection::Match cause=connection::Match::Interrupted){
-            if(demonstration||!lastTarget){stop();error=connection::helpfulError(reason);return;}
+            if(!lastTarget){stop();error=connection::helpfulError(reason);return;}
             auto target=*lastTarget;resumeMenu=menu;resumeScreen=screen;
             stop();recovery.begin(std::move(target),monotime());recovery.state=cause;error.clear();
             if(resumeMenu)screen=resumeScreen;
@@ -351,20 +333,19 @@ static int app(const Options &o) {
             std::cout<<"Menu: "<<(screen==ui::Screen::Main?"main":screen==ui::Screen::Settings?"settings":"preferences")<<std::endl;};
         auto toggleMotion=[&](){reducedMotion=!reducedMotion;colorSaveError=saveMotionPreference(reducedMotion)?"":"Could not save motion preference. It is applied for this session.";std::cout<<"Menu motion: "<<(reducedMotion?"off":"on")<<std::endl;};
         auto settingAction=[&](int index,int dir){
-            if(index<=4&&recovery.pending()){recovery.cancel();lastDeviceRefresh=0;}
-            if(index<=4&&playing){error="Stop playback to change capture devices or format.";return;}
+            if(index<=3&&recovery.pending()){recovery.cancel();lastDeviceRefresh=0;}
+            if(index<=3&&playing){error="Stop playback to change capture devices or format.";return;}
             if(index==0&&!videos.empty()){vi=(vi+dir+static_cast<int>(videos.size()))%static_cast<int>(videos.size());validateVideo=false;}
             else if(index==1)fi=(fi+dir+static_cast<int>(formats.size()))%static_cast<int>(formats.size());
-            else if(index==2)demonstration=!demonstration;
-            else if(index==3&&!inputs.empty()){ai=(ai+1+dir+static_cast<int>(inputs.size()+1))%static_cast<int>(inputs.size()+1)-1;validateAudio=false;}
-            else if(index==4){oi=(oi+1+dir+static_cast<int>(outputs.size()+1))%static_cast<int>(outputs.size()+1)-1;validateOutput=false;}
-            else if(index==5)mute();
-            else if(index==6)changeVolume(audio.volume.load()+dir*.05f);
-            else if(index==7&&!playing){refresh(true);recovery.retryNow(monotime());}
-            else if(index==8)fullscreen();
-            else if(index==9){if(playing)menu=false;else if(recovery.pending())recovery.retryNow(monotime());else start();}
-            else if(index==10&&(playing||recovery.pending()))stop();
-            else if(index==11)openScreen(ui::Screen::Main);
+            else if(index==2&&!inputs.empty()){ai=(ai+1+dir+static_cast<int>(inputs.size()+1))%static_cast<int>(inputs.size()+1)-1;validateAudio=false;}
+            else if(index==3){oi=(oi+1+dir+static_cast<int>(outputs.size()+1))%static_cast<int>(outputs.size()+1)-1;validateOutput=false;}
+            else if(index==4)mute();
+            else if(index==5)changeVolume(audio.volume.load()+dir*.05f);
+            else if(index==6&&!playing){refresh(true);recovery.retryNow(monotime());}
+            else if(index==7)fullscreen();
+            else if(index==8){if(playing)menu=false;else if(recovery.pending())recovery.retryNow(monotime());else start();}
+            else if(index==9&&(playing||recovery.pending()))stop();
+            else if(index==10)openScreen(ui::Screen::Main);
         };
         auto menuAction=[&](int index,int dir){
             if(screen==ui::Screen::Main){
@@ -376,7 +357,7 @@ static int app(const Options &o) {
             else if(index==4)fullscreen();
             else openScreen(ui::Screen::Main);
         };
-        if(o.autostart||o.demo) start();
+        if(o.autostart) start();
         if(o.colorPreference)openScreen(ui::Screen::Preferences);
         auto color=ui::white;auto dim=ui::muted;auto accent=ui::green;
         while(!quit&&!interrupted) {
@@ -420,15 +401,15 @@ static int app(const Options &o) {
                         else if(playing)stop();else quit=true;
                     }else if(key==SDLK_TAB&&playing){if(menu)menu=false;else openScreen(ui::Screen::Settings);controlsUntil=monotime()+3;}
                     else if(menu){
-                        int count=screen==ui::Screen::Main?3:screen==ui::Screen::Settings?12:6;
+                        int count=screen==ui::Screen::Main?3:screen==ui::Screen::Settings?11:6;
                         if(key==SDLK_UP||key==SDLK_DOWN||key==SDLK_TAB){
                             int dir=key==SDLK_UP||(key==SDLK_TAB&&(event.key.keysym.mod&KMOD_SHIFT))?-1:1;
                             menuFocus=(menuFocus+count+dir)%count;
-                            if(screen==ui::Screen::Settings&&!playing&&!recovery.pending()&&menuFocus==10)menuFocus=(menuFocus+count+dir)%count;
+                            if(screen==ui::Screen::Settings&&!playing&&!recovery.pending()&&menuFocus==9)menuFocus=(menuFocus+count+dir)%count;
                             keyboardNavigation=true;
                         }else if(key==SDLK_LEFT||key==SDLK_RIGHT){
                             keyboardNavigation=true;int dir=key==SDLK_LEFT?-1:1;
-                            if(screen==ui::Screen::Settings&&menuFocus<=6)settingAction(menuFocus,dir);
+                            if(screen==ui::Screen::Settings&&menuFocus<=5)settingAction(menuFocus,dir);
                             else if(screen==ui::Screen::Preferences&&menuFocus<3)menuFocus=(menuFocus+3+dir)%3;
                         }else if(key==SDLK_RETURN||key==SDLK_SPACE)menuAction(menuFocus,1);
                     }else if(key==SDLK_RETURN)stop();
@@ -451,7 +432,7 @@ static int app(const Options &o) {
                     if(playing&&!menu&&event.button.clicks==2){fullscreen();continue;}
                     if(!menu)continue;
                     if(screen==ui::Screen::Main){for(int i=0;i<3;++i)if(ui::navigation[size_t(i)].contains(x,y)){menuFocus=i;menuAction(i,1);break;}}
-                    else if(screen==ui::Screen::Settings){for(int i=0;i<12;++i){auto box=ui::settingControls[size_t(i)];if(box.contains(x,y)){menuFocus=i;menuAction(i,x>=box.x+box.w-90&&x<box.x+box.w-44?-1:1);break;}}}
+                    else if(screen==ui::Screen::Settings){for(int i=0;i<11;++i){auto box=ui::settingControls[size_t(i)];if(box.contains(x,y)){menuFocus=i;menuAction(i,x>=box.x+box.w-90&&x<box.x+box.w-44?-1:1);break;}}}
                     else {for(int i=0;i<6;++i)if(ui::preferenceControls[size_t(i)].contains(x,y)){menuFocus=i;menuAction(i,1);break;}}
                 }
             }
@@ -478,9 +459,6 @@ static int app(const Options &o) {
             if(menu)menuClock.rate(ui::menuFrameRate(menuRefresh,reducedMotion,playing));
             accent=p.theme.accent();
             cursor(menu||now<controlsUntil||draggingVolume);
-            if(playing&&demonstration&&now-lastDemo>=1.0/60) {Frame f;demoFrame(f,now-startTime);shared.publish(f);
-                demoCadence.record(monotime());
-                lastDemo+=1.0/60;if(now-lastDemo>0.1)lastDemo=now;}
             std::string streamError;
             {
                 std::lock_guard<std::mutex> lock(shared.mutex);
@@ -506,9 +484,9 @@ static int app(const Options &o) {
             }
             if(now-lastStat>=1) {double elapsed=now-lastStat;measuredFps=static_cast<double>(shared.captured-prevFrames)/elapsed;displayFps=static_cast<double>(presented-prevPresented)/elapsed;prevFrames=shared.captured;prevPresented=presented;lastStat=now;}
 #ifdef _WIN32
-            arrivalFps=demonstration?demoCadence.fps(monotime()):capture.snapshot().fps;
+            arrivalFps=capture.snapshot().fps;
 #else
-            arrivalFps=demonstration?demoCadence.fps(monotime()):shared.captureFps();
+            arrivalFps=shared.captureFps();
 #endif
             measuredFps=arrivalFps;displayFps=shownCadence.fps(monotime());
             bool timedExit=o.seconds&&now-began>=o.seconds;
@@ -528,7 +506,7 @@ static int app(const Options &o) {
                 if(menu){
                     ui::menuBackground(p);
                     auto focus=[&](ui::Box box,int index){return hover(box)||(keyboardNavigation&&menuFocus==index);};
-                    ui::menuHeader(p,screen,hover(ui::back)||(keyboardNavigation&&menuFocus==(screen==ui::Screen::Settings?11:5)),colorTheme);
+                    ui::menuHeader(p,screen,hover(ui::back)||(keyboardNavigation&&menuFocus==(screen==ui::Screen::Settings?10:5)),colorTheme);
                     if(screen==ui::Screen::Main){
                         for(int i=0;i<3;++i)ui::navigationButton(p,i,i==0?(recovery.pending()?"CANCEL":"PLAY"):i==1?"SETTINGS":"PREFERENCES",focus(ui::navigation[size_t(i)],i));
                         if(ui::logoPanel(p,now-began,reducedMotion,playing?texture:nullptr)&&newFrame)++presented;
@@ -546,17 +524,16 @@ static int app(const Options &o) {
                             if(!playing){p.icon(ui::Icon::Chevron,box.x+box.w-76,box.y+23,18,dim,true);p.icon(ui::Icon::Chevron,box.x+box.w-32,box.y+23,18,accent);}
                         };
                         deviceRow(0,"CAPTURE DEVICE",videos.empty()?"Connect your XR1 Lite":videos[size_t(vi)].name,0,ui::Icon::Video);
-                        deviceRow(1,"HDMI AUDIO INPUT",ai<0?"Choose capture card audio":inputs[size_t(ai)],3,ui::Icon::Speaker);
-                        deviceRow(2,"PLAYBACK OUTPUT",oi<0?"System default output":outputs[size_t(oi)],4,ui::Icon::Speaker);
+                        deviceRow(1,"HDMI AUDIO INPUT",ai<0?"Choose capture card audio":inputs[size_t(ai)],2,ui::Icon::Speaker);
+                        deviceRow(2,"PLAYBACK OUTPUT",oi<0?"System default output":outputs[size_t(oi)],3,ui::Icon::Speaker);
                         p.card(ui::format,ui::raised,focus(ui::format,1)?accent:ui::border,10);
                         p.text("VIDEO FORMAT",76,314,dim,p.tiny);p.text(fi==0?"Automatic":formats[size_t(fi)],76,333,color,p.small);
                         if(!playing){p.icon(ui::Icon::Chevron,429,324,18,dim,true);p.icon(ui::Icon::Chevron,473,324,18,accent);}
-                        p.button(ui::demo,demonstration?"Test picture: On":"Test picture: Off",focus(ui::demo,2),false,p.small);
                         p.text(playing?"Stop playback to change devices.":"Changes apply when you press Play.",60,450,dim,p.tiny);
-                        p.button(ui::refresh,"Refresh devices",focus(ui::refresh,7),false,p.small);
-                        p.button(ui::fullscreen,(SDL_GetWindowFlags(window)&SDL_WINDOW_FULLSCREEN_DESKTOP)?"Exit fullscreen":"Fullscreen",focus(ui::fullscreen,8),false,p.small);
-                        p.button(ui::primary,playing?"Resume":recovery.pending()?"Retry now":"Play",focus(ui::primary,9),true);
-                        if(playing||recovery.pending())p.button(ui::stop,recovery.pending()?"Cancel reconnect":"Stop playback",focus(ui::stop,10),false,p.small);
+                        p.button(ui::refresh,"Refresh devices",focus(ui::refresh,6),false,p.small);
+                        p.button(ui::fullscreen,(SDL_GetWindowFlags(window)&SDL_WINDOW_FULLSCREEN_DESKTOP)?"Exit fullscreen":"Fullscreen",focus(ui::fullscreen,7),false,p.small);
+                        p.button(ui::primary,playing?"Resume":recovery.pending()?"Retry now":"Play",focus(ui::primary,8),true);
+                        if(playing||recovery.pending())p.button(ui::stop,recovery.pending()?"Cancel reconnect":"Stop playback",focus(ui::stop,9),false,p.small);
                         p.text(playing?"Tab  Return to video     Esc  Main menu":"Arrows  Browse     Enter  Select     Esc  Main menu",40,605,dim,p.small);
                     }else{
                         p.text("COLOR PREFERENCE",40,143,dim,p.small);
@@ -573,7 +550,7 @@ static int app(const Options &o) {
                         p.fit(colorSaveError.empty()?"Preferences saved automatically.":colorSaveError,40,508,1020,colorSaveError.empty()?dim:SDL_Color{244,185,139,255},p.small);
                         p.text("Arrows  Browse     Enter  Select     Esc  Main menu",40,605,dim,p.small);
                     }
-                    std::string status=recovery.pending()?"Reconnecting":playing?(demonstration?"Test picture":lastVideoAt&&now-lastVideoAt<1.5?"Live video":"Waiting for video"):videos.empty()?"Connect XR1 Lite":ai<0?"Select HDMI audio":"Card connected";
+                    std::string status=recovery.pending()?"Reconnecting":playing?(lastVideoAt&&now-lastVideoAt<1.5?"Live video":"Waiting for video"):videos.empty()?"Connect XR1 Lite":ai<0?"Select HDMI audio":"Card connected";
                     const bool connected=!recovery.pending()&&!videos.empty();
                     const SDL_Color connectionColor=connected?SDL_Color{76,220,110,255}:SDL_Color{240,72,72,255};
                     p.card({408,34,376,36},{17,24,29,255},ui::border,12);p.round({422,48,8,8},4,connectionColor);p.text(status,444,43,accent,p.small);
@@ -581,10 +558,9 @@ static int app(const Options &o) {
                     p.text("F11  Fullscreen",933,605,dim,p.small);
                     if(!error.empty()){p.card({40,102,1020,34},{43,28,23,255},{128,79,49,255},8);p.fit(error,52,111,992,{244,185,139,255},p.small);}
                 } else {
-                    if(demonstration){p.round({22,20,380,34},10,{16,23,15,220});p.text("TEST PICTURE  /  1080p60 + stereo tone",36,29,color,p.small);}
                     if(audio.muted){p.round({952,20,122,34},10,{16,23,15,220});p.icon(ui::Icon::Speaker,964,28,18,dim,true);p.text("Muted",992,29,dim,p.small);}
                 }
-                if(playing&&!menu&&!demonstration&&now-(lastVideoAt?lastVideoAt:startTime)>1.5){p.card({22,62,790,48},{24,25,23,245},{96,76,45,255},10);p.text("Waiting for video. Check console power and the HDMI connection.",36,77,{244,185,139,255},p.small);}
+                if(playing&&!menu&&now-(lastVideoAt?lastVideoAt:startTime)>1.5){p.card({22,62,790,48},{24,25,23,245},{96,76,45,255},10);p.text("Waiting for video. Check console power and the HDMI connection.",36,77,{244,185,139,255},p.small);}
                 if((menu&&screen==ui::Screen::Settings)||(!menu&&(now<controlsUntil||draggingVolume))) {
                     p.offsetY=menu?0:ui::toolbarOffset;
                     if(!menu){
@@ -595,9 +571,9 @@ static int app(const Options &o) {
                         p.button(ui::playbackFullscreen,(SDL_GetWindowFlags(window)&SDL_WINDOW_FULLSCREEN_DESKTOP)?"Exit fullscreen":"Fullscreen",hover(ui::playbackFullscreen));
                     }
                     int left=menu?ui::volumeLeft:ui::playbackVolumeLeft,top=menu?ui::volumeTop:ui::playbackVolumeTop,width=menu?ui::volumeWidth:ui::playbackVolumeWidth;
-                    if(menu){p.card(ui::mute,(hover(ui::mute)||(keyboardNavigation&&menuFocus==5))?SDL_Color{48,58,44,255}:ui::raised,(hover(ui::mute)||(keyboardNavigation&&menuFocus==5))?accent:ui::border,10);p.icon(ui::Icon::Speaker,606,409,22,audio.muted?dim:accent,audio.muted);p.text("VOLUME",650,382,dim,p.tiny);}
+                    if(menu){p.card(ui::mute,(hover(ui::mute)||(keyboardNavigation&&menuFocus==4))?SDL_Color{48,58,44,255}:ui::raised,(hover(ui::mute)||(keyboardNavigation&&menuFocus==4))?accent:ui::border,10);p.icon(ui::Icon::Speaker,606,409,22,audio.muted?dim:accent,audio.muted);p.text("VOLUME",650,382,dim,p.tiny);}
                     else p.button(ui::playbackMute,audio.muted?"Unmute":"Mute",hover(ui::playbackMute));
-                    if(menu&&keyboardNavigation&&menuFocus==6)p.card(ui::volumeHit,{20,28,31,255},accent,8);
+                    if(menu&&keyboardNavigation&&menuFocus==5)p.card(ui::volumeHit,{20,28,31,255},accent,8);
                     p.round({left,top,width,6},3,{67,79,57,255});
                     int fill=static_cast<int>(std::lround(audio.volume*width));
                     if(fill>0)p.round({left,top,fill,6},3,accent);
@@ -619,13 +595,12 @@ static int app(const Options &o) {
             }
             if(timedExit) quit=true;
             // Sleep until a frame or UI event arrives, instead of polling at
-            // 1 ms intervals. Keep timer deadlines for demo/UI/automatic exit.
+            // 1 ms intervals. Keep timer deadlines for UI/automatic exit.
             double deadline=menu?menuClock.deadline(monotime()):lastPaint+uiInterval;
-            if(playing&&demonstration)deadline=std::min(deadline,lastDemo+1.0/60);
             if(o.seconds)deadline=std::min(deadline,began+o.seconds);
             int timeout=std::clamp(static_cast<int>(std::ceil((deadline-monotime())*1000)),1,100);
             if(!quit&&!interrupted){
-                if(playing&&!demonstration){
+                if(playing){
                     // A predicate protects frames published just before sleep.
                     // Poll UI events at least every 8 ms, even if HDMI is idle.
                     shared.waitForFrame(std::min(timeout,8));

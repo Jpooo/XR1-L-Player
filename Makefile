@@ -29,7 +29,9 @@ build/render-test: tests/render_test.cpp src/core.hpp src/frame_cadence.hpp
 build/controls-probe.so: tests/controls_probe.cpp
 	mkdir -p build
 	$(CXX) $(CPPFLAGS) -O2 -std=c++17 -Wall -Wextra -shared -fPIC $< -ldl -o $@
-controls-test: build/xr1-l-player build/controls-probe.so
+build/ui-fixture-player: tests/fixture_player.cpp tests/capture_fixture.hpp src/main.cpp src/core.hpp $(VIDEO_HEADERS) src/audio.hpp $(UI_HEADERS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) tests/fixture_player.cpp $(LDFLAGS) $(LDLIBS) -o $@
+controls-test: build/ui-fixture-player build/controls-probe.so
 	python3 tests/controls_test.py
 .PHONY: controls-test
 build/handoff-test: tests/handoff_test.cpp src/core.hpp src/frame_cadence.hpp

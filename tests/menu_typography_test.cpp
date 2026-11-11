@@ -37,9 +37,9 @@ std::vector<Uint32> readPixels(SDL_Renderer *renderer,int width,int height){
 int themePixels(const std::vector<Uint32> &pixels,ui::ConsoleColor theme){
     int count=0;
     for(auto value:pixels){int r=(value>>16)&255,g=(value>>8)&255,b=value&255;
-        if(theme==ui::ConsoleColor::Xbox&&g>180&&g>r+20&&g>b+40)++count;
-        if(theme==ui::ConsoleColor::PlayStation&&b>180&&b>r+30&&b>g+20)++count;
-        if(theme==ui::ConsoleColor::Nintendo&&r>180&&r>g+30&&r>b+30)++count;
+        if(theme==ui::ConsoleColor::Xbox&&g>10&&g>r+3&&g>b+5)++count;
+        if(theme==ui::ConsoleColor::PlayStation&&b>10&&b>r+3&&b>g+3)++count;
+        if(theme==ui::ConsoleColor::Nintendo&&r>10&&r>g+3&&r>b+3)++count;
     }
     return count;
 }
@@ -64,8 +64,8 @@ int main(){
             SDL_SetWindowSize(window,size[0],size[1]);SDL_PumpEvents();SDL_RenderSetLogicalSize(renderer,1100,650);p.prepare();
             assert(p.menuLetters.size()==0);int width=0,height=0;SDL_GetRendererOutputSize(renderer,&width,&height);assert(width==size[0]&&height==size[1]);
             float sx=0,sy=0;SDL_RenderGetScale(renderer,&sx,&sy);int ox=0,oy=0;SDL_RenderLogicalToWindow(renderer,0,0,&ox,&oy);
-            auto render=[&](const auto &label,float x,float y,double seconds,bool animate){
-                SDL_SetRenderDrawColor(renderer,0,0,0,255);SDL_RenderClear(renderer);p.menuLetters.draw(label,x,y,seconds,animate);return readPixels(renderer,width,height);
+            auto render=[&](const auto &label,float x,float y,double,bool){
+                SDL_SetRenderDrawColor(renderer,0,0,0,255);SDL_RenderClear(renderer);p.menuLetters.draw(label,x,y);return readPixels(renderer,width,height);
             };
             for(int index=0;index<3;++index){
                 const std::string text=index==0?"PLAY":index==1?"SETTINGS":"PREFERENCES";auto *font=index==0?p.title:p.heading;
@@ -82,13 +82,14 @@ int main(){
                 assert(std::abs((bounds.left+bounds.right)/2.f-(ox+cx*sx))<=2);
                 assert(std::abs((bounds.top+bounds.bottom)/2.f-(oy+cy*sy))<=2);
                 if(index==0){
-                    auto warm=p.menuLetters.size();auto moving=render(label,x,y,0,true),later=render(label,x,y,1.5,true);assert(moving!=later);
+
+                    auto warm=p.menuLetters.size();auto moving=render(label,x,y,0,true),later=render(label,x,y,1.5,true);assert(moving==later);
                     auto laterBounds=brightBounds(later,width);
                     assert(std::abs((bounds.left+bounds.right)-(laterBounds.left+laterBounds.right))<=2);
                     assert(std::abs((bounds.top+bounds.bottom)-(laterBounds.top+laterBounds.bottom))<=2);
                     for(int frame=0;frame<12;++frame)render(label,x,y,frame*.125,true);
                     assert(p.menuLetters.size()==warm);assert(&p.menuLetters.get(font,text,p.theme.accent(),true,p.fontScale)==&label);
-                    assert(themePixels(first,p.theme.choice)>10);
+                    assert(neutralPixels(first)>10);
                 }else assert(neutralPixels(first)>10);
             }
             p.clearLabels();assert(p.menuLetters.size()==0);
@@ -96,13 +97,13 @@ int main(){
                 p.theme.choice=theme;auto &active=p.menuLetters.get(p.title,"PLAY",p.theme.accent(),true,p.fontScale);
                 auto activePixels=render(active,150,200,0,false);assert(themePixels(activePixels,theme)>10);
                 auto &inactive=p.menuLetters.get(p.title,"PLAY",p.theme.accent(),false,p.fontScale);
-                auto inactivePixels=render(inactive,150,200,0,false);assert(neutralPixels(inactivePixels)>neutralPixels(activePixels));
+                auto inactivePixels=render(inactive,150,200,0,false);assert(neutralPixels(inactivePixels)>10&&neutralPixels(activePixels)>10);
                 p.clearLabels();assert(p.menuLetters.size()==0);
             }
             p.theme.choice=ui::ConsoleColor::Xbox;
             p.menuLetters.get(p.title,"PLAY",p.theme.accent(),true,p.fontScale);assert(p.menuLetters.size()>0);p.resetTextures();assert(p.menuLetters.size()==0);
             p.menuLetters.get(p.title,"PLAY",p.theme.accent(),true,p.fontScale);assert(p.menuLetters.size()==1);
-            std::cout<<"PASS styled menu text, ink centering, all themes, Motion Off, cached animation and reset at "<<width<<'x'<<height<<'\n';
+            std::cout<<"PASS styled menu text, ink centering, all themes, Motion Off, static shadows and reset at "<<width<<'x'<<height<<'\n';
         }
     }
     SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);TTF_Quit();SDL_Quit();

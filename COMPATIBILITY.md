@@ -53,7 +53,7 @@ protected-content behavior, or simultaneous multi-card audio pairing.
    SDR and HDMI **Stereo uncompressed**. Close other capture applications.
 2. Run `--diagnose` and retain the video name, USB ID, native 1080p rates,
    OS/audio backend and selected input/output names.
-3. Start real capture with Test picture off. Verify moving video and HDMI sound,
+3. Start capture. Verify moving video and HDMI sound,
    around 60 received/displayed fps for at least five minutes, and no persistent
    invalid frames. Compare fullscreen/windowed behavior.
 4. Stop/restart, unplug/reconnect, and refresh devices. Check mute, volume,
@@ -61,9 +61,9 @@ protected-content behavior, or simultaneous multi-card audio pairing.
 5. Record the card firmware if known, OS version, USB speed, selected format,
    and whether the default two-buffer request or `--capture-buffers 3` worked.
 
-Do not call a unit/firmware verified from a demo, Wine run, compile, or mock test.
-`Test picture` is a separate generated test source; normal capture always uses
-actual frames from the selected card.
+Do not call a unit/firmware verified from a Wine run, compile, or mock test.
+The app displays actual frames from the selected card; hardware substitutes
+are restricted to regression test executables.
 
 ## Firmware and reference material
 

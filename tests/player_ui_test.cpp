@@ -1,6 +1,7 @@
 // Drive the real player with timed keyboard/mouse input, without hardware.
 #include <SDL.h>
 #include <SDL_ttf.h>
+#include "capture_fixture.hpp"
 #include <cassert>
 #include <set>
 #include <string>
@@ -19,6 +20,10 @@ static int measuredCopyEx(SDL_Renderer *,SDL_Texture *,const SDL_Rect *,const SD
 #define main player_application_main
 #include "../src/main.cpp"
 #undef main
+#undef Capture
+#undef videoDevices
+#undef SDL_GetNumAudioDevices
+#undef SDL_GetAudioDeviceName
 #undef SDL_RenderCopyExF
 #undef SDL_RenderCopy
 #undef SDL_RenderGeometry
@@ -82,9 +87,10 @@ int main(){
     auto click=[](Uint32 at,int x,int y){return Input{at,SDL_MOUSEBUTTONDOWN,0,x,y};};
     auto check=[&](const char *name,bool demo,std::vector<Input> inputs,const char *expected,bool feed,int seconds=1){
         script=std::move(inputs);nextInput=0;firstPoll=true;labels.clear();previewCopies=logoCopies=settingsPreviewCopies=0;lastMainWasVideo=false;previewPixels.clear();
-        Options options;loadSettings(options);options.demo=demo;options.seconds=seconds;options.screenshot=(folder/(std::string(name)+".bmp")).string();
+        Options options;loadSettings(options);fixture::enabled=demo;options.autostart=demo;options.seconds=seconds;options.screenshot=(folder/(std::string(name)+".bmp")).string();
         std::ostringstream output;auto *previous=std::cout.rdbuf(output.rdbuf());int result=app(options);std::cout.rdbuf(previous);std::cout<<output.str();
         assert(result==0&&nextInput==script.size());if(expected)assert(labels.count(expected));
+        for(const auto &text:labels)assert(text.find("Test picture")==std::string::npos&&text.find("TEST PICTURE")==std::string::npos);
         for(const auto &text:labels)assert(text.find("FPS test")==std::string::npos&&text.find("Xbox")==std::string::npos&&text.find("PlayStation")==std::string::npos&&text.find("Nintendo")==std::string::npos);
         auto summary=output.str();auto at=summary.rfind("Frames received:");assert(at!=std::string::npos);unsigned long long received=0,shown=0;
         assert(std::sscanf(summary.c_str()+at,"Frames received: %llu / displayed: %llu",&received,&shown)==2);
@@ -147,7 +153,7 @@ int main(){
     Options unmuted;loadSettings(unmuted);assert(std::abs(unmuted.volume-.6f)<.0001f&&!unmuted.muted);
     auto temporary=settingsPath();temporary+=".tmp."+std::to_string(id);std::filesystem::create_directory(temporary);
     check("volume-save-retry",true,{key(150,SDLK_PLUS),{3000,SDL_USEREVENT}},nullptr,true,4);
-    char arg0[]="xr1-l-player",arg1[]="--fps-test";char *argv[]={arg0,arg1};bool removed=false;
+    char arg0[]="xr1-l-player",arg1[]="--demo";char *argv[]={arg0,arg1};bool removed=false;
     try{parse(2,argv);}catch(const std::runtime_error &){removed=true;}assert(removed);
     if(std::getenv("XR1_KEEP_UI_TEST_OUTPUT"))std::cout<<"UI screenshots: "<<folder.string()<<"\n";else std::filesystem::remove_all(folder);
 }

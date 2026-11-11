@@ -35,7 +35,7 @@ class FixtureAudio {
 public:
     AudioRing ring;std::atomic<float> volume{.7f};std::atomic<bool> muted{false};std::string mode="fixture audio";
     explicit FixtureAudio(int){}bool ownsDevice(Uint32 id)const{return id==123;}
-    void start(const char *input,const char *output,bool demo){assert(!demo&&inputPresent&&outputPresent&&input&&output);opens.back().input=input;opens.back().output=output;opens.back().volume=volume;opens.back().muted=muted;}
+    void start(const char *input,const char *output){assert(inputPresent&&outputPresent&&input&&output);opens.back().input=input;opens.back().output=output;opens.back().volume=volume;opens.back().muted=muted;}
     void stop(){}
 };
 #define Capture FixtureCapture

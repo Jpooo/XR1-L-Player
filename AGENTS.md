@@ -191,3 +191,11 @@
   Read-only UI review caught and fixed remapped mute/volume focus highlights.
   ZIP CRC, embedded executable/AppImage bytes, permissions and hashes match.
   Real card/display and native Windows validation remain with the user.
+
+- The user rejected the separate 120 Hz capture experiment and requested removal
+  of its tester. Removed its isolated worktree and generated downloads; retain
+  the experimental branch only as local source history, without merging.
+  Regular 1.5.27 remains the active tester-free build on both platforms.
+  No interpolation, refresh-rate changes or GitHub upload authorized by this
+  cleanup. Explain that 120 Hz presentation of a 60 fps feed repeats frames;
+  a PC refresh rate evenly divisible by 60 can improve presentation cadence.

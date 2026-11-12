@@ -285,3 +285,9 @@
   matching artwork. Update only the Beta V2 Linux ZIP, standalone logo assets
   and checksum manifest; preserve AppImage/Windows package bytes and the
   published pre-release status. No application source changes.
+  Completed icon-only update via manual workflow 43157280122 from pinned
+  asset staging commit e553af6c46074555e92f07de4527b64dbb4eafdf. Public PNG/ICO
+  and updated Linux ZIP/manifest anonymously downloaded and SHA-256 verified.
+  ZIP CRC and embedded icon/AppImage bytes match. Published AppImage and
+  Windows ZIP asset IDs and hashes remain unchanged; release remains a
+  published Beta V2 pre-release. No application source or binaries changed.

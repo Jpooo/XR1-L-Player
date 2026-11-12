@@ -1,0 +1,78 @@
+name: Restore approved Beta V2 packages
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: restore-beta-v2-packages
+  cancel-in-progress: false
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Restore original downloads and remove local-only icon exports
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'PYTHON'
+          import hashlib, json, os, urllib.parse, urllib.request
+          repo = os.environ['GH_REPO']
+          api = 'https://api.github.com/repos/' + repo
+          release_url = api + '/releases/442314510'
+          headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'}
+          def request(url, method='GET', data=None, mime=None):
+              h = dict(headers)
+              if mime: h['Content-Type'] = mime
+              with urllib.request.urlopen(urllib.request.Request(url, data=data, headers=h, method=method), timeout=180) as r:
+                  body = r.read()
+                  return json.loads(body) if body else None
+          def release():
+              r = request(release_url)
+              assert r['tag_name'] == 'beta-v2' and not r['draft'] and r['prerelease']
+              return r
+          def public_bytes(url):
+              with urllib.request.urlopen(url, timeout=180) as r: return r.read()
+          def patch(asset_id, name):
+              return request(api + '/releases/assets/' + str(asset_id), 'PATCH', json.dumps({'name':name}).encode(), 'application/json')
+          initial = release()
+          protected = {a['name']:(a['id'],a['digest']) for a in initial['assets'] if a['name'] in ['XR1-L-Player-Beta-V2-Linux-x86_64.AppImage','XR1-L-Player-Beta-V2-Windows-x64.zip']}
+          assert len(protected) == 2
+          base = 'https://raw.githubusercontent.com/' + repo + '/63be0481b4a8b85f4545c71b4b9c8f76ecbf4a5c/'
+          manifest_name = 'XR1-L-Player-Beta-V2-SHA256SUMS'
+          manifest = public_bytes(base + manifest_name)
+          expected = {line.split()[1]:line.split()[0] for line in manifest.decode().splitlines()}
+          for name in ['XR1-L-Player-Beta-V2-Linux-x86_64.zip',manifest_name]:
+              data = manifest if name == manifest_name else public_bytes(base + name)
+              digest = hashlib.sha256(data).hexdigest()
+              if name != manifest_name: assert digest == expected[name]
+              assets = {a['name']:a for a in release()['assets']}
+              old = assets.get(name)
+              if not old or old['digest'] != 'sha256:' + digest:
+                  temp = name + '.restore-original'
+                  staged = assets.get(temp)
+                  if not staged:
+                      url = 'https://uploads.github.com/repos/' + repo + '/releases/442314510/assets?name=' + urllib.parse.quote(temp)
+                      staged = request(url,'POST',data,'application/octet-stream')
+                  assert staged['digest'] == 'sha256:' + digest
+                  if old: request(api + '/releases/assets/' + str(old['id']),'DELETE')
+                  patch(staged['id'],name)
+              asset = next(a for a in release()['assets'] if a['name'] == name)
+              assert hashlib.sha256(public_bytes(asset['browser_download_url'] + '?restored=' + digest[:16])).hexdigest() == digest
+              print('Restored and verified:',name)
+          for asset in release()['assets']:
+              if asset['name'] in ['XR1-L-Player.png','XR1-L-Player.ico']:
+                  request(api + '/releases/assets/' + str(asset['id']),'DELETE')
+                  print('Removed:',asset['name'])
+          r = release()
+          addition = 'Linux ZIP also includes the Windows executable icon as PNG and ICO for custom launchers. The AppImage and Windows package are unchanged.'
+          body = (r.get('body') or '').replace(addition,'').rstrip() + '\n'
+          request(release_url,'PATCH',json.dumps({'body':body}).encode(),'application/json')
+          r = release()
+          assets = {a['name']:a for a in r['assets']}
+          assert len(assets) == 4
+          for name, (asset_id, digest) in protected.items():
+              assert assets[name]['id'] == asset_id and assets[name]['digest'] == digest
+          print('PASS original packages restored; icons local-only; binaries and release status unchanged')
+          PYTHON

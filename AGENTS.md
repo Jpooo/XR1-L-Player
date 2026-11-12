@@ -278,16 +278,9 @@
   Superseded v1.5.16 release deleted as requested; its git tag/history retained.
   Future unrequested code/package uploads still need explicit user approval.
 
-- User authorized supplying the exact Windows executable icon and bundling it
-  alongside the current GitHub AppImage. Extracted default PE icon group 1;
-  all nine sizes match the approved Windows source icon pixel-for-pixel. PNG
-  is the exact 256x256 frame; ICO retains all sizes. AppImage already embeds
-  matching artwork. Update only the Beta V2 Linux ZIP, standalone logo assets
-  and checksum manifest; preserve AppImage/Windows package bytes and the
-  published pre-release status. No application source changes.
-  Completed icon-only update via manual workflow 43157280122 from pinned
-  asset staging commit e553af6c46074555e92f07de4527b64dbb4eafdf. Public PNG/ICO
-  and updated Linux ZIP/manifest anonymously downloaded and SHA-256 verified.
-  ZIP CRC and embedded icon/AppImage bytes match. Published AppImage and
-  Windows ZIP asset IDs and hashes remain unchanged; release remains a
-  published Beta V2 pre-release. No application source or binaries changed.
+- Correction: the user clarified the exported PNG/ICO files were local-only.
+  Remove standalone logo release assets and README download links, restore the
+  original approved Beta V2 Linux ZIP and checksum manifest, remove the logo
+  upload workflow and staging branch. Keep local exports/bundles. Preserve
+  the AppImage, Windows ZIP, approved application artwork and release status.
+  Do not upload these local icon exports again without explicit permission.

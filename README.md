@@ -7,7 +7,20 @@ Native **1080p60 live preview and HDMI stereo audio** for EVGA XR1 Lite on Linux
 - [Linux ZIP](https://github.com/Jpooo/XR1-L-Player/releases/download/beta-v2/XR1-L-Player-Beta-V2-Linux-x86_64.zip) · [AppImage](https://github.com/Jpooo/XR1-L-Player/releases/download/beta-v2/XR1-L-Player-Beta-V2-Linux-x86_64.AppImage)
 - [Windows x64 ZIP](https://github.com/Jpooo/XR1-L-Player/releases/download/beta-v2/XR1-L-Player-Beta-V2-Windows-x64.zip)
 
-![XR1-L Player interface](docs/screenshot.png)
+<table>
+  <tr>
+    <th>Neon Green</th>
+    <th>Electric Blue</th>
+    <th>Crimson Red</th>
+  </tr>
+  <tr>
+    <td><a href="docs/screenshot.png"><img src="docs/screenshot.png" alt="XR1-L Player Beta V2 main menu in Neon Green" width="260"></a></td>
+    <td><a href="docs/screenshot-electric-blue.png"><img src="docs/screenshot-electric-blue.png" alt="XR1-L Player Beta V2 main menu in Electric Blue" width="260"></a></td>
+    <td><a href="docs/screenshot-crimson-red.png"><img src="docs/screenshot-crimson-red.png" alt="XR1-L Player Beta V2 main menu in Crimson Red" width="260"></a></td>
+  </tr>
+</table>
+
+Choose your color in **Preferences**. Click a preview to view it full size.
 
 ## XR1 Lite system requirements
 

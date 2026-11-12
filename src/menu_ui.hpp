@@ -45,6 +45,13 @@ inline void glyph(Painter &p,int type,float x,float y,SDL_Color color){
             auto a=point(i),b=point((i+1)%32);p.line(a.x,a.y,b.x,b.y,color,2.1f);
         }
         for(int i=0;i<20;++i){double t=i*2*pi/20,n=(i+1)*2*pi/20;p.line(x+16+float(std::cos(t))*5,y+16+float(std::sin(t))*5,x+16+float(std::cos(n))*5,y+16+float(std::sin(n))*5,color,2);}
+    }else if(type==3){
+        constexpr double pi=3.141592653589793;
+        for(int i=0;i<32;++i){
+            double a=(-45+i*270.0/32)*pi/180,b=(-45+(i+1)*270.0/32)*pi/180;
+            p.line(x+16+float(std::cos(a))*12,y+18+float(std::sin(a))*12,x+16+float(std::cos(b))*12,y+18+float(std::sin(b))*12,color,2.2f);
+        }
+        p.line(x+16,y+1,x+16,y+17,color,2.5f);
     }else{
         for(int i=0;i<3;++i){float yy=y+5+i*11,xx=x+(i==1?10:23);p.line(x,yy,x+32,yy,color,2.5f);p.round({int(xx)-4,int(yy)-4,9,9},4,color);}
     }
@@ -53,18 +60,16 @@ inline void navigationButton(Painter &p,int index,const std::string &label,bool 
     auto b=navigation[size_t(index)];auto a=p.theme.accent();
     float focus=p.animate(900+index,focused),lift=focus*2;
     bool primary=index==0;
-    if(primary||focus>.01f)p.glow({float(b.x)-50,float(b.y)-42-lift,float(b.w)+100,float(b.h)+84},opacity(a,Uint8((primary?70:0)+focus*70)));
-    auto fill=Painter::mix({15,22,26,255},a,primary?.075f+focus*.06f:focus*.05f);
-    if(primary){p.round(b,18,Painter::mix(a,white,focus*.12f),-lift);p.round({b.x+3,b.y+3,b.w-6,b.h-6},15,fill,-lift);}
-    else p.card(b,fill,Painter::mix({53,65,69,255},a,focus*.85f),18,-lift);
-    if(primary){p.round({b.x+3,b.y+3,b.w-6,3},1,opacity(a,Uint8(130+focus*100)),-lift);}
-    p.line(b.x+1,b.y+23-lift,b.x+1,b.y+b.h-23-lift,opacity(a,primary?255:150),2.5f);
+    if(focus>.01f)p.glow({float(b.x)-50,float(b.y)-42-lift,float(b.w)+100,float(b.h)+84},opacity(a,Uint8(focus*70)));
+    auto fill=Painter::mix({15,22,26,255},a,focus*.05f);
+    p.card(b,fill,Painter::mix({53,65,69,255},a,focus*.85f),18,-lift);
+    p.line(b.x+1,b.y+23-lift,b.x+1,b.y+b.h-23-lift,opacity(a,150),2.5f);
     p.line(b.x+b.w-36,b.y+6-lift,b.x+b.w-14,b.y+27-lift,opacity(a,Uint8(50+focus*100)),2);
-    glyph(p,index,float(b.x+28),b.y+(b.h-32)/2.0f-lift,primary?a:white);
+    glyph(p,index,float(b.x+28),b.y+(b.h-32)/2.0f-lift,Painter::mix(white,a,focus));
     auto *font=primary?p.title:p.heading;
-    auto *letters=&p.menuLetters.get(font,label,a,primary,p.fontScale);
+    auto *letters=&p.menuLetters.get(font,label,a,focused,p.fontScale);
     // Long recovery actions stay inside the same icon/chevron clearance.
-    if(letters->ink.w/p.fontScale>220)letters=&p.menuLetters.get(p.heading,label,a,primary,p.fontScale);
+    if(letters->ink.w/p.fontScale>220)letters=&p.menuLetters.get(p.heading,label,a,focused,p.fontScale);
     float x=b.x+b.w/2.f-(letters->ink.x+letters->ink.w/2.f)/p.fontScale;
     float y=b.y+b.h/2.f-(letters->ink.y+letters->ink.h/2.f)/p.fontScale-lift;
     p.menuLetters.draw(*letters,x,y+p.offsetY);

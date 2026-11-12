@@ -88,17 +88,19 @@ int main(){
     assert(settingsPath()==folder/"xr1-l-player/settings");
     auto key=[](Uint32 at,SDL_Keycode k){return Input{at,SDL_KEYDOWN,k};};
     auto click=[](Uint32 at,int x,int y){return Input{at,SDL_MOUSEBUTTONDOWN,0,x,y};};
-    auto check=[&](const char *name,bool demo,std::vector<Input> inputs,const char *expected,bool feed,int seconds=1){
+    std::string lastSummary;
+    auto check=[&](const char *name,bool demo,std::vector<Input> inputs,const char *expected,bool feed,int seconds=1,bool closed=false){
         script=std::move(inputs);nextInput=0;firstPoll=true;labels.clear();previewCopies=logoCopies=settingsPreviewCopies=0;lastMainWasVideo=false;previewPixels.clear();
         Options options;loadSettings(options);fixture::enabled=demo;options.autostart=demo;options.seconds=seconds;options.screenshot=(folder/(std::string(name)+".bmp")).string();
         std::ostringstream output;auto *previous=std::cout.rdbuf(output.rdbuf());int result=app(options);std::cout.rdbuf(previous);std::cout<<output.str();
         assert(result==0&&nextInput==script.size());if(expected)assert(labels.count(expected));
         for(const auto &text:labels)assert(text.find("Test picture")==std::string::npos&&text.find("TEST PICTURE")==std::string::npos);
         for(const auto &text:labels)assert(text.find("FPS test")==std::string::npos&&text.find("Xbox")==std::string::npos&&text.find("PlayStation")==std::string::npos&&text.find("Nintendo")==std::string::npos);
-        auto summary=output.str();auto at=summary.rfind("Frames received:");assert(at!=std::string::npos);unsigned long long received=0,shown=0;
+        auto summary=output.str();lastSummary=summary;auto at=summary.rfind("Frames received:");assert(at!=std::string::npos);unsigned long long received=0,shown=0;
         assert(std::sscanf(summary.c_str()+at,"Frames received: %llu / displayed: %llu",&received,&shown)==2);
         if(demo)assert(received>0);
         if(feed)assert(shown>0);
+        if(closed){assert(!std::filesystem::exists(options.screenshot));std::cout<<"PASS real player: "<<name<<"\n";return;}
         auto *surface=SDL_LoadBMP(options.screenshot.c_str());assert(surface&&surface->w==targetW&&surface->h==targetH);
         if(feed&&targetW==1100&&targetH==650){
             int x=700,y=104;Uint32 pixel=0;std::memcpy(&pixel,static_cast<Uint8*>(surface->pixels)+y*surface->pitch+x*4,4);
@@ -108,7 +110,7 @@ int main(){
         assert(!std::filesystem::exists(folder/"xr1-l-player/fps-test.txt")&&!std::filesystem::exists(folder/"xr1-l-player/windows-fps-test.txt"));
         std::cout<<"PASS real player: "<<name<<"\n";
     };
-    check("main-menu",false,{},"PLAY",false);assert(labels.count("SETTINGS")&&labels.count("PREFERENCES"));
+    check("main-menu",false,{},"PLAY",false);assert(labels.count("SETTINGS")&&labels.count("PREFERENCES")&&labels.count("EXIT")&&labels.count("v2"));
     assert(logoCopies>0&&previewCopies==0&&!lastMainWasVideo);
     check("mouse-settings",false,{click(100,150,350),click(250,180,330)},"yuyv",false);assert(labels.count("VIDEO SETTINGS")&&labels.count("AUDIO SETTINGS"));
     check("keyboard-settings",false,{key(100,SDLK_DOWN),key(200,SDLK_RETURN)},"VIDEO SETTINGS",false);
@@ -151,11 +153,19 @@ int main(){
     assert(previewCopies>0);
     check("settings-no-preview",true,{key(100,SDLK_TAB)},"AUDIO SETTINGS",false);
     assert(previewCopies==0&&settingsPreviewCopies==0&&logoCopies==0);
+    check("settings-resume-button",true,{key(100,SDLK_TAB),click(450,930,525)},"Resume video",true);
+    assert(lastSummary.find("\nAudio:")!=std::string::npos&&lastSummary.find("\nAudio:")==lastSummary.rfind("\nAudio:"));
+    check("settings-resume-keyboard",true,{key(100,SDLK_TAB),key(150,SDLK_UP),key(250,SDLK_UP),key(350,SDLK_RETURN)},"Resume video",true);
+    check("settings-back-keyboard",false,{click(100,150,330),key(150,SDLK_UP),key(250,SDLK_RETURN)},"PLAY",false);
     check("settings-resume",true,{key(100,SDLK_TAB),key(350,SDLK_TAB)},"AUDIO SETTINGS",true);
     assert(previewCopies==0&&settingsPreviewCopies==0);
     check("idle-settings-no-preview",false,{click(100,150,350)},"AUDIO SETTINGS",false);
-    assert(previewCopies==0&&settingsPreviewCopies==0);
+    assert(previewCopies==0&&settingsPreviewCopies==0&&!labels.count("Resume video"));
     check("preferences-while-playing",true,{key(100,SDLK_TAB),key(200,SDLK_ESCAPE),click(300,150,460),click(400,430,220),key(600,SDLK_ESCAPE),click(700,150,240)},"COLOR PREFERENCE",true);
+    for(bool live:{false,true}){
+        check(live?"exit-active-playback-mouse":"exit-idle-mouse",live,live?std::vector<Input>{click(100,100,606),click(400,220,518)}:std::vector<Input>{click(200,220,518)},"EXIT",false,2,true);
+        check(live?"exit-active-playback-keyboard":"exit-idle-keyboard",live,live?std::vector<Input>{click(100,100,606),key(200,SDLK_UP),key(350,SDLK_RETURN)}:std::vector<Input>{key(100,SDLK_UP),key(300,SDLK_RETURN)},"EXIT",false,2,true);
+    }
     check("renderer-reset",true,{{250,SDL_RENDER_DEVICE_RESET}},nullptr,true);
     check("volume-muted",true,{key(150,SDLK_MINUS),key(250,SDLK_MINUS),key(350,SDLK_m)},nullptr,true);
     Options saved;loadSettings(saved);assert(std::abs(saved.volume-.6f)<.0001f&&saved.muted);

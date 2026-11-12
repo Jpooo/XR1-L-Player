@@ -139,7 +139,7 @@ static void help() {
     "  --screenshot FILE.bmp  Save a screenshot before exit with --seconds\n"
     "Move the mouse for volume/fullscreen controls; double-click video for fullscreen.\n"
     "Keys: Enter start/stop, F/F11 fullscreen, Tab settings / return to video, U upscaling, Shift+U sharpening, M mute, +/- volume,\n"
-    "      R refresh devices, Esc leave fullscreen / stop / quit.\n";
+    "      R refresh devices, Esc leave fullscreen / stop / exit.\n";
 }
 static Options parse(int argc,char **argv) {
     Options o;loadSettings(o);
@@ -400,11 +400,13 @@ static int app(const Options &o) {
             else if(index==7)changeVolume(audio.volume.load()+dir*.05f);
             else if(index==8&&!playing){refresh(true);recovery.retryNow(monotime());}
             else if(index==9&&(playing||recovery.pending()))stop();
-            else if(index==10)openScreen(ui::Screen::Main);
+            else if(index==10&&playing){menu=false;controlsUntil=monotime()+3;}
+            else if(index==11)openScreen(ui::Screen::Main);
         };
         auto menuAction=[&](int index,int dir){
             if(screen==ui::Screen::Main){
                 if(index==0){if(recovery.pending())stop();else if(playing){menu=false;controlsUntil=monotime()+3;}else start();}
+                else if(index==3)quit=true;
                 else openScreen(index==1?ui::Screen::Settings:ui::Screen::Preferences);
             }else if(screen==ui::Screen::Settings)settingAction(index,dir);
             else if(index<3)chooseColor(index);
@@ -458,11 +460,11 @@ static int app(const Options &o) {
                         else if(playing)stop();else quit=true;
                     }else if(key==SDLK_TAB&&playing){if(menu)menu=false;else openScreen(ui::Screen::Settings);controlsUntil=monotime()+3;}
                     else if(menu){
-                        int count=screen==ui::Screen::Main?3:screen==ui::Screen::Settings?11:6;
+                        int count=screen==ui::Screen::Main?int(ui::navigation.size()):screen==ui::Screen::Settings?int(ui::settingControls.size()):6;
                         if(key==SDLK_UP||key==SDLK_DOWN||key==SDLK_TAB){
                             int dir=key==SDLK_UP||(key==SDLK_TAB&&(event.key.keysym.mod&KMOD_SHIFT))?-1:1;
                             menuFocus=(menuFocus+count+dir)%count;
-                            if(screen==ui::Screen::Settings&&!playing&&!recovery.pending()&&menuFocus==9)menuFocus=(menuFocus+count+dir)%count;
+                            if(screen==ui::Screen::Settings)while((menuFocus==9&&!playing&&!recovery.pending())||(menuFocus==10&&!playing))menuFocus=(menuFocus+count+dir)%count;
                             keyboardNavigation=true;
                         }else if(key==SDLK_LEFT||key==SDLK_RIGHT){
                             keyboardNavigation=true;int dir=key==SDLK_LEFT?-1:1;
@@ -488,8 +490,8 @@ static int app(const Options &o) {
                     }
                     if(playing&&!menu&&event.button.clicks==2){fullscreen();continue;}
                     if(!menu)continue;
-                    if(screen==ui::Screen::Main){for(int i=0;i<3;++i)if(ui::navigation[size_t(i)].contains(x,y)){menuFocus=i;menuAction(i,1);break;}}
-                    else if(screen==ui::Screen::Settings){for(int i=0;i<11;++i){auto box=ui::settingControls[size_t(i)];if(box.contains(x,y)){menuFocus=i;menuAction(i,x>=box.x+box.w-90&&x<box.x+box.w-44?-1:1);break;}}}
+                    if(screen==ui::Screen::Main){for(size_t i=0;i<ui::navigation.size();++i)if(ui::navigation[size_t(i)].contains(x,y)){menuFocus=i;menuAction(i,1);break;}}
+                    else if(screen==ui::Screen::Settings){for(size_t i=0;i<ui::settingControls.size();++i){auto box=ui::settingControls[size_t(i)];if(box.contains(x,y)){menuFocus=i;menuAction(i,x>=box.x+box.w-90&&x<box.x+box.w-44?-1:1);break;}}}
                     else {for(int i=0;i<6;++i)if(ui::preferenceControls[size_t(i)].contains(x,y)){menuFocus=i;menuAction(i,1);break;}}
                 }
             }
@@ -576,12 +578,12 @@ static int app(const Options &o) {
                 if(menu){
                     ui::menuBackground(p);
                     auto focus=[&](ui::Box box,int index){return hover(box)||(keyboardNavigation&&menuFocus==index);};
-                    ui::menuHeader(p,screen,hover(ui::back)||(keyboardNavigation&&menuFocus==(screen==ui::Screen::Settings?10:5)),colorTheme);
+                    ui::menuHeader(p,screen,hover(ui::back)||(keyboardNavigation&&menuFocus==(screen==ui::Screen::Settings?11:5)),colorTheme);
                     if(screen==ui::Screen::Main){
-                        for(int i=0;i<3;++i)ui::navigationButton(p,i,i==0?(recovery.pending()?"CANCEL":"PLAY"):i==1?"SETTINGS":"PREFERENCES",focus(ui::navigation[size_t(i)],i));
+                        for(size_t i=0;i<ui::navigation.size();++i)ui::navigationButton(p,int(i),i==0?(recovery.pending()?"CANCEL":"PLAY"):i==1?"SETTINGS":i==2?"PREFERENCES":"EXIT",focus(ui::navigation[size_t(i)],i));
                         if(ui::logoPanel(p,now-began,reducedMotion,playing?texture:nullptr)&&newFrame)++presented;
                         p.text("Up / Down  Choose     Enter  Select",40,605,dim,p.small);
-                        p.text(recovery.pending()?"Esc  Cancel reconnect":playing?"Tab  Return to video":"Esc  Quit",548,605,dim,p.small);
+                        p.text(recovery.pending()?"Esc  Cancel reconnect":playing?"Tab  Return to video":"Esc  Exit",548,605,dim,p.small);
                     }else if(screen==ui::Screen::Settings){
                         p.card({40,155,485,325},{13,20,24,245},{43,56,61,255},18);
                         p.card({575,155,485,325},{13,20,24,245},{43,56,61,255},18);
@@ -605,6 +607,7 @@ static int app(const Options &o) {
                         p.text(playing?"Stop playback to change devices.":"Choose Play from the main menu to apply changes.",60,486,dim,p.tiny);
                         p.button(ui::refresh,"Refresh devices",focus(ui::refresh,8),false,p.small);
                         if(playing||recovery.pending())p.button(ui::stop,recovery.pending()?"Cancel reconnect":"Stop playback",focus(ui::stop,9),false,p.small);
+                        if(playing)p.button(ui::resumeVideo,"Resume video",focus(ui::resumeVideo,10),false,p.small);
                         p.text(playing?"Tab  Return to video     U  Upscaling     Shift+U  Sharpening     Esc  Main menu":"Arrows  Browse     Enter  Select     Esc  Main menu",40,605,dim,p.small);
                     }else{
                         p.text("COLOR PREFERENCE",40,143,dim,p.small);

@@ -266,3 +266,24 @@
   with prerelease=true, then delete the superseded 1.5.16 release (keep its git
   tag/history). Update main README download links. Do not run the obsolete
   publish-approved-release workflow: it targets the superseded 1.5.16 package.
+
+- Current user instruction supersedes all later Beta V3 local work: discard
+  build 1.5.37 and use the exact published beta-v2 tag as the baseline. Add only
+  an Exit main-menu button which closes the app, a Resume video Settings button
+  for active playback, and keep Beta V2/v2 display branding per the user’s correction.
+  Internal build 1.5.38 identifies these local packages. Preserve Beta V2
+  capture/audio/FSR, settings, artwork and preview behavior. Do not carry over
+  automatic menu capture, signal classification or the consistency changes.
+  Match Play idle/hover styling to other main buttons and remove its top
+  translucent line. Finish with a consistency review. Build both platforms
+  locally; Linux AppImage in ZIP; do not upload to GitHub.
+  Verified all 14 Linux CTest checks and Windows typography/full-player UI
+  under Wine. Exit closes from idle and active playback by mouse/keyboard;
+  Resume video returns to the existing feed without restarting capture/audio;
+  hidden Resume is skipped and Settings Back remains reachable. Reviewed actual
+  rendered menus in all three themes, including matching idle/hover styles,
+  active Settings and v2 branding; scaling/typography pass through 4K. Native
+  capture/audio/FSR/preview-related modules and all artwork match beta-v2.
+  Both shipping packages launch, Linux help says Beta V2, ZIP CRCs and embedded
+  app bytes/checksums match. Rejected 1.5.37 downloads are archived locally.
+  Physical hardware/native Windows testing remains with the user. No upload.

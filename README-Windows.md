@@ -28,3 +28,5 @@ Optional upscaling: Settings → Upscaling → FSR 1 EASU. Default Off; sharpeni
 During playback, press **U** to switch between normal scaling and FSR 1 in real time. A brief message shows the actual status, and your choice is saved. FSR only affects video displayed above 1080p. On Windows, enable FSR in Settings and restart once first; U then compares both modes without restarting or stopping video/audio.
 
 Optional sharpening: Settings → Sharpening (FSR) → Off / Low / Medium / High. Default Off; it uses AMD RCAS after EASU only when FSR is active above 1080p. Shift+U cycles sharpening during playback; U still toggles FSR. Both preferences are saved. Sharpening may exaggerate edges or artifacts, so start with Low.
+
+Local build 1.5.38 uses the original Beta V2 release with an **Exit** main-menu button, **Resume video** in Settings during playback, and matching main-menu button hover styling. Exit closes the app; Resume video returns to the current feed.

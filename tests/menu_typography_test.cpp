@@ -67,8 +67,8 @@ int main(){
             auto render=[&](const auto &label,float x,float y,double,bool){
                 SDL_SetRenderDrawColor(renderer,0,0,0,255);SDL_RenderClear(renderer);p.menuLetters.draw(label,x,y);return readPixels(renderer,width,height);
             };
-            for(int index=0;index<3;++index){
-                const std::string text=index==0?"PLAY":index==1?"SETTINGS":"PREFERENCES";auto *font=index==0?p.title:p.heading;
+            for(int index=0;index<int(ui::navigation.size());++index){
+                const std::string text=index==0?"PLAY":index==1?"SETTINGS":index==2?"PREFERENCES":"EXIT";auto *font=index==0?p.title:p.heading;
                 auto independent=glyphBounds(font,text);auto &label=p.menuLetters.get(font,text,p.theme.accent(),index==0,p.fontScale);
                 assert(label.ink.x==independent.left&&label.ink.y==independent.top);
                 assert(label.ink.w==independent.right-independent.left&&label.ink.h==independent.bottom-independent.top);

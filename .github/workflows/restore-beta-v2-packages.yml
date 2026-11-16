@@ -1,78 +1,95 @@
-name: Restore approved Beta V2 packages
+name: Publish approved Linux Beta V2 1.5.38
 on:
   workflow_dispatch:
 permissions:
   contents: write
 concurrency:
-  group: restore-beta-v2-packages
+  group: publish-linux-beta-v2-1.5.38
   cancel-in-progress: false
 jobs:
-  restore:
+  publish:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Restore original downloads and remove local-only icon exports
+      - name: Publish exact user-provided Linux package, preserving README and Windows
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          ASSET_COMMIT: ${{ github.sha }}
         run: |
           python3 - <<'PYTHON'
           import hashlib, json, os, urllib.parse, urllib.request
           repo = os.environ['GH_REPO']
           api = 'https://api.github.com/repos/' + repo
           release_url = api + '/releases/442314510'
-          headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'}
+          headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'}
+          expected = {
+              'XR1-L-Player-Beta-V2-Linux-x86_64.zip': '16f6c71b475360eeda07de1b2625b7b16555e00f91d8390205630d39cc203d4f',
+              'XR1-L-Player-Beta-V2-Linux-x86_64.AppImage': '6f5506739b503eb449740a092bfb2fc76968b9ac61b741fe426412eea47a3a56',
+          }
+          windows_name = 'XR1-L-Player-Beta-V2-Windows-x64.zip'
+          windows_digest = 'sha256:56ddc6d2334a76d6f724a2af81aaa3725f7f0ae6d2bd6e7ff4c7a0c43b43956a'
+          manifest_name = 'XR1-L-Player-Beta-V2-SHA256SUMS'
+          readme_sha = '5463757056263307df6ed04b82c9feb6c6ff118d'
           def request(url, method='GET', data=None, mime=None):
               h = dict(headers)
-              if mime: h['Content-Type'] = mime
-              with urllib.request.urlopen(urllib.request.Request(url, data=data, headers=h, method=method), timeout=180) as r:
-                  body = r.read()
+              if mime:
+                  h['Content-Type'] = mime
+              req = urllib.request.Request(url, data=data, headers=h, method=method)
+              with urllib.request.urlopen(req, timeout=180) as response:
+                  body = response.read()
                   return json.loads(body) if body else None
-          def release():
-              r = request(release_url)
-              assert r['tag_name'] == 'beta-v2' and not r['draft'] and r['prerelease']
-              return r
           def public_bytes(url):
-              with urllib.request.urlopen(url, timeout=180) as r: return r.read()
-          def patch(asset_id, name):
-              return request(api + '/releases/assets/' + str(asset_id), 'PATCH', json.dumps({'name':name}).encode(), 'application/json')
+              with urllib.request.urlopen(url, timeout=180) as response:
+                  return response.read()
+          def release():
+              value = request(release_url)
+              assert value['tag_name'] == 'beta-v2' and not value['draft'] and value['prerelease']
+              assert value['name'] == 'XR1-L Player Beta V2'
+              return value
+          def check_protected(value):
+              assert request(api + '/contents/README.md?ref=main')['sha'] == readme_sha, 'README changed'
+              win = next(a for a in value['assets'] if a['name'] == windows_name)
+              assert win['id'] == 737346664 and win['digest'] == windows_digest and win['size'] == 6056531, 'Windows package changed'
           initial = release()
-          protected = {a['name']:(a['id'],a['digest']) for a in initial['assets'] if a['name'] in ['XR1-L-Player-Beta-V2-Linux-x86_64.AppImage','XR1-L-Player-Beta-V2-Windows-x64.zip']}
-          assert len(protected) == 2
-          base = 'https://raw.githubusercontent.com/' + repo + '/63be0481b4a8b85f4545c71b4b9c8f76ecbf4a5c/'
-          manifest_name = 'XR1-L-Player-Beta-V2-SHA256SUMS'
-          manifest = public_bytes(base + manifest_name)
-          expected = {line.split()[1]:line.split()[0] for line in manifest.decode().splitlines()}
-          for name in ['XR1-L-Player-Beta-V2-Linux-x86_64.zip',manifest_name]:
-              data = manifest if name == manifest_name else public_bytes(base + name)
-              digest = hashlib.sha256(data).hexdigest()
-              if name != manifest_name: assert digest == expected[name]
-              assets = {a['name']:a for a in release()['assets']}
+          check_protected(initial)
+          metadata_keys = ['name', 'body', 'tag_name', 'target_commitish', 'draft', 'prerelease', 'published_at']
+          metadata = {key: initial.get(key) for key in metadata_keys}
+          base = 'https://raw.githubusercontent.com/' + repo + '/' + os.environ['ASSET_COMMIT'] + '/release-assets/linux-beta-v2-1.5.38/'
+          packages = {name: public_bytes(base + name) for name in [*expected, manifest_name]}
+          for name, digest in expected.items():
+              assert hashlib.sha256(packages[name]).hexdigest() == digest, 'Staged package mismatch'
+          sums = {line.split()[1]: line.split()[0] for line in packages[manifest_name].decode().splitlines()}
+          assert sums == {**expected, windows_name: windows_digest.removeprefix('sha256:')}, 'Manifest mismatch'
+          # Upload and verify temporary assets before removing/replacing any published names.
+          for name, data in packages.items():
+              digest = 'sha256:' + hashlib.sha256(data).hexdigest()
+              assets = {a['name']: a for a in release()['assets']}
               old = assets.get(name)
-              if not old or old['digest'] != 'sha256:' + digest:
-                  temp = name + '.restore-original'
-                  staged = assets.get(temp)
-                  if not staged:
-                      url = 'https://uploads.github.com/repos/' + repo + '/releases/442314510/assets?name=' + urllib.parse.quote(temp)
-                      staged = request(url,'POST',data,'application/octet-stream')
-                  assert staged['digest'] == 'sha256:' + digest
-                  if old: request(api + '/releases/assets/' + str(old['id']),'DELETE')
-                  patch(staged['id'],name)
-              asset = next(a for a in release()['assets'] if a['name'] == name)
-              assert hashlib.sha256(public_bytes(asset['browser_download_url'] + '?restored=' + digest[:16])).hexdigest() == digest
-              print('Restored and verified:',name)
-          for asset in release()['assets']:
-              if asset['name'] in ['XR1-L-Player.png','XR1-L-Player.ico']:
-                  request(api + '/releases/assets/' + str(asset['id']),'DELETE')
-                  print('Removed:',asset['name'])
-          r = release()
-          addition = 'Linux ZIP also includes the Windows executable icon as PNG and ICO for custom launchers. The AppImage and Windows package are unchanged.'
-          body = (r.get('body') or '').replace(addition,'').rstrip() + '\n'
-          request(release_url,'PATCH',json.dumps({'body':body}).encode(),'application/json')
-          r = release()
-          assets = {a['name']:a for a in r['assets']}
-          assert len(assets) == 4
-          for name, (asset_id, digest) in protected.items():
-              assert assets[name]['id'] == asset_id and assets[name]['digest'] == digest
-          print('PASS original packages restored; icons local-only; binaries and release status unchanged')
+              if old and old['digest'] == digest:
+                  continue
+              temp = name + '.approved-1.5.38'
+              uploaded = assets.get(temp)
+              if not uploaded:
+                  url = 'https://uploads.github.com/repos/' + repo + '/releases/442314510/assets?name=' + urllib.parse.quote(temp)
+                  uploaded = request(url, 'POST', data, 'application/octet-stream')
+              assert uploaded['digest'] == digest and uploaded['size'] == len(data)
+              if old:
+                  request(api + '/releases/assets/' + str(old['id']), 'DELETE')
+              request(api + '/releases/assets/' + str(uploaded['id']), 'PATCH', json.dumps({'name': name}).encode(), 'application/json')
+              print('Published verified asset:', name)
+          final = release()
+          check_protected(final)
+          assert {key: final.get(key) for key in metadata_keys} == metadata, 'Release metadata changed'
+          assert {a['name'] for a in final['assets']} == {*packages, windows_name}, 'Unexpected release assets'
+          for asset in final['assets']:
+              if asset['name'] not in packages:
+                  continue
+              data = packages[asset['name']]
+              digest = hashlib.sha256(data).hexdigest()
+              assert asset['digest'] == 'sha256:' + digest
+              downloaded = public_bytes(asset['browser_download_url'] + '?verified=' + digest[:16])
+              assert hashlib.sha256(downloaded).hexdigest() == digest
+              print('Public download verified:', asset['name'])
+          print('PASS: exact Linux 1.5.38 package published; README, Windows and release metadata unchanged.')
           PYTHON

@@ -14,7 +14,7 @@
 namespace ui {
 inline constexpr int height=650,toolbarOffset=-64;
 struct Box {int x,y,w,h;bool contains(int px,int py)const{return px>=x&&px<x+w&&py>=y&&py<y+h;}};
-enum class Screen {Main,Settings,Preferences};
+enum class Screen {Main,Settings,Preferences,Microphone};
 inline constexpr std::array<Box,4> navigation={Box{48,182,350,92},Box{48,292,350,76},Box{48,386,350,76},Box{48,480,350,76}};
 inline constexpr Box back{920,32,140,42},refresh{40,506,160,44};
 inline constexpr std::array<Box,3> devices={Box{60,218,445,66},Box{595,218,445,66},Box{595,304,445,66}};
@@ -31,7 +31,9 @@ inline constexpr int playbackVolumeLeft=418,playbackVolumeWidth=196,playbackVolu
 inline constexpr Box stop{660,506,160,44},motion{40,376,500,92},preferenceFullscreen{575,376,485,92};
 inline constexpr std::array<Box,3> themes={Box{40,178,320,154},Box{390,178,320,154},Box{740,178,320,154}};
 inline constexpr Box resumeVideo{840,506,220,44};
-inline constexpr std::array<Box,12> settingControls={devices[0],format,upscaling,sharpening,devices[1],devices[2],mute,volumeHit,refresh,stop,resumeVideo,back};
+inline constexpr Box xboxMicrophone{220,506,240,44};
+inline constexpr std::array<Box,13> settingControls={devices[0],format,upscaling,sharpening,devices[1],devices[2],mute,volumeHit,refresh,stop,resumeVideo,back,xboxMicrophone};
+inline constexpr std::array<Box,11> microphoneControls={Box{60,235,980,58},Box{60,315,980,58},Box{60,405,210,44},Box{290,405,160,44},Box{470,405,180,44},Box{60,173,210,44},Box{670,405,170,44},Box{60,482,260,44},Box{865,405,175,44},Box{340,482,160,44},back};
 inline constexpr std::array<Box,6> preferenceControls={themes[0],themes[1],themes[2],motion,preferenceFullscreen,back};
 inline constexpr float logoX=480,logoY=75,logoSize=540;
 inline constexpr SDL_Color white{243,246,248,255},muted{155,163,172,255},green{155,240,11,255};

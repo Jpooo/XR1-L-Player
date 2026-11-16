@@ -1,0 +1,22 @@
+{
+  "name": "xr1-xbox-microphone-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local experimental background Xbox Remote Play microphone connection",
+  "main": "main.cjs",
+  "scripts": {
+    "test": "node --test test/*.test.cjs",
+    "bundle": "esbuild renderer.js --bundle --platform=browser --outfile=renderer.bundle.js"
+  },
+  "dependencies": {
+    "events": "3.3.0",
+    "ip-address": "10.1.0",
+    "xal-node": "1.1.6-beta2",
+    "xbox-webapi": "2.0.0-beta4",
+    "xbox-xcloud-player": "0.2.11"
+  },
+  "devDependencies": {
+    "electron": "45.3.2",
+    "esbuild": "0.28.2"
+  }
+}

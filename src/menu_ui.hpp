@@ -85,7 +85,7 @@ inline void menuHeader(Painter &p,Screen screen,bool backHovered,ConsoleColor th
         p.round({847,37,13,13},4,a);p.text(themeName(theme),874,33,white,p.normal);
         p.text("MAIN MENU",48,138,muted,p.tiny);
     }else{
-        p.text(screen==Screen::Settings?"SETTINGS":"PREFERENCES",40,34,white,p.heading);
+        p.text(screen==Screen::Settings?"SETTINGS":screen==Screen::Microphone?"XBOX MICROPHONE":"PREFERENCES",40,34,white,p.heading);
         p.text("XR1-L Player",40,72,muted,p.small);
         p.button(back,"Back  /  Esc",backHovered,false,p.small);
     }

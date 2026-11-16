@@ -95,7 +95,7 @@ int main(){
         std::ostringstream output;auto *previous=std::cout.rdbuf(output.rdbuf());int result=app(options);std::cout.rdbuf(previous);std::cout<<output.str();
         assert(result==0&&nextInput==script.size());if(expected)assert(labels.count(expected));
         for(const auto &text:labels)assert(text.find("Test picture")==std::string::npos&&text.find("TEST PICTURE")==std::string::npos);
-        for(const auto &text:labels)assert(text.find("FPS test")==std::string::npos&&text.find("Xbox")==std::string::npos&&text.find("PlayStation")==std::string::npos&&text.find("Nintendo")==std::string::npos);
+        for(const auto &text:labels)assert(text.find("FPS test")==std::string::npos&&text!="Xbox"&&text.find("Xbox Theme")==std::string::npos&&text.find("PlayStation")==std::string::npos&&text.find("Nintendo")==std::string::npos);
         auto summary=output.str();lastSummary=summary;auto at=summary.rfind("Frames received:");assert(at!=std::string::npos);unsigned long long received=0,shown=0;
         assert(std::sscanf(summary.c_str()+at,"Frames received: %llu / displayed: %llu",&received,&shown)==2);
         if(demo)assert(received>0);
@@ -156,6 +156,9 @@ int main(){
     check("settings-resume-button",true,{key(100,SDLK_TAB),click(450,930,525)},"Resume video",true);
     assert(lastSummary.find("\nAudio:")!=std::string::npos&&lastSummary.find("\nAudio:")==lastSummary.rfind("\nAudio:"));
     check("settings-resume-keyboard",true,{key(100,SDLK_TAB),key(150,SDLK_UP),key(250,SDLK_UP),key(350,SDLK_RETURN)},"Resume video",true);
+    check("microphone-settings-page",false,{click(100,150,330),click(300,320,525)},"XBOX MICROPHONE",false);
+    assert(labels.count("PC MICROPHONE")&&labels.count("Connect microphone")&&labels.count("Sign in to Xbox"));
+    check("microphone-back-keeps-playing",true,{key(100,SDLK_TAB),click(300,320,525),click(500,980,50),click(700,930,525)},"Resume video",true);
     check("settings-back-keyboard",false,{click(100,150,330),key(150,SDLK_UP),key(250,SDLK_RETURN)},"PLAY",false);
     check("settings-resume",true,{key(100,SDLK_TAB),key(350,SDLK_TAB)},"AUDIO SETTINGS",true);
     assert(previewCopies==0&&settingsPreviewCopies==0);

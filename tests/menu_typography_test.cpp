@@ -72,9 +72,10 @@ int main(){
                 auto independent=glyphBounds(font,text);auto &label=p.menuLetters.get(font,text,p.theme.accent(),index==0,p.fontScale);
                 assert(label.ink.x==independent.left&&label.ink.y==independent.top);
                 assert(label.ink.w==independent.right-independent.left&&label.ink.h==independent.bottom-independent.top);
-                auto box=ui::navigation[size_t(index)];float cx=box.x+box.w/2.f,cy=box.y+box.h/2.f;
+                const ui::Box box{48,190+104*index,350,100};
+                float cx=box.x+box.w/2.f,cy=box.y+box.h/2.f;
                 float x=cx-(independent.left+independent.right)/(2*p.fontScale),y=cy-(independent.top+independent.bottom)/(2*p.fontScale);
-                // Check the visible word itself has clearance from both side icons.
+                // Keep room around the centered label in a wide button.
                 assert(cx-label.ink.w/(2*p.fontScale)>box.x+64);
                 assert(cx+label.ink.w/(2*p.fontScale)<box.x+box.w-44);
                 auto first=render(label,x,y,0,false),still=render(label,x,y,1.5,false);assert(first==still);

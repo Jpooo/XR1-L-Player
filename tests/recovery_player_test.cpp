@@ -74,8 +74,8 @@ static int fixturePoll(SDL_Event *event){
     else if(time>=900)videoPresent=inputPresent=outputPresent=true;
     if(FixtureCapture::active)FixtureCapture::active->tick();
     if(SDL_PollEvent(event))return 1;
-    if((scenario==4||scenario==6)&&time>=450&&!action){action=true;*event={};event->type=SDL_MOUSEBUTTONDOWN;event->button.button=SDL_BUTTON_LEFT;event->button.x=150;event->button.y=350;return 1;}
-    if(scenario==6&&time>=650&&action&&action!=2){action=2;*event={};event->type=SDL_MOUSEBUTTONDOWN;event->button.button=SDL_BUTTON_LEFT;event->button.x=180;event->button.y=330;return 1;}
+    if((scenario==4||scenario==6)&&time>=450&&!action){action=true;*event={};event->type=SDL_MOUSEBUTTONDOWN;event->button.button=SDL_BUTTON_LEFT;event->button.x=150;event->button.y=335;return 1;}
+    if(scenario==6&&time>=650&&action&&action!=2){action=2;*event={};event->type=SDL_MOUSEBUTTONDOWN;event->button.button=SDL_BUTTON_LEFT;event->button.x=450;event->button.y=318;return 1;}
     if((scenario==1||scenario==2)&&time>=600&&!action){action=true;*event={};event->type=scenario==2?SDL_QUIT:SDL_KEYDOWN;event->key.keysym.sym=SDLK_ESCAPE;return 1;}
     return 0;
 }
@@ -105,7 +105,7 @@ int main(){
             Uint8 r,g,b;SDL_GetRGB(pixel,image->format,&r,&g,&b);assert(b<80);SDL_FreeSurface(image); // Menu stays open after reconnect.
         }
         if(scenario==6)assert(labels.count("Automatic"));
-        assert(labels.count("Reconnecting")&&labels.count("CANCEL"));
+        assert(labels.count("Reconnecting")&&labels.count("Cancel reconnect"));
         if(scenario==0){assert(labels.count(connection::waiting(connection::Match::InputMissing)));assert(labels.count(connection::waiting(connection::Match::OutputMissing)));}
         std::cout<<"PASS simulated player reconnect scenario "<<scenario<<"\n";
     }

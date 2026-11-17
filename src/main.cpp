@@ -14,6 +14,7 @@
 #include "fsr_upscaler.hpp"
 #ifdef _WIN32
 #include "windows_presenter.hpp"
+#include "windows_diagnostics.hpp"
 #endif
 struct Options {
     bool colorPreference=false,muted=false,fsr=false;
@@ -105,9 +106,9 @@ static void handleSignal(int) {interrupted=1;}
 static void help() {
     std::cout<<
 #ifdef _WIN32
-    "XR1-L Player Beta V2 - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.0 Studio - native 1080p60 HDMI viewer ("
 #else
-    "XR1-L Player Beta V2 Linux test build - native 1080p60 HDMI viewer ("
+    "XR1-L Player 1.0 Studio - native 1080p60 HDMI viewer ("
 #endif
 #ifdef _WIN32
     "Windows x86_64"
@@ -267,6 +268,8 @@ static int app(const Options &o) {
 #ifdef _WIN32
         WindowsVideoUpload videoUploads;
         WindowsPlaybackScheduling playbackScheduling;
+        bool windowsSessionActive=false;
+        std::string sessionVideoMode,sessionAudioMode,sessionSchedulingMode;
 #endif
         FrameRate shownCadence;double arrivalFps=0;
         double measuredFps=0,displayFps=0,uploadAge=0;
@@ -332,6 +335,36 @@ static int app(const Options &o) {
             lastVideoAt=0;
             persistVolume();
 #ifdef _WIN32
+            if(windowsSessionActive){
+                // Report only when playback stops; no extra work in real-time callbacks.
+                WindowsSessionDiagnostics diagnostics;
+                const auto captureState=capture.snapshot();
+                diagnostics.durationSeconds=std::max(0.0,monotime()-startTime);
+                diagnostics.videoMode=sessionVideoMode;
+                diagnostics.audioMode=sessionAudioMode;
+                diagnostics.schedulingMode=sessionSchedulingMode;
+                diagnostics.uploadDestinations=videoUploads.destinations();
+                diagnostics.arrived=captureState.samples;
+                diagnostics.arrivalsOver25ms=captureState.late;
+                diagnostics.pendingDiscarded=captureState.pendingDropped;
+                diagnostics.decoded=shared.captured.load();
+                diagnostics.skippedBeforeUpload=shared.skipped.load();
+                diagnostics.invalid=shared.corrupt.load();
+                diagnostics.displayed=presented;
+                diagnostics.audioOverflowSamples=audio.ring.dropped.load();
+                diagnostics.audioUnderflowSamples=audio.ring.starved.load();
+                diagnostics.uploadAgeMeanMs=uploadSamples?uploadTotal/uploadSamples:0;
+                diagnostics.uploadAgeMaxMs=uploadMax;
+                diagnostics.presentCallMeanMs=presentSamples?presentTotal/presentSamples:0;
+                diagnostics.presentCallMaxMs=presentMax;
+                const auto config=settingsPath();
+                const auto reportFile=config.empty()?std::filesystem::path{}:config.parent_path()/"last-session-diagnostics.txt";
+                if(saveWindowsSessionDiagnostics(reportFile,diagnostics))
+                    std::cout<<"Windows session diagnostics: "<<reportFile.string()<<"\n";
+                else
+                    std::cerr<<"Could not save Windows session diagnostics. Check settings folder permissions.\n";
+                windowsSessionActive=false;
+            }
             playbackScheduling.stop();
 #endif
             capture.stop();audio.stop();
@@ -361,6 +394,12 @@ static int app(const Options &o) {
                 playing=true;menu=false;startTime=monotime();lastVideoAt=0;lastStat=startTime;prevFrames=shared.captured;presented=prevPresented=0;controlsUntil=startTime+3;cursor(true);
                 measuredFps=displayFps=uploadAge=0;uploadTotal=uploadMax=presentTotal=presentMax=0;uploadSamples=presentSamples=0;
                 shownCadence.reset();arrivalFps=0;
+#ifdef _WIN32
+                sessionVideoMode=shared.mode;
+                sessionAudioMode=audio.mode;
+                sessionSchedulingMode=playbackScheduling.mode();
+                windowsSessionActive=true;
+#endif
                 if(!saveSettings(videos[static_cast<size_t>(vi)].path,inputs[static_cast<size_t>(ai)],oi<0?"":outputs[static_cast<size_t>(oi)],formats[static_cast<size_t>(fi)]
                     ,colorTheme,audio.volume.load(),audio.muted.load()
                 ))error="Settings could not be saved. Check the settings folder permissions and free space.";
@@ -401,12 +440,24 @@ static int app(const Options &o) {
             else if(index==8&&!playing){refresh(true);recovery.retryNow(monotime());}
             else if(index==9&&(playing||recovery.pending()))stop();
             else if(index==10)openScreen(ui::Screen::Main);
+            else if(index==11&&playing){menu=false;controlsUntil=monotime()+3;}
+        };
+        auto navigationAction=[&](int index){
+            if(index==0){
+                if(recovery.pending())stop();
+                else if(playing){menu=false;controlsUntil=monotime()+3;}
+                else start();
+            }else if(index==3)quit=true;
+            else openScreen(index==1||index==4?ui::Screen::Settings:ui::Screen::Preferences);
+        };
+        auto settingVisible=[&](int index){
+            if(index==9)return playing||recovery.pending();
+            if(index==11)return playing;
+            return true;
         };
         auto menuAction=[&](int index,int dir){
-            if(screen==ui::Screen::Main){
-                if(index==0){if(recovery.pending())stop();else if(playing){menu=false;controlsUntil=monotime()+3;}else start();}
-                else openScreen(index==1?ui::Screen::Settings:ui::Screen::Preferences);
-            }else if(screen==ui::Screen::Settings)settingAction(index,dir);
+            if(screen==ui::Screen::Main)navigationAction(index);
+            else if(screen==ui::Screen::Settings)settingAction(index,dir);
             else if(index<3)chooseColor(index);
             else if(index==3)toggleMotion();
             else if(index==4)fullscreen();
@@ -417,7 +468,7 @@ static int app(const Options &o) {
         auto color=ui::white;auto dim=ui::muted;auto accent=ui::green;
         while(!quit&&!interrupted) {
             SDL_Event event;
-            while(havePendingEvent||SDL_PollEvent(&event)) {
+            while(!quit&&(havePendingEvent||SDL_PollEvent(&event))) {
                 if(havePendingEvent){event=pendingEvent;havePendingEvent=false;}
                 if(event.type==SDL_QUIT) quit=true;
                 if(event.type==SDL_WINDOWEVENT&&(event.window.event==SDL_WINDOWEVENT_SIZE_CHANGED||event.window.event==SDL_WINDOWEVENT_RESIZED)&&monotime()>=resizeAfter){rememberSize();windowDirty=true;windowSaveAfter=monotime()+.5;}
@@ -458,11 +509,12 @@ static int app(const Options &o) {
                         else if(playing)stop();else quit=true;
                     }else if(key==SDLK_TAB&&playing){if(menu)menu=false;else openScreen(ui::Screen::Settings);controlsUntil=monotime()+3;}
                     else if(menu){
-                        int count=screen==ui::Screen::Main?3:screen==ui::Screen::Settings?11:6;
+                        int count=screen==ui::Screen::Main?int(ui::navigation.size()+2):
+                                  screen==ui::Screen::Settings?int(ui::settingControls.size()):int(ui::preferenceControls.size());
                         if(key==SDLK_UP||key==SDLK_DOWN||key==SDLK_TAB){
                             int dir=key==SDLK_UP||(key==SDLK_TAB&&(event.key.keysym.mod&KMOD_SHIFT))?-1:1;
-                            menuFocus=(menuFocus+count+dir)%count;
-                            if(screen==ui::Screen::Settings&&!playing&&!recovery.pending()&&menuFocus==9)menuFocus=(menuFocus+count+dir)%count;
+                            do{menuFocus=(menuFocus+count+dir)%count;}
+                            while(screen==ui::Screen::Settings&&!settingVisible(menuFocus));
                             keyboardNavigation=true;
                         }else if(key==SDLK_LEFT||key==SDLK_RIGHT){
                             keyboardNavigation=true;int dir=key==SDLK_LEFT?-1:1;
@@ -488,8 +540,16 @@ static int app(const Options &o) {
                     }
                     if(playing&&!menu&&event.button.clicks==2){fullscreen();continue;}
                     if(!menu)continue;
-                    if(screen==ui::Screen::Main){for(int i=0;i<3;++i)if(ui::navigation[size_t(i)].contains(x,y)){menuFocus=i;menuAction(i,1);break;}}
-                    else if(screen==ui::Screen::Settings){for(int i=0;i<11;++i){auto box=ui::settingControls[size_t(i)];if(box.contains(x,y)){menuFocus=i;menuAction(i,x>=box.x+box.w-90&&x<box.x+box.w-44?-1:1);break;}}}
+                    const auto target=std::find_if(ui::navigation.begin(),ui::navigation.end(),[&](ui::Box box){return box.contains(x,y);});
+                    if(target!=ui::navigation.end()){
+                        if(screen==ui::Screen::Main)menuFocus=int(target-ui::navigation.begin());
+                        navigationAction(int(target-ui::navigation.begin()));
+                        continue;
+                    }
+                    if(screen==ui::Screen::Main){
+                        for(int i=1;i<3;++i)if(ui::overview[size_t(i)].contains(x,y)){menuFocus=i+3;menuAction(menuFocus,1);break;}
+                    }
+                    else if(screen==ui::Screen::Settings){for(int i=0;i<int(ui::settingControls.size());++i){auto box=ui::settingControls[size_t(i)];if(settingVisible(i)&&box.contains(x,y)){menuFocus=i;menuAction(i,x>=box.x+box.w-90&&x<box.x+box.w-44?-1:1);break;}}}
                     else {for(int i=0;i<6;++i)if(ui::preferenceControls[size_t(i)].contains(x,y)){menuFocus=i;menuAction(i,1);break;}}
                 }
             }
@@ -557,7 +617,9 @@ static int app(const Options &o) {
                 SDL_RenderSetLogicalSize(renderer,1100,ui::height);
                 p.prepare();p.offsetY=0;
                 p.motion=!reducedMotion;p.frame(now);
-                SDL_SetRenderDrawColor(renderer,9,15,23,255);SDL_RenderClear(renderer);
+                if(menu)SDL_SetRenderDrawColor(renderer,0,0,0,255);
+                else SDL_SetRenderDrawColor(renderer,9,15,23,255);
+                SDL_RenderClear(renderer);
                 if(playing&&texture&&!menu) {
                     int w=0,h=0;SDL_GetRendererOutputSize(renderer,&w,&h);
                     SDL_RenderSetLogicalSize(renderer,0,0);
@@ -574,60 +636,94 @@ static int app(const Options &o) {
                     if(newFrame) ++presented;
                 }
                 if(menu){
+                    p.applyTheme=false;
+                    accent=ui::studioAccent(colorTheme);
                     ui::menuBackground(p);
                     auto focus=[&](ui::Box box,int index){return hover(box)||(keyboardNavigation&&menuFocus==index);};
-                    ui::menuHeader(p,screen,hover(ui::back)||(keyboardNavigation&&menuFocus==(screen==ui::Screen::Settings?10:5)),colorTheme);
+                    ui::menuHeader(p,screen,focus(ui::back,screen==ui::Screen::Settings?10:5));
+                    const char *playLabel=recovery.pending()?"Cancel reconnect":playing?"Resume":"Play";
+                    int sidebarFocus=-1;
+                    for(size_t i=0;i<ui::navigation.size();++i)
+                        if(hover(ui::navigation[i]))sidebarFocus=int(i);
+                    if(sidebarFocus<0&&keyboardNavigation&&screen==ui::Screen::Main)
+                        sidebarFocus=menuFocus;
+                    ui::studioSidebar(p,screen,playLabel,sidebarFocus);
+                    const std::string status=recovery.pending()?"Reconnecting":playing?
+                        (lastVideoAt&&now-lastVideoAt<1.5?"Live video":"Waiting for video"):
+                        videos.empty()?"Connect XR1 Lite":ai<0?"Select HDMI audio":"Card connected";
+                    const bool connected=!recovery.pending()&&!videos.empty();
+                    const SDL_Color connectionColor=connected?SDL_Color{76,220,110,255}:SDL_Color{240,72,72,255};
+                    p.card({850,22,214,35},ui::studioPanel,ui::studioBorder,17);
+                    p.round({864,36,7,7},3.5f,connectionColor);
+                    p.text(status,883,31,accent,p.small);
+                    const char *pageTitle=screen==ui::Screen::Main?"Preview":screen==ui::Screen::Settings?"Settings":"Preferences";
+                    p.text(pageTitle,ui::workspaceLeft,96,color,p.heading);
+
                     if(screen==ui::Screen::Main){
-                        for(int i=0;i<3;++i)ui::navigationButton(p,i,i==0?(recovery.pending()?"CANCEL":"PLAY"):i==1?"SETTINGS":"PREFERENCES",focus(ui::navigation[size_t(i)],i));
                         if(ui::logoPanel(p,now-began,reducedMotion,playing?texture:nullptr)&&newFrame)++presented;
-                        p.text("Up / Down  Choose     Enter  Select",40,605,dim,p.small);
-                        p.text(recovery.pending()?"Esc  Cancel reconnect":playing?"Tab  Return to video":"Esc  Quit",548,605,dim,p.small);
+                        ui::overviewCard(p,0,"HDMI FEED",status);
+                        ui::overviewCard(p,1,"AUDIO",audio.muted?"Muted":"Volume "+std::to_string(int(std::lround(audio.volume*100)))+"%",focus(ui::overview[1],4));
+                        ui::overviewCard(p,2,"APPEARANCE",ui::themeName(colorTheme),focus(ui::overview[2],5));
                     }else if(screen==ui::Screen::Settings){
-                        p.card({40,155,485,325},{13,20,24,245},{43,56,61,255},18);
-                        p.card({575,155,485,325},{13,20,24,245},{43,56,61,255},18);
-                        p.text("VIDEO SETTINGS",60,177,accent,p.small);p.text("AUDIO SETTINGS",595,177,accent,p.small);
+                        p.card({264,143,398,349},ui::studioPanel,ui::studioBorder,14);
+                        p.card({666,143,398,349},ui::studioPanel,ui::studioBorder,14);
+                        p.text("VIDEO SETTINGS",282,165,accent,p.small);
+                        p.text("AUDIO SETTINGS",684,165,accent,p.small);
                         auto deviceRow=[&](int index,const std::string &label,const std::string &value,int focusIndex,ui::Icon icon){
-                            auto box=ui::devices[size_t(index)];bool hot=focus(box,focusIndex);float f=p.animate(100+index,hot);
-                            p.card(box,Painter::mix(ui::raised,{35,46,53,255},f),hot?accent:ui::border,10);
+                            auto box=ui::devices[size_t(index)];
+                            const bool hot=focus(box,focusIndex);
+                            p.card(box,ui::studioField,hot?accent:ui::studioBorder,10);
                             p.icon(icon,box.x+14,box.y+23,22,playing?dim:accent);
-                            p.text(label,box.x+48,box.y+10,dim,p.tiny);p.fit(value,box.x+48,box.y+30,298,color,p.small);
-                            if(!playing){p.icon(ui::Icon::Chevron,box.x+box.w-76,box.y+23,18,dim,true);p.icon(ui::Icon::Chevron,box.x+box.w-32,box.y+23,18,accent);}
+                            p.text(label,box.x+48,box.y+10,dim,p.tiny);
+                            p.fit(value,box.x+48,box.y+30,box.w-135,color,p.small);
+                            if(!playing){
+                                p.icon(ui::Icon::Chevron,box.x+box.w-76,box.y+23,18,dim,true);
+                                p.icon(ui::Icon::Chevron,box.x+box.w-32,box.y+23,18,accent);
+                            }
                         };
                         deviceRow(0,"CAPTURE DEVICE",videos.empty()?"Connect your XR1 Lite":videos[size_t(vi)].name,0,ui::Icon::Video);
                         deviceRow(1,"HDMI AUDIO INPUT",ai<0?"Choose capture card audio":inputs[size_t(ai)],4,ui::Icon::Speaker);
                         deviceRow(2,"PLAYBACK OUTPUT",oi<0?"System default output":outputs[size_t(oi)],5,ui::Icon::Speaker);
-                        p.card(ui::format,ui::raised,focus(ui::format,1)?accent:ui::border,10);
-                        p.text("VIDEO FORMAT",76,314,dim,p.tiny);p.text(fi==0?"Automatic":formats[size_t(fi)],76,333,color,p.small);
-                        if(!playing){p.icon(ui::Icon::Chevron,429,324,18,dim,true);p.icon(ui::Icon::Chevron,473,324,18,accent);}
-                        p.button(ui::upscaling,fsr?"Upscaling: FSR 1 EASU":"Upscaling: Off",focus(ui::upscaling,2),false,p.small);
-                        p.button(ui::sharpening,std::string("Sharpening (FSR): ")+fsrSharpLabel(sharpening),focus(ui::sharpening,3),false,p.small);
-                        if(fsr)p.fit(std::string(info.name)=="opengl"?upscaler.status():(o.fsr?"FSR unavailable here; using normal scaling.":"Restart app to apply FSR 1."),60,455,445,dim,p.tiny);
-                        p.text(playing?"Stop playback to change devices.":"Choose Play from the main menu to apply changes.",60,486,dim,p.tiny);
-                        p.button(ui::refresh,"Refresh devices",focus(ui::refresh,8),false,p.small);
-                        if(playing||recovery.pending())p.button(ui::stop,recovery.pending()?"Cancel reconnect":"Stop playback",focus(ui::stop,9),false,p.small);
-                        p.text(playing?"Tab  Return to video     U  Upscaling     Shift+U  Sharpening     Esc  Main menu":"Arrows  Browse     Enter  Select     Esc  Main menu",40,605,dim,p.small);
+                        const auto format=ui::format;
+                        p.card(format,ui::studioField,focus(format,1)?accent:ui::studioBorder,10);
+                        p.text("VIDEO FORMAT",format.x+16,format.y+8,dim,p.tiny);
+                        p.text(fi==0?"Automatic":formats[size_t(fi)],format.x+16,format.y+29,color,p.small);
+                        if(!playing){
+                            p.icon(ui::Icon::Chevron,format.x+format.w-76,format.y+20,18,dim,true);
+                            p.icon(ui::Icon::Chevron,format.x+format.w-32,format.y+20,18,accent);
+                        }
+                        ui::studioButton(p,ui::upscaling,fsr?"Upscaling: FSR 1 EASU":"Upscaling: Off",focus(ui::upscaling,2));
+                        ui::studioButton(p,ui::sharpening,std::string("Sharpening (FSR): ")+fsrSharpLabel(sharpening),focus(ui::sharpening,3));
+                        if(fsr)p.fit(std::string(info.name)=="opengl"?upscaler.status():(o.fsr?"FSR unavailable here; using normal scaling.":"Restart app to apply FSR 1."),282,450,362,dim,p.tiny);
+                        if(playing)p.text("Stop playback to change devices.",684,461,dim,p.tiny);
+                        ui::studioButton(p,ui::refresh,"Refresh devices",focus(ui::refresh,8));
+                        if(settingVisible(9))ui::studioButton(p,ui::stop,recovery.pending()?"Cancel reconnect":"Stop playback",focus(ui::stop,9));
+                        if(settingVisible(11))ui::studioButton(p,ui::resume,"Resume video",focus(ui::resume,11),true);
                     }else{
-                        p.text("COLOR PREFERENCE",40,143,dim,p.small);
+                        p.card({264,143,800,406},ui::studioPanel,ui::studioBorder,14);
+                        p.text("COLOR PREFERENCE",282,165,accent,p.small);
                         for(int i=0;i<3;++i)ui::themeCard(p,i,static_cast<int>(colorTheme)==i,focus(ui::themes[size_t(i)],i));
-                        bool hot=focus(ui::motion,3);p.card(ui::motion,{17,24,29,255},hot?accent:ui::border,16);
-                        p.text("Motion",64,394,color,p.heading);p.text("Animate menu artwork",64,430,dim,p.small);
-                        p.round({437,403,72,32},16,reducedMotion?ui::border:accent);
-                        p.round({reducedMotion?442:481,408,22,22},11,reducedMotion?dim:p.theme.ink());
-                        p.text(reducedMotion?"OFF":"ON",371,411,reducedMotion?dim:accent,p.small);
-                        p.card(ui::preferenceFullscreen,{17,24,29,255},focus(ui::preferenceFullscreen,4)?accent:ui::border,16);
-                        p.text("Fullscreen",599,394,color,p.heading);
-                        p.text((SDL_GetWindowFlags(window)&SDL_WINDOW_FULLSCREEN_DESKTOP)?"On  /  F11 to switch":"Off  /  F11 to switch",599,430,dim,p.small);
-                        p.icon(ui::Icon::Expand,1004,405,27,accent);
-                        p.fit(colorSaveError.empty()?"Preferences saved automatically.":colorSaveError,40,508,1020,colorSaveError.empty()?dim:SDL_Color{244,185,139,255},p.small);
-                        p.text("Arrows  Browse     Enter  Select     Esc  Main menu",40,605,dim,p.small);
+                        p.card(ui::motion,ui::studioField,focus(ui::motion,3)?accent:ui::studioBorder,11);
+                        p.text("Floating device motion",301,312,color,p.normal);
+                        p.text("Animate menu artwork",301,343,dim,p.small);
+                        p.round({964,323,64,29},14.5f,reducedMotion?ui::studioBorder:accent);
+                        p.round({reducedMotion?969:1002,327,21,21},10.5f,color);
+                        p.text(reducedMotion?"OFF":"ON",912,328,reducedMotion?dim:accent,p.small);
+                        p.card(ui::preferenceFullscreen,ui::studioField,focus(ui::preferenceFullscreen,4)?accent:ui::studioBorder,11);
+                        p.text("Fullscreen",301,401,color,p.normal);
+                        p.text((SDL_GetWindowFlags(window)&SDL_WINDOW_FULLSCREEN_DESKTOP)?"On  /  F11 to switch":"Off  /  F11 to switch",301,432,dim,p.small);
+                        p.icon(ui::Icon::Expand,991,414,26,accent);
+                        p.fit(colorSaveError.empty()?"Preferences saved automatically.":colorSaveError,282,508,764,colorSaveError.empty()?dim:SDL_Color{244,185,139,255},p.small);
                     }
-                    std::string status=recovery.pending()?"Reconnecting":playing?(lastVideoAt&&now-lastVideoAt<1.5?"Live video":"Waiting for video"):videos.empty()?"Connect XR1 Lite":ai<0?"Select HDMI audio":"Card connected";
-                    const bool connected=!recovery.pending()&&!videos.empty();
-                    const SDL_Color connectionColor=connected?SDL_Color{76,220,110,255}:SDL_Color{240,72,72,255};
-                    p.card({408,34,376,36},{17,24,29,255},ui::border,12);p.round({422,48,8,8},4,connectionColor);p.text(status,444,43,accent,p.small);
-                    if(recovery.pending()&&error.empty()){p.card({40,102,1020,34},{30,28,23,255},{96,76,45,255},8);p.fit(recovery.detail.empty()?std::string(connection::waiting(recovery.state)):recovery.detail+" Retrying automatically.",52,111,992,{244,185,139,255},p.small);}
-                    p.text("F11  Fullscreen",933,605,dim,p.small);
-                    if(!error.empty()){p.card({40,102,1020,34},{43,28,23,255},{128,79,49,255},8);p.fit(error,52,111,992,{244,185,139,255},p.small);}
+                    p.text("Up / Down  Browse     Enter  Select",ui::workspaceLeft,625,dim,p.tiny);
+                    p.text(screen==ui::Screen::Main?(recovery.pending()?"Esc  Cancel reconnect":playing?"Tab  Resume":"Esc  Quit"):"Esc  Main menu",730,625,dim,p.tiny);
+                    p.text("F11  Fullscreen",967,625,dim,p.tiny);
+                    if(recovery.pending()||!error.empty()){
+                        const std::string feedback=!error.empty()?error:recovery.detail.empty()?
+                            std::string(connection::waiting(recovery.state)):recovery.detail+" Retrying automatically.";
+                        p.card({ui::workspaceLeft,590,800,27},{29,21,16,255},{103,70,44,255},8);
+                        p.fit(feedback,ui::workspaceLeft+12,596,776,{244,185,139,255},p.small);
+                    }
                 } else {
                     if(audio.muted){p.round({952,20,122,34},10,{16,23,15,220});p.icon(ui::Icon::Speaker,964,28,18,dim,true);p.text("Muted",992,29,dim,p.small);}
                 }
@@ -642,15 +738,21 @@ static int app(const Options &o) {
                         p.button(ui::playbackFullscreen,(SDL_GetWindowFlags(window)&SDL_WINDOW_FULLSCREEN_DESKTOP)?"Exit fullscreen":"Fullscreen",hover(ui::playbackFullscreen));
                     }
                     int left=menu?ui::volumeLeft:ui::playbackVolumeLeft,top=menu?ui::volumeTop:ui::playbackVolumeTop,width=menu?ui::volumeWidth:ui::playbackVolumeWidth;
-                    if(menu){p.card(ui::mute,(hover(ui::mute)||(keyboardNavigation&&menuFocus==6))?SDL_Color{48,58,44,255}:ui::raised,(hover(ui::mute)||(keyboardNavigation&&menuFocus==6))?accent:ui::border,10);p.icon(ui::Icon::Speaker,606,409,22,audio.muted?dim:accent,audio.muted);p.text("VOLUME",650,382,dim,p.tiny);}
+                    if(menu){
+                        const bool hot=hover(ui::mute)||(keyboardNavigation&&menuFocus==6);
+                        p.card(ui::mute,ui::studioField,hot?accent:ui::studioBorder,10);
+                        p.icon(ui::Icon::Speaker,ui::mute.x+11,ui::mute.y+11,22,audio.muted?dim:accent,audio.muted);
+                        p.text("VOLUME",ui::volumeLeft,373,dim,p.tiny);
+                    }
                     else p.button(ui::playbackMute,audio.muted?"Unmute":"Mute",hover(ui::playbackMute));
-                    if(menu&&keyboardNavigation&&menuFocus==7)p.card(ui::volumeHit,{20,28,31,255},accent,8);
-                    p.round({left,top,width,6},3,{67,79,57,255});
+                    if(menu&&keyboardNavigation&&menuFocus==7)p.card(ui::volumeHit,ui::studioField,accent,8);
+                    p.round({left,top,width,6},3,menu?ui::studioBorder:SDL_Color{67,79,57,255});
                     int fill=static_cast<int>(std::lround(audio.volume*width));
                     if(fill>0)p.round({left,top,fill,6},3,accent);
                     p.round({left+fill-7,top-4,14,14},7,color);
-                    p.text(std::to_string(static_cast<int>(std::lround(audio.volume*100)))+"%",menu?930:636,menu?405:664,dim);
+                    p.text(std::to_string(static_cast<int>(std::lround(audio.volume*100)))+"%",menu?990:636,menu?398:664,dim);
                 }
+                p.applyTheme=true;
                 if(playing&&!menu&&now<upscalingFeedbackUntil){
                     p.offsetY=0;
                     std::string notice=sharpeningFeedback?std::string("Sharpening: ")+fsrSharpLabel(sharpening)+(sharpening?" (requires FSR)":""):"Upscaling: Off";

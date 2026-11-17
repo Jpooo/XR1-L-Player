@@ -1,61 +1,101 @@
 #include "../src/menu_ui.hpp"
 #include <cassert>
 #include <iostream>
-int main(){
+
+int main() {
     SDL_SetMainReady();
-    if(!std::getenv("XR1_PANEL_GPU")){
+    const bool accelerated=std::getenv("XR1_PANEL_GPU")!=nullptr;
+    if(!accelerated){
         SDL_setenv("SDL_RENDER_DRIVER","software",1);
 #ifndef _WIN32
         SDL_setenv("SDL_VIDEODRIVER","dummy",1);
 #endif
     }
     assert(SDL_Init(SDL_INIT_VIDEO)==0&&TTF_Init()==0);
-    auto *window=SDL_CreateWindow("Panel fill test",0,0,1100,650,SDL_WINDOW_HIDDEN);assert(window);
+    auto *window=SDL_CreateWindow("Preview fit test",0,0,1100,650,SDL_WINDOW_HIDDEN);
+    assert(window);
     if(std::getenv("XR1_PANEL_SCALED"))SDL_SetWindowSize(window,1920,1080);
-    auto *r=SDL_CreateRenderer(window,-1,std::getenv("XR1_PANEL_GPU")?SDL_RENDERER_ACCELERATED:SDL_RENDERER_SOFTWARE);assert(r);
-    SDL_SetRenderDrawBlendMode(r,SDL_BLENDMODE_BLEND);
+    auto *renderer=SDL_CreateRenderer(window,-1,accelerated?SDL_RENDERER_ACCELERATED:SDL_RENDERER_SOFTWARE);
+    assert(renderer);
+    SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);
     {
-        SDL_RenderSetLogicalSize(r,1100,650);int outputW=0,outputH=0;SDL_GetRendererOutputSize(r,&outputW,&outputH);
-        Painter painter(r);std::vector<Uint32> baseline(size_t(outputW)*outputH),result(baseline.size());
-        auto pixel=[&](int x,int y){int px=0,py=0;SDL_RenderLogicalToWindow(r,x,y,&px,&py);return size_t(py)*outputW+px;};
-        auto inside=[](float x,float y){bool found=false;const auto &v=ui::mainPanelContour;for(size_t i=0,j=v.size()-1;i<v.size();j=i++)if((v[i].y>y)!=(v[j].y>y)&&x<(v[j].x-v[i].x)*(y-v[i].y)/(v[j].y-v[i].y)+v[i].x)found=!found;return found;};
-        auto edgeDistance=[](float x,float y){float distance=1e9f;const auto &v=ui::mainPanelContour;for(size_t i=0;i<v.size();++i){auto a=v[i],b=v[(i+1)%v.size()];float dx=b.x-a.x,dy=b.y-a.y,t=std::clamp(((x-a.x)*dx+(y-a.y)*dy)/(dx*dx+dy*dy),0.0f,1.0f);distance=std::min(distance,std::hypot(x-a.x-t*dx,y-a.y-t*dy));}return distance;};
-        auto draw=[&](SDL_Texture *video,std::vector<Uint32> &pixels){SDL_SetRenderDrawColor(r,4,7,10,255);SDL_RenderClear(r);painter.motion=false;ui::menuBackground(painter);bool shown=ui::logoPanel(painter,0,true,video);assert(shown==(video!=nullptr));SDL_RenderSetLogicalSize(r,0,0);assert(SDL_RenderReadPixels(r,nullptr,SDL_PIXELFORMAT_ARGB8888,pixels.data(),outputW*4)==0);SDL_RenderSetLogicalSize(r,1100,650);};
-        draw(nullptr,baseline);
-        for(int access:{SDL_TEXTUREACCESS_STATIC,SDL_TEXTUREACCESS_STREAMING})for(Uint32 format:{SDL_PIXELFORMAT_RGB24,SDL_PIXELFORMAT_YUY2,SDL_PIXELFORMAT_UYVY,SDL_PIXELFORMAT_NV12,SDL_PIXELFORMAT_IYUV,SDL_PIXELFORMAT_YV12}){
-            auto *texture=SDL_CreateTexture(r,format,access,1920,1080);assert(texture);SDL_SetTextureScaleMode(texture,SDL_ScaleModeLinear);
-            bool planar=format==SDL_PIXELFORMAT_NV12||format==SDL_PIXELFORMAT_IYUV||format==SDL_PIXELFORMAT_YV12;
-            int pitch=planar?1920:format==SDL_PIXELFORMAT_RGB24?5760:3840;
-            std::vector<Uint8> data(size_t(pitch)*(planar?1620:1080));
-            for(bool white:{false,true}){
-                std::fill(data.begin(),data.end(),128);
-                if(format==SDL_PIXELFORMAT_RGB24)std::fill(data.begin(),data.end(),white?255:0);
-                else if(planar)std::fill_n(data.begin(),1920*1080,white?235:16);
-                else for(size_t i=format==SDL_PIXELFORMAT_UYVY?1:0;i<data.size();i+=2)data[i]=white?235:16;
-                assert(SDL_UpdateTexture(texture,nullptr,data.data(),pitch)==0);draw(texture,result);
-                // These points used to sit in the empty inset gutters. They must
-                // now contain source video right up to the panel's frame.
-                for(auto point:{SDL_Point{465,300},SDL_Point{1040,340},SDL_Point{700,185},SDL_Point{750,505},SDL_Point{755,346}}){
-                    auto value=result[pixel(point.x,point.y)];for(int shift:{0,8,16}){int c=(value>>shift)&255;assert(white?c>240:c<15);}
-                }
-                // The notch and chamfer cutouts must retain the menu background,
-                // not expose the rectangular video bounds beyond the panel.
-                for(auto point:{SDL_Point{456,180},SDL_Point{642,175},SDL_Point{1055,506},SDL_Point{456,512}}){
-                    size_t i=pixel(point.x,point.y);for(int shift:{0,8,16})assert(std::abs(int((result[i]>>shift)&255)-int((baseline[i]>>shift)&255))<=2);
-                }
-            }
-            for(int y=180;y<518;y+=13)for(int x=452;x<1058;x+=13){
-                if(edgeDistance(float(x),float(y))<6)continue;
-                size_t i=pixel(x,y);
-                for(int shift:{0,8,16}){
-                    int actual=(result[i]>>shift)&255;
-                    if(inside(float(x),float(y)))assert(actual>240);
-                    else assert(std::abs(actual-int((baseline[i]>>shift)&255))<=2);
-                }
-            }
-            SDL_DestroyTexture(texture);std::cout<<"PASS panel fill / masked corners / "<<SDL_GetPixelFormatName(format)<<" / "<<(access==SDL_TEXTUREACCESS_STATIC?"static":"streaming")<<"\n";
-        }
+        SDL_RenderSetLogicalSize(renderer,1100,650);
+        int outputWidth=0,outputHeight=0;
+        SDL_GetRendererOutputSize(renderer,&outputWidth,&outputHeight);
+        Painter painter(renderer);
+        std::vector<Uint32> pixels(size_t(outputWidth)*outputHeight);
+        auto sample=[&](float x,float y){
+            int outputX=0,outputY=0;
+            SDL_RenderLogicalToWindow(renderer,x,y,&outputX,&outputY);
+            return pixels[size_t(outputY)*outputWidth+outputX]&0xffffff;
+        };
+        auto draw=[&](SDL_Texture *texture){
+            ui::menuBackground(painter);
+            assert(ui::logoPanel(painter,0,true,texture));
+            SDL_RenderSetLogicalSize(renderer,0,0);
+            assert(SDL_RenderReadPixels(renderer,nullptr,SDL_PIXELFORMAT_ARGB8888,pixels.data(),outputWidth*4)==0);
+            SDL_RenderSetLogicalSize(renderer,1100,650);
+        };
+        const auto &area=ui::previewArea;
+        auto verify=[&](int width,int height,float fittedWidth,float fittedHeight,Uint32 format,int access){
+            auto *texture=SDL_CreateTexture(renderer,format,access,width,height);
+            assert(texture);
+            SDL_SetTextureScaleMode(texture,SDL_ScaleModeLinear);
+            const bool rgb=format==SDL_PIXELFORMAT_RGB24;
+            const bool planar=format==SDL_PIXELFORMAT_NV12||format==SDL_PIXELFORMAT_IYUV||format==SDL_PIXELFORMAT_YV12;
+            const int pitch=planar?width:width*(rgb?3:2);
+            std::vector<Uint8> data(size_t(pitch)*(planar?height*3/2:height),128);
+            if(rgb)std::fill(data.begin(),data.end(),255);
+            else if(planar)std::fill_n(data.begin(),size_t(width)*height,235);
+            else for(size_t i=format==SDL_PIXELFORMAT_UYVY?1:0;i<data.size();i+=2)data[i]=235;
+            assert(SDL_UpdateTexture(texture,nullptr,data.data(),pitch)==0);
+            draw(texture);
 
+            const float centerX=area.x+area.w/2.f,centerY=area.y+area.h/2.f;
+            const float left=centerX-fittedWidth/2,right=centerX+fittedWidth/2;
+            const float top=centerY-fittedHeight/2,bottom=centerY+fittedHeight/2;
+            // The four corners and center must all be filled, including the
+            // corners the old chamfered mask would have clipped.
+            for(auto point:{SDL_FPoint{left+4,top+4},{right-4,top+4},
+                            {left+4,bottom-4},{right-4,bottom-4},{centerX,centerY}}){
+                auto value=sample(point.x,point.y);
+                for(int shift:{0,8,16})assert((value>>shift&255)>240);
+            }
+            for(auto point:{SDL_FPoint{left-4,centerY},{right+4,centerY},
+                            {centerX,top-4},{centerX,bottom+4}})
+                assert(sample(point.x,point.y)==0);
+
+            if(rgb){
+                // A thin red border in the source must survive on all four
+                // sides of the fitted image. Its white interior stays intact.
+                const int edge=std::min(width,height)/32;
+                for(int y=0;y<height;++y)for(int x=0;x<width;++x){
+                    if(x<edge||x>=width-edge||y<edge||y>=height-edge){
+                        size_t index=(size_t(y)*width+x)*3;
+                        data[index+1]=data[index+2]=0;
+                    }
+                }
+                assert(SDL_UpdateTexture(texture,nullptr,data.data(),pitch)==0);
+                draw(texture);
+                for(auto point:{SDL_FPoint{left+4,centerY},{right-4,centerY},
+                                {centerX,top+4},{centerX,bottom-4}})
+                    assert(sample(point.x,point.y)==0xff0000);
+                assert(sample(centerX,centerY)==0xffffff);
+            }
+            SDL_DestroyTexture(texture);
+            std::cout<<"PASS fitted "<<width<<'x'<<height<<" preview / "<<SDL_GetPixelFormatName(format)
+                     <<" / "<<(access==SDL_TEXTUREACCESS_STATIC?"static":"streaming")<<'\n';
+        };
+        for(int access:{SDL_TEXTUREACCESS_STATIC,SDL_TEXTUREACCESS_STREAMING}){
+            for(Uint32 format:{SDL_PIXELFORMAT_RGB24,SDL_PIXELFORMAT_YUY2,SDL_PIXELFORMAT_UYVY,
+                               SDL_PIXELFORMAT_NV12,SDL_PIXELFORMAT_IYUV,SDL_PIXELFORMAT_YV12})
+                verify(1920,1080,area.h*16.f/9,area.h,format,access);
+            verify(640,480,area.h*4.f/3,area.h,SDL_PIXELFORMAT_RGB24,access);
+            verify(2560,1080,area.w,area.w*1080.f/2560,SDL_PIXELFORMAT_RGB24,access);
+        }
     }
-    SDL_DestroyRenderer(r);SDL_DestroyWindow(window);TTF_Quit();SDL_Quit();
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    TTF_Quit();
+    SDL_Quit();
 }

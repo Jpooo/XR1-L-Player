@@ -13,6 +13,7 @@ shutil.copytree(root/'assets/fsr',app/'usr/share/xr1-l-player/fsr')
 shutil.copytree(root/'assets/fonts',app/'usr/share/xr1-l-player/fonts')
 shutil.copy2(root/'assets/fonts/ChakraPetch-OFL.txt',app/'usr/share/licenses/ChakraPetch-OFL.txt')
 shutil.copytree(root/'assets/icons',app/'usr/share/xr1-l-player/icons')
+shutil.copytree(root/'assets/studio',app/'usr/share/xr1-l-player/studio')
 shutil.copytree(root/'assets/branding',app/'usr/share/xr1-l-player/branding')
 shutil.copy2(root/'assets/icons/LICENSE',app/'usr/share/licenses/Lucide.LICENSE')
 # Keep the host's libc, graphics drivers, Wayland/libdecor plugins and audio

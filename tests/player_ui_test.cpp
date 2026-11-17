@@ -10,13 +10,13 @@ static int fixtureBounds(int,SDL_Rect *bounds){*bounds={0,0,16384,16384};return 
 static SDL_Window *measuredWindow(const char *,int,int,int,int,Uint32);
 static SDL_Surface *measuredText(TTF_Font *,const char *,SDL_Color);
 static int measuredCopy(SDL_Renderer *,SDL_Texture *,const SDL_Rect *,const SDL_Rect *);
-static int measuredGeometry(SDL_Renderer *,SDL_Texture *,const SDL_Vertex *,int,const int *,int);
+static int measuredPreviewCopy(SDL_Renderer *,SDL_Texture *,const SDL_Rect *,const SDL_FRect *);
 static int measuredCopyEx(SDL_Renderer *,SDL_Texture *,const SDL_Rect *,const SDL_FRect *,double,const SDL_FPoint *,SDL_RendererFlip);
 #define SDL_PollEvent injectedPoll
 #define SDL_CreateWindow measuredWindow
 #define TTF_RenderUTF8_Blended measuredText
-#define SDL_RenderGeometry measuredGeometry
 #define SDL_RenderCopy measuredCopy
+#define SDL_RenderCopyF measuredPreviewCopy
 #define SDL_RenderCopyExF measuredCopyEx
 #define SDL_GetDisplayUsableBounds fixtureBounds
 #define main player_application_main
@@ -29,7 +29,7 @@ static int measuredCopyEx(SDL_Renderer *,SDL_Texture *,const SDL_Rect *,const SD
 #undef SDL_GetAudioDeviceName
 #undef SDL_RenderCopyExF
 #undef SDL_RenderCopy
-#undef SDL_RenderGeometry
+#undef SDL_RenderCopyF
 #undef SDL_PollEvent
 #undef SDL_CreateWindow
 #undef TTF_RenderUTF8_Blended
@@ -45,11 +45,16 @@ static int measuredCopy(SDL_Renderer *renderer,SDL_Texture *texture,const SDL_Re
     if(result==0&&destination&&destination->x==300&&destination->y==366&&destination->w==192&&destination->h==108)++settingsPreviewCopies;
     return result;
 }
-static int measuredGeometry(SDL_Renderer *renderer,SDL_Texture *texture,const SDL_Vertex *vertices,int count,const int *indices,int indexCount){
-    int result=SDL_RenderGeometry(renderer,texture,vertices,count,indices,indexCount),width=0,height=0;
-    if(result==0&&texture&&count>=36&&SDL_QueryTexture(texture,nullptr,nullptr,&width,&height)==0&&width==1920&&height==1080){
+static int measuredPreviewCopy(SDL_Renderer *renderer,SDL_Texture *texture,const SDL_Rect *source,const SDL_FRect *destination){
+    int result=SDL_RenderCopyF(renderer,texture,source,destination),width=0,height=0;
+    if(result==0&&destination&&SDL_QueryTexture(texture,nullptr,nullptr,&width,&height)==0&&width==1920&&height==1080){
+        assert(!source);
+        const auto &area=ui::previewArea;
+        assert(std::abs(destination->w/destination->h-16.f/9)<.001f);
+        assert(std::abs(destination->x+destination->w/2-(area.x+area.w/2.f))<.01f);
+        assert(std::abs(destination->y+destination->h/2-(area.y+area.h/2.f))<.01f);
         ++previewCopies;lastMainWasVideo=true;
-        if(targetW==1100&&targetH==650){const auto &preview=ui::mainPreview;SDL_Rect patch{preview.x+preview.w*5/24,preview.y+preview.h/3,1,1};Uint32 pixel=0;
+        if(targetW==1100&&targetH==650){SDL_Rect patch{int(destination->x+destination->w*5/24),int(destination->y+destination->h/3),1,1};Uint32 pixel=0;
             assert(SDL_RenderReadPixels(renderer,&patch,SDL_PIXELFORMAT_ARGB8888,&pixel,4)==0);previewPixels.insert(pixel);}
     }
     return result;
@@ -88,6 +93,7 @@ int main(){
     assert(settingsPath()==folder/"xr1-l-player/settings");
     auto key=[](Uint32 at,SDL_Keycode k){return Input{at,SDL_KEYDOWN,k};};
     auto click=[](Uint32 at,int x,int y){return Input{at,SDL_MOUSEBUTTONDOWN,0,x,y};};
+    auto clickBox=[&](Uint32 at,ui::Box box){return click(at,box.x+box.w/2,box.y+box.h/2);};
     auto check=[&](const char *name,bool demo,std::vector<Input> inputs,const char *expected,bool feed,int seconds=1){
         script=std::move(inputs);nextInput=0;firstPoll=true;labels.clear();previewCopies=logoCopies=settingsPreviewCopies=0;lastMainWasVideo=false;previewPixels.clear();
         Options options;loadSettings(options);fixture::enabled=demo;options.autostart=demo;options.seconds=seconds;options.screenshot=(folder/(std::string(name)+".bmp")).string();
@@ -108,15 +114,15 @@ int main(){
         assert(!std::filesystem::exists(folder/"xr1-l-player/fps-test.txt")&&!std::filesystem::exists(folder/"xr1-l-player/windows-fps-test.txt"));
         std::cout<<"PASS real player: "<<name<<"\n";
     };
-    check("main-menu",false,{},"PLAY",false);assert(labels.count("SETTINGS")&&labels.count("PREFERENCES"));
+    check("main-menu",false,{},"Play",false);assert(labels.count("Settings")&&labels.count("Preferences")&&labels.count("Exit"));
     assert(logoCopies>0&&previewCopies==0&&!lastMainWasVideo);
-    check("mouse-settings",false,{click(100,150,350),click(250,180,330)},"yuyv",false);assert(labels.count("VIDEO SETTINGS")&&labels.count("AUDIO SETTINGS"));
+    check("mouse-settings",false,{clickBox(100,ui::navigation[1]),clickBox(250,ui::format)},"yuyv",false);assert(labels.count("VIDEO SETTINGS")&&labels.count("AUDIO SETTINGS"));
     check("keyboard-settings",false,{key(100,SDLK_DOWN),key(200,SDLK_RETURN)},"VIDEO SETTINGS",false);
-    check("preferences-all-colors",false,{key(100,SDLK_DOWN),key(150,SDLK_DOWN),key(200,SDLK_RETURN),click(300,800,220),click(400,100,220),click(500,430,220),click(600,100,410)},"Electric Blue",false);
+    check("preferences-all-colors",false,{key(100,SDLK_DOWN),key(150,SDLK_DOWN),key(200,SDLK_RETURN),clickBox(300,ui::themes[2]),clickBox(400,ui::themes[0]),clickBox(500,ui::themes[1]),clickBox(600,ui::motion)},"Electric Blue",false);
     Options appearance;loadSettings(appearance);assert(appearance.colorTheme==ui::ConsoleColor::PlayStation&&appearance.reduceMotion);
-    check("preferences-restored",false,{click(100,150,460)},"OFF",false);
-    targetW=900;targetH=560;check("minimum-window",false,{click(100,150,460)},"COLOR PREFERENCE",false);
-    targetW=1600;targetH=900;check("large-window",false,{},"PLAY",false);
+    check("preferences-restored",false,{clickBox(100,ui::navigation[2])},"OFF",false);
+    targetW=900;targetH=560;check("minimum-window",false,{clickBox(100,ui::navigation[2])},"COLOR PREFERENCE",false);
+    targetW=1600;targetH=900;check("large-window",false,{},"Play",false);
     targetW=1100;targetH=650;
     check("feed-start-clean",true,{},nullptr,true);
     check("upscaling-hotkey-on",true,{key(200,SDLK_u)},nullptr,true);
@@ -128,34 +134,51 @@ int main(){
     check("sharpening-hotkey-wrap-off",true,{{150,SDL_KEYDOWN,SDLK_u,0,0,KMOD_SHIFT},{300,SDL_KEYDOWN,SDLK_u,0,0,KMOD_SHIFT},{450,SDL_KEYDOWN,SDLK_u,0,0,KMOD_SHIFT}},"Sharpening: Off",true);
     Options sharpOff;loadSettings(sharpOff);assert(!sharpOff.fsr&&sharpOff.sharpening==0);
     check("removed-shortcut-inert",true,{key(200,SDLK_F8)},nullptr,true);
-    check("stop-restart-play",true,{key(150,SDLK_RETURN),key(350,SDLK_RETURN)},"PLAY",true);
+    check("stop-restart-play",true,{key(150,SDLK_RETURN),key(350,SDLK_RETURN)},"Play",true);
     check("playback-toolbar",true,{},"Main menu",true);assert(labels.count("Settings"));
-    check("main-button-live-preview",true,{click(100,100,606)},"PLAY",false,2);
+    check("main-button-live-preview",true,{click(100,100,606)},"Resume",false,2);
     assert(previewCopies>30&&previewPixels.size()>1&&logoCopies==0&&lastMainWasVideo);
-    check("main-button-resume",true,{click(100,100,606),click(450,150,240)},"PLAY",true);
+    check("main-button-resume",true,{click(100,100,606),clickBox(450,ui::navigation[0])},"Resume",true);
     assert(previewCopies>0);
     check("toolbar-settings-retained",true,{click(100,240,606)},"AUDIO SETTINGS",false);
     assert(previewCopies==0&&settingsPreviewCopies==0);
-    check("main-live-preview",true,{key(100,SDLK_TAB),key(200,SDLK_ESCAPE)},"PLAY",false,2);
+    check("main-live-preview",true,{key(100,SDLK_TAB),key(200,SDLK_ESCAPE)},"Resume",false,2);
     assert(previewCopies>30&&previewPixels.size()>1&&logoCopies==0&&lastMainWasVideo);
     std::cout<<"PASS main menu live preview: "<<previewCopies<<" draws and "<<previewPixels.size()<<" source pixel values\n";
     targetW=900;targetH=560;
-    check("main-preview-minimum",true,{key(100,SDLK_TAB),key(200,SDLK_ESCAPE)},"PLAY",false);
+    check("main-preview-minimum",true,{key(100,SDLK_TAB),key(200,SDLK_ESCAPE)},"Resume",false);
     assert(previewCopies>0&&logoCopies==0);
     targetW=1920;targetH=1080;
-    check("main-preview-1080p-fit",true,{click(100,100,606)},"PLAY",false);
+    check("main-preview-1080p-fit",true,{click(100,100,606)},"Resume",false);
     assert(previewCopies>0&&logoCopies==0);targetW=1100;targetH=650;
-    check("main-preview-stop-restores-logo",true,{key(100,SDLK_TAB),key(200,SDLK_ESCAPE),key(600,SDLK_ESCAPE)},"PLAY",false);
+    check("main-preview-stop-restores-logo",true,{key(100,SDLK_TAB),key(200,SDLK_ESCAPE),key(600,SDLK_ESCAPE)},"Play",false);
     assert(previewCopies>0&&logoCopies>0&&!lastMainWasVideo);
-    check("main-preview-resume",true,{key(100,SDLK_TAB),key(200,SDLK_ESCAPE),click(450,150,240)},"PLAY",true);
+    check("main-preview-resume",true,{key(100,SDLK_TAB),key(200,SDLK_ESCAPE),clickBox(450,ui::navigation[0])},"Resume",true);
     assert(previewCopies>0);
     check("settings-no-preview",true,{key(100,SDLK_TAB)},"AUDIO SETTINGS",false);
     assert(previewCopies==0&&settingsPreviewCopies==0&&logoCopies==0);
     check("settings-resume",true,{key(100,SDLK_TAB),key(350,SDLK_TAB)},"AUDIO SETTINGS",true);
+    check("settings-resume-button",true,{key(100,SDLK_TAB),clickBox(350,ui::resume)},"Resume video",true);
     assert(previewCopies==0&&settingsPreviewCopies==0);
-    check("idle-settings-no-preview",false,{click(100,150,350)},"AUDIO SETTINGS",false);
+#ifdef _WIN32
+    auto diagnosticsPath=settingsPath().parent_path()/"last-session-diagnostics.txt";
+    std::filesystem::remove(diagnosticsPath);
+#endif
+    for(bool viaKeyboard:{false,true}){
+        script=viaKeyboard?std::vector<Input>{key(80,SDLK_DOWN),key(120,SDLK_DOWN),key(170,SDLK_DOWN),key(225,SDLK_RETURN)}:
+            std::vector<Input>{click(100,100,606),clickBox(350,ui::navigation[3])};
+        nextInput=0;firstPoll=true;
+        Options options;fixture::enabled=!viaKeyboard;options.autostart=!viaKeyboard;options.seconds=4;
+        const double started=monotime();
+        assert(app(options)==0&&nextInput==script.size()&&monotime()-started<3.5);
+        std::cout<<"PASS explicit Exit via "<<(viaKeyboard?"keyboard":"mouse during playback")<<"\n";
+    }
+#ifdef _WIN32
+    assert(std::filesystem::file_size(diagnosticsPath)>0);
+#endif
+    check("idle-settings-no-preview",false,{clickBox(100,ui::navigation[1])},"AUDIO SETTINGS",false);
     assert(previewCopies==0&&settingsPreviewCopies==0);
-    check("preferences-while-playing",true,{key(100,SDLK_TAB),key(200,SDLK_ESCAPE),click(300,150,460),click(400,430,220),key(600,SDLK_ESCAPE),click(700,150,240)},"COLOR PREFERENCE",true);
+    check("preferences-while-playing",true,{key(100,SDLK_TAB),key(200,SDLK_ESCAPE),clickBox(300,ui::navigation[2]),clickBox(400,ui::themes[1]),key(600,SDLK_ESCAPE),clickBox(700,ui::navigation[0])},"COLOR PREFERENCE",true);
     check("renderer-reset",true,{{250,SDL_RENDER_DEVICE_RESET}},nullptr,true);
     check("volume-muted",true,{key(150,SDLK_MINUS),key(250,SDLK_MINUS),key(350,SDLK_m)},nullptr,true);
     Options saved;loadSettings(saved);assert(std::abs(saved.volume-.6f)<.0001f&&saved.muted);

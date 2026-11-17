@@ -40,7 +40,7 @@ int main(){
         paintTimes.clear();positions.clear();angles.clear();
         Options options;options.seconds=2;options.reduceMotion=reduced;assert(app(options)==0);assert(positions.size()>2);
         bool fractional=false;for(auto y:positions){if(std::abs(y-std::round(y))>.001f)fractional=true;if(reduced)assert(std::abs(y-ui::logoY)<.001f);}
-        if(reduced){assert(!fractional);for(auto angle:angles)assert(angle==0);}
+        if(reduced){assert(!fractional);for(auto angle:angles)assert(angle==-4);}
         else assert(fractional);
         // Report observed timing; do not turn virtual-host speed into a hard
         // performance assertion or a claim about capture-card throughput.

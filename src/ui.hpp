@@ -15,24 +15,26 @@ namespace ui {
 inline constexpr int height=650,toolbarOffset=-64;
 struct Box {int x,y,w,h;bool contains(int px,int py)const{return px>=x&&px<x+w&&py>=y&&py<y+h;}};
 enum class Screen {Main,Settings,Preferences};
-inline constexpr std::array<Box,3> navigation={Box{48,190,350,108},Box{48,322,350,80},Box{48,426,350,80}};
-inline constexpr Box back{920,32,140,42},refresh{40,506,160,44};
-inline constexpr std::array<Box,3> devices={Box{60,218,445,66},Box{595,218,445,66},Box{595,304,445,66}};
-inline constexpr Box format{60,304,445,56},upscaling{60,372,445,36},sharpening{60,414,445,36};
-// The video is clipped to this panel contour; uniform UV scaling preserves aspect.
-inline constexpr SDL_Rect mainPreview{452,174,606,344};
-inline constexpr std::array<SDL_FPoint,14> mainPanelContour={SDL_FPoint{452,244},SDL_FPoint{462,209},SDL_FPoint{486,185},SDL_FPoint{637,185},SDL_FPoint{654,174},SDL_FPoint{1026,174},SDL_FPoint{1058,206},SDL_FPoint{1058,466},SDL_FPoint{1032,506},SDL_FPoint{866,506},SDL_FPoint{850,518},SDL_FPoint{817,515},SDL_FPoint{475,515},SDL_FPoint{452,473}};
-inline constexpr std::array<int,36> mainPanelTriangles={13,0,1,13,1,2,13,2,3,13,3,4,13,4,5,13,5,6,13,6,7,13,7,8,13,8,9,13,9,10,13,10,11,11,12,13};
-inline constexpr Box mute{595,398,44,44},volumeHit{640,398,280,44};
-inline constexpr int volumeLeft=650,volumeWidth=260,volumeTop=418;
+inline constexpr int sidebarWidth=235,workspaceLeft=264,workspaceRight=1064;
+inline constexpr std::array<Box,4> navigation={Box{32,251,186,51},Box{32,309,186,51},Box{32,367,186,51},Box{32,425,186,51}};
+inline constexpr Box stage{workspaceLeft,143,800,355};
+inline constexpr int previewInset=8;
+inline constexpr Box previewArea{stage.x+previewInset,stage.y+previewInset,
+                                 stage.w-2*previewInset,stage.h-2*previewInset};
+inline constexpr std::array<Box,3> overview={Box{264,507,294,79},Box{570,507,233,79},Box{815,507,249,79}};
+inline constexpr Box back{701,22,133,35},refresh{282,507,160,42},resume{910,507,135,42};
+inline constexpr std::array<Box,3> devices={Box{282,207,362,66},Box{684,207,362,66},Box{684,285,362,66}};
+inline constexpr Box format{282,285,362,56},upscaling{282,353,362,36},sharpening{282,400,362,36};
+inline constexpr Box mute{684,390,44,44},volumeHit{729,390,248,44};
+inline constexpr int volumeLeft=739,volumeWidth=228,volumeTop=410;
 inline constexpr Box playbackToolbar{28,644,1044,60},playbackMain{42,654,134,40},playbackSettings{188,654,112,40};
 inline constexpr Box playbackMute{312,654,86,40},playbackVolumeHit{408,650,216,44},playbackStop{710,654,92,40},playbackFullscreen{820,654,214,40};
 inline constexpr int playbackVolumeLeft=418,playbackVolumeWidth=196,playbackVolumeTop=670;
-inline constexpr Box stop{660,506,160,44},motion{40,376,500,92},preferenceFullscreen{575,376,485,92};
-inline constexpr std::array<Box,3> themes={Box{40,178,320,154},Box{390,178,320,154},Box{740,178,320,154}};
-inline constexpr std::array<Box,11> settingControls={devices[0],format,upscaling,sharpening,devices[1],devices[2],mute,volumeHit,refresh,stop,back};
+inline constexpr Box stop{740,507,158,42},motion{282,300,764,75},preferenceFullscreen{282,389,764,75};
+inline constexpr std::array<Box,3> themes={Box{282,207,244,68},Box{542,207,244,68},Box{802,207,244,68}};
+inline constexpr std::array<Box,12> settingControls={devices[0],format,upscaling,sharpening,devices[1],devices[2],mute,volumeHit,refresh,stop,back,resume};
 inline constexpr std::array<Box,6> preferenceControls={themes[0],themes[1],themes[2],motion,preferenceFullscreen,back};
-inline constexpr float logoX=480,logoY=75,logoSize=540;
+inline constexpr float logoX=444,logoY=178,logoSize=440;
 inline constexpr SDL_Color white{243,246,248,255},muted{155,163,172,255},green{155,240,11,255};
 inline constexpr SDL_Color surface{24,27,31,255},raised{32,36,41,255},border{48,54,61,255};
 enum class Icon {Video,Speaker,Capture,Expand,Refresh,Play,Stop,Chevron,Check};
@@ -174,22 +176,24 @@ struct Painter {
         }
         SDL_SetTextureColorMod(glowTexture,color.r,color.g,color.b);SDL_SetTextureAlphaMod(glowTexture,color.a);SDL_RenderCopyF(r,glowTexture,nullptr,&dst);
     }
-    void icon(ui::Icon type,float x,float y,float size,SDL_Color c,bool secondary=false,double angle=0){
-        c=resolve(c);
-        y+=offsetY;
-        static const char *names[]={"monitor","volume-2","xr1-lite","maximize","refresh-cw","play","square","chevron-right","check"};
-        std::string name=type==ui::Icon::Speaker&&secondary?"volume-x":names[static_cast<int>(type)];
-        auto found=icons.find(name);
+    void bitmap(const std::string &path,SDL_FRect dst,SDL_Color c,double angle=0){
+        auto found=icons.find(path);
         if(found==icons.end()){
-            auto *surface=SDL_LoadBMP((assetPath+"/icons/"+name+".bmp").c_str());
-            if(!surface)throw std::runtime_error("Cannot load bundled icon "+name+": "+SDL_GetError());
+            auto *surface=SDL_LoadBMP((assetPath+"/"+path).c_str());
+            if(!surface)throw std::runtime_error("Cannot load bundled artwork "+path+": "+SDL_GetError());
             auto *texture=SDL_CreateTextureFromSurface(r,surface);SDL_FreeSurface(surface);if(!texture)throw std::runtime_error(SDL_GetError());
-            SDL_SetTextureBlendMode(texture,SDL_BLENDMODE_BLEND);SDL_SetTextureScaleMode(texture,SDL_ScaleModeLinear);found=icons.emplace(name,texture).first;
+            SDL_SetTextureBlendMode(texture,SDL_BLENDMODE_BLEND);SDL_SetTextureScaleMode(texture,SDL_ScaleModeLinear);found=icons.emplace(path,texture).first;
         }
+        c=resolve(c);
         SDL_SetTextureColorMod(found->second,c.r,c.g,c.b);SDL_SetTextureAlphaMod(found->second,c.a);
-        SDL_FRect dst{float(x),float(y),float(size),float(size)};
-        if(type==ui::Icon::Chevron&&secondary)angle=180;
+        dst.y+=offsetY;
         SDL_RenderCopyExF(r,found->second,nullptr,&dst,angle,nullptr,SDL_FLIP_NONE);
+    }
+    void icon(ui::Icon type,float x,float y,float size,SDL_Color c,bool secondary=false,double angle=0){
+        static const char *names[]={"monitor","volume-2","xr1-lite","maximize","refresh-cw","play","square","chevron-right","check"};
+        const char *name=type==ui::Icon::Speaker&&secondary?"volume-x":names[static_cast<int>(type)];
+        if(type==ui::Icon::Chevron&&secondary)angle=180;
+        bitmap(std::string("icons/")+name+".bmp",{x,y,size,size},c,angle);
     }
     void text(const std::string &s,float x,float y,SDL_Color color,TTF_Font *font=nullptr,int wrap=0){
         color=resolve(color);

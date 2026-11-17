@@ -14,6 +14,7 @@
 #include "fsr_upscaler.hpp"
 #ifdef _WIN32
 #include "windows_presenter.hpp"
+#include "windows_diagnostics.hpp"
 #endif
 struct Options {
     bool colorPreference=false,muted=false,fsr=false;
@@ -267,6 +268,8 @@ static int app(const Options &o) {
 #ifdef _WIN32
         WindowsVideoUpload videoUploads;
         WindowsPlaybackScheduling playbackScheduling;
+        bool windowsSessionActive=false;
+        std::string sessionVideoMode,sessionAudioMode,sessionSchedulingMode;
 #endif
         FrameRate shownCadence;double arrivalFps=0;
         double measuredFps=0,displayFps=0,uploadAge=0;
@@ -332,6 +335,36 @@ static int app(const Options &o) {
             lastVideoAt=0;
             persistVolume();
 #ifdef _WIN32
+            if(windowsSessionActive){
+                // Report only when playback stops; no extra work in real-time callbacks.
+                WindowsSessionDiagnostics diagnostics;
+                const auto captureState=capture.snapshot();
+                diagnostics.durationSeconds=std::max(0.0,monotime()-startTime);
+                diagnostics.videoMode=sessionVideoMode;
+                diagnostics.audioMode=sessionAudioMode;
+                diagnostics.schedulingMode=sessionSchedulingMode;
+                diagnostics.uploadDestinations=videoUploads.destinations();
+                diagnostics.arrived=captureState.samples;
+                diagnostics.arrivalsOver25ms=captureState.late;
+                diagnostics.pendingDiscarded=captureState.pendingDropped;
+                diagnostics.decoded=shared.captured.load();
+                diagnostics.skippedBeforeUpload=shared.skipped.load();
+                diagnostics.invalid=shared.corrupt.load();
+                diagnostics.displayed=presented;
+                diagnostics.audioOverflowSamples=audio.ring.dropped.load();
+                diagnostics.audioUnderflowSamples=audio.ring.starved.load();
+                diagnostics.uploadAgeMeanMs=uploadSamples?uploadTotal/uploadSamples:0;
+                diagnostics.uploadAgeMaxMs=uploadMax;
+                diagnostics.presentCallMeanMs=presentSamples?presentTotal/presentSamples:0;
+                diagnostics.presentCallMaxMs=presentMax;
+                const auto config=settingsPath();
+                const auto reportFile=config.empty()?std::filesystem::path{}:config.parent_path()/"last-session-diagnostics.txt";
+                if(saveWindowsSessionDiagnostics(reportFile,diagnostics))
+                    std::cout<<"Windows session diagnostics: "<<reportFile.string()<<"\n";
+                else
+                    std::cerr<<"Could not save Windows session diagnostics. Check settings folder permissions.\n";
+                windowsSessionActive=false;
+            }
             playbackScheduling.stop();
 #endif
             capture.stop();audio.stop();
@@ -361,6 +394,12 @@ static int app(const Options &o) {
                 playing=true;menu=false;startTime=monotime();lastVideoAt=0;lastStat=startTime;prevFrames=shared.captured;presented=prevPresented=0;controlsUntil=startTime+3;cursor(true);
                 measuredFps=displayFps=uploadAge=0;uploadTotal=uploadMax=presentTotal=presentMax=0;uploadSamples=presentSamples=0;
                 shownCadence.reset();arrivalFps=0;
+#ifdef _WIN32
+                sessionVideoMode=shared.mode;
+                sessionAudioMode=audio.mode;
+                sessionSchedulingMode=playbackScheduling.mode();
+                windowsSessionActive=true;
+#endif
                 if(!saveSettings(videos[static_cast<size_t>(vi)].path,inputs[static_cast<size_t>(ai)],oi<0?"":outputs[static_cast<size_t>(oi)],formats[static_cast<size_t>(fi)]
                     ,colorTheme,audio.volume.load(),audio.muted.load()
                 ))error="Settings could not be saved. Check the settings folder permissions and free space.";
